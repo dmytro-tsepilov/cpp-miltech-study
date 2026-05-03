@@ -12,9 +12,9 @@ struct NrkStep {
 };
 
 struct Coord {
-    double x;     // координати центру робота в метрах вiдносно точки старту;
-    double y;
-    double theta; //  орiєнтацiя (куди "дивиться" робот) у радiанах, вiдлiк вiд осi X:
+    double x = 0;     // координати центру робота в метрах вiдносно точки старту;
+    double y = 0;
+    double theta = 0; //  орiєнтацiя (куди "дивиться" робот) у радiанах, вiдлiк вiд осi X:
 
     friend std::ostream& operator<<(std::ostream& os, const Coord& c) {
         os << "(x: " << c.x << "; y:" << c.y << "; theta: " << c.theta << ")";
@@ -82,10 +82,10 @@ int main(int argc, char** argv) {
 
     double distance_per_tick = 2 * M_PI * wheel_radius_m / ticks_per_revolution;
 
+    Coord currentPostion;
+
     for (int i = 1; i < totalSteps; i++)
     {
-        //std::cout << nrkSteps[i]->fr_ticks << std::endl;
-
         // Step1 - calculate delta
         int d_fr = nrkSteps[i]->fr_ticks - nrkSteps[i-1]->fr_ticks;
         int d_fl = nrkSteps[i]->fl_ticks - nrkSteps[i-1]->fl_ticks;
@@ -109,13 +109,15 @@ int main(int argc, char** argv) {
         DEBUG("step: " << i << " distance: " << distance << " dtheta: " << dtheta);
 
         // Step5 - identify drone position
-        steps[i].pos.x += distance * cos(steps[i].pos.theta + dtheta / 2);
-        steps[i].pos.y += distance * sin(steps[i].pos.theta + dtheta / 2);
+        currentPostion.x += distance * cos(currentPostion.theta + dtheta / 2);
+        currentPostion.y += distance * sin(currentPostion.theta + dtheta / 2);
         steps[i].timestamp_ms = nrkSteps[i]->timestamp_ms;
 
-        steps[i].pos.theta += dtheta;
+        currentPostion.theta += dtheta;
 
-        DEBUG(steps[i].pos << " t: " << steps[i].timestamp_ms);
+        steps[i].pos = currentPostion;
+
+        DEBUG(currentPostion << " t: " << nrkSteps[i]->timestamp_ms);
     }
 
     // TODO: Save results
