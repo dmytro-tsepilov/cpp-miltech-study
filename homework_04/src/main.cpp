@@ -27,13 +27,18 @@ struct SimStep {
     Coord pos;
 };
 
-const std::string DATA_FOLDER = "./homework_04/data/";
+const std::string DATA_FOLDER = "";
 
 #define ENABLE_LOG	1
-#define ENABLE_DEBUG  1
+#define ENABLE_DEBUG  0
+// #define LOG_PREFIX "[LOG] "
+
+#ifndef LOG_PREFIX
+   #define LOG_PREFIX ""
+#endif
 
 #if ENABLE_LOG
-  #define LOG(msg) std::cout << "[LOG] " << msg << std::endl
+  #define LOG(msg) std::cout << LOG_PREFIX << msg << std::endl
 #else
   #define LOG(msg)
 #endif
@@ -50,7 +55,7 @@ const float wheel_radius_m = 0.3;
 const float wheelbase_m = 1.0;
 
 bool readDroneSteps(int &totalSteps, NrkStep **&nrkSteps, const std::string &filename);
-bool saveResultsToJson(const SimStep* steps, const int &stepCount, const std::string &filename = "output.txt");
+bool saveResultsToFile(const SimStep* steps, const int &stepCount, const std::string &filename = "output.txt");
 
 int main(int argc, char** argv) {
     // The program expects exactly one argument: a path to telemetry samples.
@@ -71,20 +76,19 @@ int main(int argc, char** argv) {
     // Output: a table on stdout, starting from the second sample:
     //         timestamp_ms x y theta
 
-    //std::cout << "argv[1]: " << argv[1] << "\n";
-
     NrkStep** nrkSteps = nullptr;
     int totalSteps = 0;
 
-    readDroneSteps(totalSteps, nrkSteps, argv[1]);
+    if (!readDroneSteps(totalSteps, nrkSteps, argv[1]))
+    {
+        return 1;
+    }
 
     LOG("Read file: '" << argv[1] << "' complete. Parsed " << totalSteps << " lines.");
 
-    SimStep* steps = new SimStep[totalSteps];
-
-    double distance_per_tick = 2 * M_PI * wheel_radius_m / ticks_per_revolution;
-
     Coord currentPostion;
+    SimStep* steps = new SimStep[totalSteps];
+    double distance_per_tick = 2 * M_PI * wheel_radius_m / ticks_per_revolution;
 
     for (int i = 1; i < totalSteps; i++)
     {
@@ -119,10 +123,12 @@ int main(int argc, char** argv) {
         steps[i].pos = currentPostion;
 
         DEBUG(currentPostion << " t: " << nrkSteps[i]->timestamp_ms);
+
+        LOG(steps[i].timestamp_ms << " " << steps[i].pos.x << " " << steps[i].pos.y << " " << steps[i].pos.theta);
     }
 
     // Save results to file
-    saveResultsToJson(steps, totalSteps);
+    // saveResultsToFile(steps, totalSteps);
 
     // Free memory
     for (int i = 0; i < totalSteps; i++)
@@ -169,7 +175,7 @@ bool readDroneSteps(int &totalSteps, NrkStep **&nrkSteps, const std::string &fil
     return true;
 }
 
-bool saveResultsToJson(const SimStep* steps, const int &stepCount, const std::string &filename)
+bool saveResultsToFile(const SimStep* steps, const int &stepCount, const std::string &filename)
 {
     std::ofstream outFile(filename);
     if (!outFile.is_open())
