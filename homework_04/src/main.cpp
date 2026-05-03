@@ -15,6 +15,16 @@ struct Coord {
     double x;     // координати центру робота в метрах вiдносно точки старту;
     double y;
     double theta; //  орiєнтацiя (куди "дивиться" робот) у радiанах, вiдлiк вiд осi X:
+
+    friend std::ostream& operator<<(std::ostream& os, const Coord& c) {
+        os << "(x: " << c.x << "; y:" << c.y << "; theta: " << c.theta << ")";
+        return os;
+    }
+};
+
+struct SimStep {
+    long timestamp_ms;
+    Coord pos;
 };
 
 const std::string DATA_FOLDER = "./homework_04/data/";
@@ -49,12 +59,26 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    std::cout << "argv[1]: " << argv[1] << "\n";
+    // TODO: implement wheel odometry for a 4-wheel differential-drive UGV.
+    //
+    // Model parameters:
+    //   ticks_per_revolution = 1024
+    //   wheel_radius_m       = 0.3
+    //   wheelbase_m          = 1.0
+    //
+    // Input: a text file with 5 whitespace-separated values per line:
+    //         timestamp_ms fl_ticks fr_ticks bl_ticks br_ticks
+    // Output: a table on stdout, starting from the second sample:
+    //         timestamp_ms x y theta
+
+    //std::cout << "argv[1]: " << argv[1] << "\n";
 
     NrkStep** nrkSteps = nullptr;
     int totalSteps = 0;
 
-    readDroneSteps(totalSteps, nrkSteps, "straight.txt");
+    readDroneSteps(totalSteps, nrkSteps, argv[1]);
+
+    SimStep* steps = new SimStep[totalSteps];
 
     double distance_per_tick = 2 * M_PI * wheel_radius_m / ticks_per_revolution;
 
@@ -76,31 +100,36 @@ int main(int argc, char** argv) {
         double dL = d_left  * distance_per_tick;
         double dR = d_right * distance_per_tick;
 
-        std::cout << "dL: " << dL << " dR: " << dR << std::endl;
+        DEBUG("dL: " << dL << " dR: " << dR);
 
         // Step4 - calculate distance
-        double distance = (dL + dR) / 2;             // пройдена вiдстань центру
-        double dtheta = (dR - dL) / wheelbase_m;    // змiна орiєнтацiї
+        double distance = (dL + dR) / 2;          // пройдена вiдстань центру
+        double dtheta = (dR - dL) / wheelbase_m;  // змiна орiєнтацiї
 
-        std::cout << "stepx: " << i << " distance: " << distance << " dtheta: " << dtheta << std::endl;
+        DEBUG("step: " << i << " distance: " << distance << " dtheta: " << dtheta);
+
+        // Step5 - identify drone position
+        steps[i].pos.x += distance * cos(steps[i].pos.theta + dtheta / 2);
+        steps[i].pos.y += distance * sin(steps[i].pos.theta + dtheta / 2);
+        steps[i].timestamp_ms = nrkSteps[i]->timestamp_ms;
+
+        steps[i].pos.theta += dtheta;
+
+        DEBUG(steps[i].pos << " t: " << steps[i].timestamp_ms);
     }
 
-    // TODO: implement wheel odometry for a 4-wheel differential-drive UGV.
-    //
-    // Model parameters:
-    //   ticks_per_revolution = 1024
-    //   wheel_radius_m       = 0.3
-    //   wheelbase_m          = 1.0
-    //
-    // Input: a text file with 5 whitespace-separated values per line:
-    //         timestamp_ms fl_ticks fr_ticks bl_ticks br_ticks
-    // Output: a table on stdout, starting from the second sample:
-    //         timestamp_ms x y theta
+    // TODO: Save results
+    // saveSteps()
 
+    // Free memory
     for (int i = 0; i < totalSteps; i++)
         delete[] nrkSteps[i];
     delete[] nrkSteps;
     nrkSteps = nullptr;
+
+    // Free SimStep memory
+    delete[] steps;
+    steps = nullptr;
 
     return 0;
 }
