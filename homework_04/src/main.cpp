@@ -17,13 +17,13 @@ struct Coord {
     double theta = 0; //  орiєнтацiя (куди "дивиться" робот) у радiанах, вiдлiк вiд осi X:
 
     friend std::ostream& operator<<(std::ostream& os, const Coord& c) {
-        os << "(x: " << c.x << "; y:" << c.y << "; theta: " << c.theta << ")";
+        os << "(x:" << c.x << "; y:" << c.y << "; theta:" << c.theta << ")";
         return os;
     }
 };
 
 struct SimStep {
-    long timestamp_ms;
+    long timestamp_ms = 0;
     Coord pos;
 };
 
@@ -50,7 +50,7 @@ const float wheel_radius_m = 0.3;
 const float wheelbase_m = 1.0;
 
 bool readDroneSteps(int &totalSteps, NrkStep **&nrkSteps, const std::string &filename);
-
+bool saveResultsToJson(const SimStep* steps, const int &stepCount, const std::string &filename = "output.txt");
 
 int main(int argc, char** argv) {
     // The program expects exactly one argument: a path to telemetry samples.
@@ -78,6 +78,8 @@ int main(int argc, char** argv) {
 
     readDroneSteps(totalSteps, nrkSteps, argv[1]);
 
+    LOG("Read file: '" << argv[1] << "' complete. Parsed " << totalSteps << " lines.");
+
     SimStep* steps = new SimStep[totalSteps];
 
     double distance_per_tick = 2 * M_PI * wheel_radius_m / ticks_per_revolution;
@@ -95,7 +97,7 @@ int main(int argc, char** argv) {
         // Step2 - 
         double d_left  = (d_fl + d_bl) / 2;
         double d_right = (d_fr + d_br) / 2;
-    
+
         // Step3 - Conver impulse to meters
         double dL = d_left  * distance_per_tick;
         double dR = d_right * distance_per_tick;
@@ -111,17 +113,16 @@ int main(int argc, char** argv) {
         // Step5 - identify drone position
         currentPostion.x += distance * cos(currentPostion.theta + dtheta / 2);
         currentPostion.y += distance * sin(currentPostion.theta + dtheta / 2);
-        steps[i].timestamp_ms = nrkSteps[i]->timestamp_ms;
-
         currentPostion.theta += dtheta;
 
+        steps[i].timestamp_ms = nrkSteps[i]->timestamp_ms;
         steps[i].pos = currentPostion;
 
         DEBUG(currentPostion << " t: " << nrkSteps[i]->timestamp_ms);
     }
 
-    // TODO: Save results
-    // saveSteps()
+    // Save results to file
+    saveResultsToJson(steps, totalSteps);
 
     // Free memory
     for (int i = 0; i < totalSteps; i++)
@@ -165,5 +166,28 @@ bool readDroneSteps(int &totalSteps, NrkStep **&nrkSteps, const std::string &fil
     }
 
     inputFile.close();
+    return true;
+}
+
+bool saveResultsToJson(const SimStep* steps, const int &stepCount, const std::string &filename)
+{
+    std::ofstream outFile(filename);
+    if (!outFile.is_open())
+    {
+        LOG("Error opening " << filename << " for writing");
+        return false;
+    }
+
+    LOG("Writing " << stepCount << " steps to " << filename << " (TXT format)");
+
+    for (int i = 0; i < stepCount; i++)
+    {
+        outFile << steps[i].timestamp_ms << " " << steps[i].pos.x << " " << steps[i].pos.y << " " << steps[i].pos.theta << std::endl;
+    }
+
+    outFile.close();
+
+    LOG("Calculation completed: " << stepCount << " steps written to " << filename);
+
     return true;
 }
