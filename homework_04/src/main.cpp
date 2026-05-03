@@ -1,10 +1,88 @@
 #include <iostream>
+#include <fstream>
+#include <ostream>
+#include <cmath>
+
+struct NrkStep {
+    long timestamp_ms;
+    long fl_ticks;
+    long fr_ticks;
+    long bl_ticks;
+    long br_ticks;
+};
+
+struct Coord {
+    double x;     // координати центру робота в метрах вiдносно точки старту;
+    double y;
+    double theta; //  орiєнтацiя (куди "дивиться" робот) у радiанах, вiдлiк вiд осi X:
+};
+
+const std::string DATA_FOLDER = "./homework_04/data/";
+
+#define ENABLE_LOG	1
+#define ENABLE_DEBUG  1
+
+#if ENABLE_LOG
+  #define LOG(msg) std::cout << "[LOG] " << msg << std::endl
+#else
+  #define LOG(msg)
+#endif
+
+#if ENABLE_DEBUG
+  #define DEBUG(msg) std::cout << "[DEBUG] " << msg << std::endl
+#else
+  #define DEBUG(msg)
+#endif
+
+
+const int ticks_per_revolution = 1024;
+const float wheel_radius_m = 0.3;
+const float wheelbase_m = 1.0;
+
+bool readDroneSteps(int &totalSteps, NrkStep **&nrkSteps, const std::string &filename);
+
 
 int main(int argc, char** argv) {
     // The program expects exactly one argument: a path to telemetry samples.
     if (argc != 2) {
         std::cerr << "usage: ugv_odometry <input_path>\n";
         return 1;
+    }
+
+    std::cout << "argv[1]: " << argv[1] << "\n";
+
+    NrkStep** nrkSteps = nullptr;
+    int totalSteps = 0;
+
+    readDroneSteps(totalSteps, nrkSteps, "straight.txt");
+
+    double distance_per_tick = 2 * M_PI * wheel_radius_m / ticks_per_revolution;
+
+    for (int i = 1; i < totalSteps; i++)
+    {
+        //std::cout << nrkSteps[i]->fr_ticks << std::endl;
+
+        // Step1 - calculate delta
+        int d_fr = nrkSteps[i]->fr_ticks - nrkSteps[i-1]->fr_ticks;
+        int d_fl = nrkSteps[i]->fl_ticks - nrkSteps[i-1]->fl_ticks;
+        int d_bl = nrkSteps[i]->bl_ticks - nrkSteps[i-1]->bl_ticks;
+        int d_br = nrkSteps[i]->br_ticks - nrkSteps[i-1]->br_ticks;
+
+        // Step2 - 
+        double d_left  = (d_fl + d_bl) / 2;
+        double d_right = (d_fr + d_br) / 2;
+    
+        // Step3 - Conver impulse to meters
+        double dL = d_left  * distance_per_tick;
+        double dR = d_right * distance_per_tick;
+
+        std::cout << "dL: " << dL << " dR: " << dR << std::endl;
+
+        // Step4 - calculate distance
+        double distance = (dL + dR) / 2;             // пройдена вiдстань центру
+        double dtheta = (dR - dL) / wheelbase_m;    // змiна орiєнтацiї
+
+        std::cout << "stepx: " << i << " distance: " << distance << " dtheta: " << dtheta << std::endl;
     }
 
     // TODO: implement wheel odometry for a 4-wheel differential-drive UGV.
@@ -19,5 +97,42 @@ int main(int argc, char** argv) {
     // Output: a table on stdout, starting from the second sample:
     //         timestamp_ms x y theta
 
+    for (int i = 0; i < totalSteps; i++)
+        delete[] nrkSteps[i];
+    delete[] nrkSteps;
+    nrkSteps = nullptr;
+
     return 0;
+}
+
+bool readDroneSteps(int &totalSteps, NrkStep **&nrkSteps, const std::string &filename)
+{
+    std::string line;
+
+    std::ifstream inputFile(DATA_FOLDER + filename);
+    if (!inputFile.is_open())
+    {
+        LOG("Error opening input file: " << DATA_FOLDER + filename);
+        return false;
+    }
+
+    while (std::getline(inputFile, line)) {
+        totalSteps++;
+    }
+
+    // Repoint file pointer to begin
+    inputFile.clear();
+    inputFile.seekg(0, std::ios::beg);
+
+    nrkSteps = new NrkStep*[totalSteps];
+    for (int i = 0; i < totalSteps; i++) {
+        nrkSteps[i] = new NrkStep {};
+
+        inputFile >> nrkSteps[i]->timestamp_ms >> 
+            nrkSteps[i]->fl_ticks >> nrkSteps[i]->fr_ticks >>
+            nrkSteps[i]->bl_ticks >> nrkSteps[i]->br_ticks;
+    }
+
+    inputFile.close();
+    return true;
 }
