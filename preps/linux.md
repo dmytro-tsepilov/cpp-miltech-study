@@ -22,7 +22,10 @@ sudo systemctl enable docker
 docker run hello-world
 ```
 
-## Як взяти код курсу
+## Як взяти код
+
+Спочатку створити власний репозиторій через `Use this template` на сторінці
+курс-репо в GitHub. Потім клонувати власний репозиторій:
 
 ```bash
 sudo apt update && sudo apt install -y git   # або еквівалент вашого пакетного менеджера
@@ -32,8 +35,8 @@ git config --global user.email "you@example.com"
 
 mkdir -p ~/projects
 cd ~/projects
-git clone --branch block-2-lesson-1 https://github.com/robot-dreams-code/C-PLUS-PLUS-FOR-MILITARY-TECHNOLOGY.git
-cd C-PLUS-PLUS-FOR-MILITARY-TECHNOLOGY
+git clone https://github.com/<your-username>/cpp-miltech.git
+cd cpp-miltech
 code .
 ```
 

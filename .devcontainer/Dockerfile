@@ -12,7 +12,7 @@
 #   docker inspect --format='{{index .RepoDigests 0}}' ubuntu:noble
 FROM ubuntu:noble@sha256:c4a8d5503dfb2a3eb8ab5f807da5bc69a85730fb49b5cfca2330194ebcc41c7b
 
-# Noninteractive frontend, щоб apt не зависнув чекаючи відповіді на
+# Неінтерактивний frontend, щоб apt не зависнув чекаючи відповіді на
 # питання (часовий пояс, клавіатура, kernel upgrade prompt). У Dockerfile
 # інтерактивного stdin немає - без цього build може зависнути назавжди.
 ARG DEBIAN_FRONTEND="noninteractive"
@@ -39,10 +39,11 @@ RUN apt update && \
 # запуску - тобто вони знайдуться незалежно від того, де всередині
 # контейнера змонтовано проєкт.
 COPY .clang-format /.clang-format
+COPY .clang-tidy /.clang-tidy
 COPY .clangd /.clangd
 COPY .cmake-format.json /.cmake-format.json
 
-# Environment:
+# Змінні середовища:
 # - TZ: UTC як нейтральний дефолт. Логи завжди в UTC, без суперечок з
 #   літнім часом різних регіонів.
 # - LC_ALL / LANG / LANGUAGE: en_US.UTF-8 щоб stdout/stderr коректно
@@ -52,7 +53,7 @@ ENV LC_ALL=en_US.UTF-8
 ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
 
-# Passwordless sudo для dev-контейнера: зручно для apt install на ходу,
+# sudo без пароля для dev-контейнера: зручно для apt install на ходу,
 # debug tools, etc. У прод-образах ніколи - там контейнер має жорстко
 # визначений набір прав.
 RUN echo "ALL ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
