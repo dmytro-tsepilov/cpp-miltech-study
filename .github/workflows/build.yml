@@ -39,9 +39,10 @@ jobs:
       # 4. Монтує checkout у workspaceFolder.
       # 5. Виконує runCmd від імені remoteUser.
       #
-      # -G Ninja: явно обираємо Ninja-генератор. ninja-build уже є у
-      # devcontainer-і, швидший за Make на проєктах з багатьма файлами
-      # (кращий паралелізм, менше overhead-у на запуск shell-команд).
+      # CMake preset debug тримає локальну і CI-збірку в одному місці:
+      # build/debug. Це також збігається з clangd compile_commands і
+      # VS Code debug launch config. ARM64 preset додатково перевіряє,
+      # що demo-код можна крос-компілювати для SBC target-а.
       - name: Build inside dev container
         uses: devcontainers/ci@v0.3
         with:
@@ -51,5 +52,7 @@ jobs:
           # на runner-і для runCmd.
           push: never
           runCmd: |
-            cmake -S . -B build -G Ninja
-            cmake --build build
+            cmake --preset debug
+            cmake --build --preset debug
+            cmake --preset aarch64-debug
+            cmake --build --preset aarch64-debug

@@ -26,8 +26,8 @@ devcontainer exec --workspace-folder . bash    # зайти в контейне�
 Одна команда без входу в shell:
 
 ```bash
-devcontainer exec --workspace-folder . cmake -S . -B build
-devcontainer exec --workspace-folder . cmake --build build
+devcontainer exec --workspace-folder . cmake --preset debug
+devcontainer exec --workspace-folder . cmake --build --preset debug
 ```
 
 Після зміни `Dockerfile`:

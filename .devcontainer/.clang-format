@@ -1,6 +1,9 @@
 ---
 Language: Cpp
-# BasedOnStyle:  Google
+# Єдиний стиль форматування C++ прикладів у курсі.
+# Файл копіюється в корінь devcontainer-а, щоб clang-format знаходив його
+# незалежно від директорії, з якої запускається команда.
+# BasedOnStyle: Google
 AccessModifierOffset: -2
 AlignAfterOpenBracket: Align
 AlignConsecutiveMacros: false

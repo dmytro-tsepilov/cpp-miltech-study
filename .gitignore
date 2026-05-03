@@ -1,79 +1,33 @@
-# Prerequisites
-*.d
-
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
-# Debug files
-*.dSYM/
-*.su
-*.idb
-*.pdb
-
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
-
-# CMake
-CMakeLists.txt.user
-CMakeCache.txt
-CMakeFiles
-CMakeScripts
-Testing
-Makefile
-cmake_install.cmake
-install_manifest.txt
-compile_commands.json
-CTestTestfile.cmake
-_deps
-
-# Build directories
+# Директорії збірки та локальний output мають відтворюватися з CMake.
 build/
 build-*/
 out/
-bin/
-obj/
 
-# IDE / editor
-.vs/
-.idea/
-*.swp
-*.swo
-*~
-.cache/
+# CMake генерує ці файли при in-source або ручних локальних збірках.
+CMakeCache.txt
+CMakeFiles/
+CTestTestfile.cmake
+Makefile
+cmake_install.cmake
+compile_commands.json
+install_manifest.txt
+_deps/
 
-# OS
+# Мінімальний набір compiled/debug артефактів для C++ прикладів.
+*.d
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+*.dSYM/
+*.pdb
+core
+core.*
+
+# Метадані операційної системи не є частиною навчального репозиторію.
 .DS_Store
 Thumbs.db

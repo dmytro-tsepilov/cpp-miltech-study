@@ -46,9 +46,11 @@ docker run hello-world
 
 **Важливо:** код тримати в `~/projects/...` всередині WSL, не на `C:\`. Через `/mnt/c/` IO в рази повільніше, VS Code буде нестерпно гальмувати.
 
-## Як взяти код курсу
+## Як взяти код
 
-Клон йде в WSL (не на `C:\`). В Ubuntu-терміналі:
+Спочатку створити власний репозиторій через `Use this template` на сторінці
+курс-репо в GitHub. Потім клонувати власний репозиторій у WSL (не на `C:\`).
+В Ubuntu-терміналі:
 
 ```bash
 sudo apt update && sudo apt install -y git
@@ -58,8 +60,8 @@ git config --global user.email "you@example.com"
 
 mkdir -p ~/projects
 cd ~/projects
-git clone --branch block-2-lesson-1 https://github.com/robot-dreams-code/C-PLUS-PLUS-FOR-MILITARY-TECHNOLOGY.git
-cd C-PLUS-PLUS-FOR-MILITARY-TECHNOLOGY
+git clone https://github.com/<your-username>/cpp-miltech.git
+cd cpp-miltech
 code .
 ```
 
