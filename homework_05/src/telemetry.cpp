@@ -1,5 +1,6 @@
 #include "telemetry.hpp"
 
+#include <format>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -11,6 +12,8 @@
 
 const int EXPECTED_FIELD_COUNT = 7;
 const int MAX_LINE_LENGTH = 256;
+
+Frame parse_frame(char line[], int &error_code, std::string &error_message);
 
 int split_line(char line[], char* fields[], int max_fields) {
     int count = 0;
@@ -64,10 +67,15 @@ double parse_double(const char* text) {
     return value;
 }
 
-Frame parse_frame(char line[]) {
+Frame parse_frame(char line[], int &error_code, std::string &error_message) {
     char* fields[EXPECTED_FIELD_COUNT] = {};
     const int field_count = split_line(line, fields, EXPECTED_FIELD_COUNT);
-    (void)field_count;
+
+    if (field_count != EXPECTED_FIELD_COUNT) {
+        error_message = std::format("error: expected {} fields, but got {}\n", EXPECTED_FIELD_COUNT, field_count);
+        error_code = 1;
+        return {};
+    }
 
     Frame frame{};
     frame.timestamp_ms = parse_long(fields[0]);
@@ -83,17 +91,24 @@ Frame parse_frame(char line[]) {
 double compute_frame_rate_hz(const Frame frames[], int frame_count) {
     const long elapsed_ms = frames[frame_count - 1].timestamp_ms - frames[0].timestamp_ms;
 
+    if (!elapsed_ms) {
+        std::cout << __FUNCTION__ << ": error: elapsed_ms is 0" << std::endl;
+        std::exit(4);
+    }
+
     return static_cast<double>((frame_count - 1) * 1000 / elapsed_ms);
 }
 
 int read_frames(const char* path, Frame frames[], int max_frames) {
     std::ifstream input{path};
     if (!input) {
-        std::cerr << "error: failed to open input file: " << path << '\n';
+        std::cerr << __FUNCTION__ << ": error: failed to open input file: " << path << '\n';
         return 0;
     }
 
     int frame_count = 0;
+    int error_code = 0;
+    std::string error_message = "";
     char line[MAX_LINE_LENGTH];
 
     while (input.getline(line, MAX_LINE_LENGTH)) {
@@ -102,7 +117,11 @@ int read_frames(const char* path, Frame frames[], int max_frames) {
         }
 
         if (frame_count < max_frames) {
-            frames[frame_count] = parse_frame(line);
+            frames[frame_count] = parse_frame(line, error_code, error_message);
+            if (error_code != 0) {
+                std::cerr << __FUNCTION__ << ": parsed line: " << frame_count << " - " << error_message << '\n';
+                return 0;
+            }
             ++frame_count;
         }
     }
