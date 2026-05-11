@@ -17,6 +17,16 @@
       }
     },
     {
+      "name": "release",
+      "displayName": "Release",
+      "description": "Release build для занять блоку 2: оптимізований код без символів для GDB.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
       "name": "aarch64-debug",
       "displayName": "ARM64 Debug",
       "description": "Cross-compile debug build для Raspberry Pi / Radxa / Jetson через aarch64-linux-gnu toolchain.",
@@ -34,6 +44,12 @@
       "displayName": "Build Debug",
       "description": "Зібрати debug preset після configure.",
       "configurePreset": "debug"
+    },
+    {
+      "name": "release",
+      "displayName": "Build Release",
+      "description": "Зібрати release preset після configure.",
+      "configurePreset": "release"
     },
     {
       "name": "aarch64-debug",
