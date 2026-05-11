@@ -14,6 +14,7 @@ const int EXPECTED_FIELD_COUNT = 7;
 const int MAX_LINE_LENGTH = 256;
 
 Frame parse_frame(char line[], int &error_code, std::string &error_message);
+bool is_valid_frame(const int &line_number, const Frame &current_frame, const Frame &previous_frame = {});
 
 int split_line(char line[], char* fields[], int max_fields) {
     int count = 0;
@@ -46,7 +47,7 @@ long parse_long(const char* text, int &error_code) {
     const long value = std::strtol(text, &end, 10);
 
     if (end == text) {
-        std::cout << __FUNCTION__ << "-> error: invalid value: " << text << std::endl;
+        std::cerr << __FUNCTION__ << "-> error: invalid value: " << text << std::endl;
         error_code = 3;
         return -1;
     }
@@ -63,7 +64,7 @@ double parse_double(const char* text, int &error_code) {
     const double value = std::strtod(text, &end);
 
     if (end == text) {
-        std::cout << __FUNCTION__ << "-> error: invalid value: " << text << std::endl;
+        std::cerr << __FUNCTION__ << "-> error: invalid value: " << text << std::endl;
         error_code = 3;
         return -1;
     }
@@ -91,18 +92,61 @@ Frame parse_frame(char line[], int &error_code, std::string &error_message) {
     frame.satellites = parse_int(fields[6], error_code);
 
     if (error_code != 0) {
-        std::cerr << __FUNCTION__ << " -> error ->";
+        error_message = std::format("{} -> error ->", __FUNCTION__);
         return {};
     }
 
     return frame;
 }
 
+bool is_valid_frame(const int &line_number, const Frame &current_frame, const Frame &previous_frame) {
+
+    // voltage_v > 0;
+    if (current_frame.voltage_v <= 0) {
+        std::cerr << __FUNCTION__ << "-> parse error line: " << line_number << " -> voltage_v: <= 0" << std::endl;
+        return false;
+    }
+
+    // temperature_c у діапазоні [-40, 120];
+    if (current_frame.temperature_c > 120 || current_frame.temperature_c < -40) {
+        std::cerr << __FUNCTION__ << "-> parse error line: " << line_number << " -> temperature_c out of range [-40, 120]" << std::endl;
+        return false;
+    }
+
+    // gps_fix дорівнює 0 або 1;
+    if (current_frame.gps_fix != 0 && current_frame.gps_fix != 1) {
+        std::cerr << __FUNCTION__ << "-> parse error line: " << line_number << " -> gps_fix: not 0 or 1" << std::endl;
+        return false;
+    }
+
+    // satellites >= 0
+    if (current_frame.satellites < 0) {
+        std::cerr << __FUNCTION__ << "-> parse error line: " << line_number << " -> satellites: < 0" << std::endl;
+        return false;
+    }
+
+    // seq зростає на 1;
+    if (line_number > 0) {
+        if (current_frame.seq != previous_frame.seq + 1) {
+            std::cerr << __FUNCTION__ << "-> parse error line: " << line_number << " -> seq: expected " << previous_frame.seq + 1 << ", but got " << current_frame.seq << std::endl;
+            return false;
+        }
+
+        // timestamp_ms зростає;
+        if (current_frame.timestamp_ms <= previous_frame.timestamp_ms) {
+            std::cerr << __FUNCTION__ << "-> parse error line: " << line_number << " -> timestamp_ms: expected > " << previous_frame.timestamp_ms << ", but got " << current_frame.timestamp_ms << std::endl;
+            return false;
+        }
+    }
+
+    return true;
+}
+
 double compute_frame_rate_hz(const Frame frames[], int frame_count) {
     const long elapsed_ms = frames[frame_count - 1].timestamp_ms - frames[0].timestamp_ms;
 
     if (!elapsed_ms) {
-        std::cout << __FUNCTION__ << "-> error: elapsed_ms is 0" << std::endl;
+        std::cerr << __FUNCTION__ << "-> error: elapsed_ms is 0" << std::endl;
         std::exit(4);
     }
 
@@ -130,6 +174,12 @@ int read_frames(const char* path, Frame frames[], int max_frames) {
             frames[frame_count] = parse_frame(line, error_code, error_message);
             if (error_code != 0) {
                 std::cerr << __FUNCTION__ << "-> on parsing line: " << frame_count << " - " << error_message << std::endl;
+                return 0;
+            }
+
+            Frame previous_frame = frame_count > 0 ? frames[frame_count - 1] : Frame{};
+            if (!is_valid_frame(frame_count, frames[frame_count], previous_frame))
+            {
                 return 0;
             }
             ++frame_count;
