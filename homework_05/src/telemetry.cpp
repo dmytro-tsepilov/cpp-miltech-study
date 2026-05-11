@@ -41,27 +41,31 @@ int split_line(char line[], char* fields[], int max_fields) {
     return count;
 }
 
-long parse_long(const char* text) {
+long parse_long(const char* text, int &error_code) {
     char* end = nullptr;
     const long value = std::strtol(text, &end, 10);
 
     if (end == text) {
-        std::abort();
+        std::cout << __FUNCTION__ << "-> error: invalid value: " << text << std::endl;
+        error_code = 3;
+        return -1;
     }
 
     return value;
 }
 
-int parse_int(const char* text) {
-    return static_cast<int>(parse_long(text));
+int parse_int(const char* text, int &error_code) {
+    return static_cast<int>(parse_long(text, error_code));
 }
 
-double parse_double(const char* text) {
+double parse_double(const char* text, int &error_code) {
     char* end = nullptr;
     const double value = std::strtod(text, &end);
 
     if (end == text) {
-        std::abort();
+        std::cout << __FUNCTION__ << "-> error: invalid value: " << text << std::endl;
+        error_code = 3;
+        return -1;
     }
 
     return value;
@@ -72,19 +76,25 @@ Frame parse_frame(char line[], int &error_code, std::string &error_message) {
     const int field_count = split_line(line, fields, EXPECTED_FIELD_COUNT);
 
     if (field_count != EXPECTED_FIELD_COUNT) {
-        error_message = std::format("error: expected {} fields, but got {}\n", EXPECTED_FIELD_COUNT, field_count);
+        error_message = std::format("error: expected {} fields, but got {}", EXPECTED_FIELD_COUNT, field_count);
         error_code = 1;
         return {};
     }
 
     Frame frame{};
-    frame.timestamp_ms = parse_long(fields[0]);
-    frame.seq = parse_int(fields[1]);
-    frame.voltage_v = parse_double(fields[2]);
-    frame.current_a = parse_double(fields[3]);
-    frame.temperature_c = parse_double(fields[4]);
-    frame.gps_fix = parse_int(fields[5]);
-    frame.satellites = parse_int(fields[6]);
+    frame.timestamp_ms = parse_long(fields[0], error_code);
+    frame.seq = parse_int(fields[1], error_code);
+    frame.voltage_v = parse_double(fields[2], error_code);
+    frame.current_a = parse_double(fields[3], error_code);
+    frame.temperature_c = parse_double(fields[4], error_code);
+    frame.gps_fix = parse_int(fields[5], error_code);
+    frame.satellites = parse_int(fields[6], error_code);
+
+    if (error_code != 0) {
+        std::cerr << __FUNCTION__ << " -> error ->";
+        return {};
+    }
+
     return frame;
 }
 
@@ -92,7 +102,7 @@ double compute_frame_rate_hz(const Frame frames[], int frame_count) {
     const long elapsed_ms = frames[frame_count - 1].timestamp_ms - frames[0].timestamp_ms;
 
     if (!elapsed_ms) {
-        std::cout << __FUNCTION__ << ": error: elapsed_ms is 0" << std::endl;
+        std::cout << __FUNCTION__ << "-> error: elapsed_ms is 0" << std::endl;
         std::exit(4);
     }
 
@@ -102,7 +112,7 @@ double compute_frame_rate_hz(const Frame frames[], int frame_count) {
 int read_frames(const char* path, Frame frames[], int max_frames) {
     std::ifstream input{path};
     if (!input) {
-        std::cerr << __FUNCTION__ << ": error: failed to open input file: " << path << '\n';
+        std::cerr << __FUNCTION__ << "-> error: failed to open input file: " << path << std::endl;
         return 0;
     }
 
@@ -119,7 +129,7 @@ int read_frames(const char* path, Frame frames[], int max_frames) {
         if (frame_count < max_frames) {
             frames[frame_count] = parse_frame(line, error_code, error_message);
             if (error_code != 0) {
-                std::cerr << __FUNCTION__ << ": parsed line: " << frame_count << " - " << error_message << '\n';
+                std::cerr << __FUNCTION__ << "-> on parsing line: " << frame_count << " - " << error_message << std::endl;
                 return 0;
             }
             ++frame_count;

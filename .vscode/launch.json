@@ -59,7 +59,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/build/debug/homework_05/telemetry_check",
       "args": [
-        "${workspaceFolder}/homework_05/data/bad_zero_delta.txt"
+        "${workspaceFolder}/homework_05/data/good.txt"
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
