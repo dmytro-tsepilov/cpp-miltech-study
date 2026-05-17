@@ -84,7 +84,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    LOG("Read file: '" << argv[1] << "' complete. Parsed " << totalSteps << " lines.");
+    DEBUG("Read file: '" << argv[1] << "' complete. Parsed " << totalSteps << " lines.");
 
     Coord currentPostion;
     SimStep* steps = new SimStep[totalSteps];
