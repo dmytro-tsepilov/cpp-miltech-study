@@ -8,11 +8,24 @@ using json = nlohmann::json;
 class IConfigLoader {
 public:
     virtual ~IConfigLoader() = default;
-    virtual bool loadConfigFromFile(const std::string &filename, DroneConfig &dConf) = 0;
+    virtual bool load() = 0;
+
+    virtual DroneConfig getConfig() = 0;
+    virtual AmmoType **getAmmoParams(int &ammoCount) = 0;
 };
 
-// Реалізація для файлів
 class FileConfigLoader : public IConfigLoader {
+private:
+    std::string folderPath;
+    DroneConfig dConf;
+    AmmoType** ammoTypes = nullptr;
+    int ammoCount;
+
 public:
-    bool loadConfigFromFile(const std::string &filename, DroneConfig &dConf) override;
+    bool load() override;
+    DroneConfig getConfig() override;
+    AmmoType **getAmmoParams(int &ammoCount) override;
+    void setFolderPath(const std::string folderPath = "");
+    bool loadConfigFromFile(const std::string &filename = "config.json");
+    bool loadAmmoTypesFromFile(const std::string &filename = "ammo.json");
 };
