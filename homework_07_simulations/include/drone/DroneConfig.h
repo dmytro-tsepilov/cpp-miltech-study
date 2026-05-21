@@ -1,14 +1,5 @@
-#pragma once
 #include <cmath>
 #include <ostream>
-
-struct AmmoType
-{
-    char name[32];
-	float mass = 0; 	// маса (кг)
-	float drag = 0; 	// коефіцієнт опору
-	float lift = 0; 	// коефіцієнт підйому
-};
 
 struct Coord
 {
