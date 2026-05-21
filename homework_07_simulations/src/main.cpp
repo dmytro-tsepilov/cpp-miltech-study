@@ -3,6 +3,8 @@
 #include <cmath>
 #include <strings.h>
 
+#include "common/macros.h"
+
 // Вимикаємо попередження про тавтологічні порівняння перед інклудом json.hpp
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wtautological-overlap-compare"
@@ -13,22 +15,9 @@
 
 using json = nlohmann::json;
 
-#define ENABLE_LOG	1
-#define ENABLE_DEBUG  1
+#include "drone/ConfigLoader.h"
 
-#if ENABLE_LOG
-  #define LOG(msg) std::cout << "[LOG] " << msg << std::endl
-#else
-  #define LOG(msg)
-#endif
-
-#if ENABLE_DEBUG
-  #define DEBUG(msg) std::cout << "[DEBUG] " << msg << std::endl
-#else
-  #define DEBUG(msg)
-#endif
-
-const std::string DATA_FOLDER = "./";
+std::string DATA_FOLDER = "./";
 
 constexpr double g = 9.81;
 
@@ -41,69 +30,6 @@ enum DroneState : int8_t
     MOVING       = 4,
 };
 
-struct Coord
-{
-    double x;
-    double y;
-
-	// Додавання координат
-	Coord operator+(const Coord& other) const {
-    	Coord result;
-        result.x = x + other.x;
-        result.y = y + other.y;
-        return result;
-	}
-
-	// Віднімання координат
-	Coord operator-(const Coord& other) const {
-    	Coord result;
-        result.x = x - other.x;
-        result.y = y - other.y;
-        return result;
-	}
-
-	// Множення на скаляр
-	Coord operator*(float s) const {
-    	Coord result;
-        result.x = x * s;
-        result.y = y * s;
-        return result;
-	}
-
-	// Ділення на скаляр
-	Coord operator/(double s) const {
-    	Coord result;
-        result.x = x / s;
-        result.y = y / s;
-        return result;
-	}
-
-    double length() const {
-        return std::hypot(x, y);
-    }
-
-    Coord normalize() const {
-        double len = length();
-        if (len > 1e-9) {
-            return *this / len;
-        }
-        return {0, 0};
-    }
-
-    bool operator==(const Coord& other) const {
-        return x == other.x && y == other.y;
-    }
-
-    // Helper function for hypot()
-    double distanceTo(const Coord& other) const {
-        return std::hypot(x - other.x, y - other.y);
-    }
-
-    friend std::ostream& operator<<(std::ostream& os, const Coord& c) {
-        os << "(x: " << c.x << "; y:" << c.y << ")";
-        return os;
-    }
-};
 
 struct AmmoType
 {
@@ -111,20 +37,6 @@ struct AmmoType
 	float mass = 0; 	// маса (кг)
 	float drag = 0; 	// коефіцієнт опору
 	float lift = 0; 	// коефіцієнт підйому
-};
-
-struct DroneConfig {
-	Coord startPos;     	// початкова позиція (x, y)
-	float altitude;     	// висота
-	float initialDir;   	// початковий напрямок (рад)
-	float attackSpeed;  	// швидкість атаки (м/с)
-	float accelPath;    	// шлях розгону (м)
-	char  ammoName[32]; 	// обрані боєприпаси
-	float arrayTimeStep;	// крок часу масиву цілей
-	float simTimeStep;  	// крок симуляції
-	float hitRadius;    	// радіус влучення
-	float angularSpeed; 	// кутова швидкість (рад/с)
-	float turnThreshold;	// поріг повороту (рад)
 };
 
 struct SimStep {
@@ -157,8 +69,16 @@ bool leadTarget(Coord pos, float zd, int tgtIdx, const double &currentTime, cons
 int calculateFlow();
 bool saveResultsToJson(SimStep* steps, int stepCount, const std::string &filename = "simulation.json");
 
-int main()
+int main(int argc, char** argv)
 {
+    // The executable expects folder path with simulation files
+    if (argc != 2) {
+        std::cerr << "usage: drone_simulations <input_path>\n";
+        return 1;
+    }
+
+    DATA_FOLDER = argv[1];
+
     calculateFlow();
 
     return 0;
@@ -250,8 +170,8 @@ int calculateFlow()
     loadTargetsFromFile(targetCount, timeSteps, targets);
 
     //  ------- Read input values from file -------
-    loadDroneConfigFromFile(dConf);
-
+    FileConfigLoader *cfgLoader = new FileConfigLoader();
+    cfgLoader->loadConfigFromFile(DATA_FOLDER + "config.json", dConf);
 
     if (dConf.attackSpeed <= 0 || dConf.accelPath <= 0 || dConf.arrayTimeStep <= 0 || dConf.simTimeStep <= 0 || dConf.angularSpeed <= 0)
     {
@@ -708,33 +628,6 @@ bool loadAmmoTypesFromFile(AmmoType **&ammoTypes, int &ammoCount, const std::str
     return true;
 }
 
-bool loadDroneConfigFromFile(DroneConfig &dConf, const std::string &filename)
-{
-    std::ifstream inputFile(DATA_FOLDER + filename);
-    if (!inputFile.is_open())
-    {
-        LOG("Error opening ammo types file");
-        return false;
-    }
-
-    json data = json::parse(inputFile);
-
-	dConf.startPos = {data["drone"]["position"]["x"], data["drone"]["position"]["y"]  };
-	dConf.altitude = data["drone"]["altitude"];
-	dConf.initialDir = data["drone"]["initialDirection"];
-	dConf.attackSpeed = data["drone"]["attackSpeed"];
-	dConf.accelPath = data["drone"]["accelerationPath"];
-	std::strncpy(dConf.ammoName, data["ammo"].get<std::string>().c_str(), 32);
-	dConf.arrayTimeStep = data["targetArrayTimeStep"];
-	dConf.simTimeStep = data["simulation"]["timeStep"];
-	dConf.hitRadius = data["simulation"]["hitRadius"];
-	dConf.angularSpeed = data["drone"]["angularSpeed"];
-	dConf.turnThreshold = data["drone"]["turnThreshold"];
-
-    inputFile.close();
-    return true;
-}
-
 bool saveResultsToJson(SimStep* steps, int stepCount, const std::string &filename)
 {
     std::ofstream outFile(filename);
@@ -770,3 +663,28 @@ bool saveResultsToJson(SimStep* steps, int stepCount, const std::string &filenam
 
     return true;
 }
+
+
+class ITargetProvider {
+public:
+    virtual int    getTargetCount() = 0;
+    virtual Target getTarget(int index) = 0;
+    virtual ~ITargetProvider() {}
+};
+
+class JsonTargetProvider : public ITargetProvider {
+public:
+    JsonTargetProvider(const std::string &filename) {
+        // Load targets from JSON file
+    }
+
+    int getTargetCount() override {
+        // Return number of targets
+        return 0;
+    }
+
+    Target getTarget(int index) override {
+        // Return target at specified index
+        return Target();
+    }
+};
