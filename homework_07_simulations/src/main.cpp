@@ -30,15 +30,6 @@ enum DroneState : int8_t
     MOVING       = 4,
 };
 
-
-struct AmmoType
-{
-    char name[32];
-	float mass = 0; 	// маса (кг)
-	float drag = 0; 	// коефіцієнт опору
-	float lift = 0; 	// коефіцієнт підйому
-};
-
 struct SimStep {
 	Coord pos;          	// позиція дрона
 	float direction;    	// напрямок (рад)
@@ -56,8 +47,6 @@ Coord** targets = nullptr;
 
 
 bool loadTargetsFromFile(int &targetCount, int &timeSteps, Coord **&targets, const std::string &filename = "targets.json");
-bool loadAmmoTypesFromFile(AmmoType **&ammoTypes, int &ammoCount, const std::string &filename = "ammo.json");
-bool loadDroneConfigFromFile(DroneConfig &dConf, const std::string &filename = "config.json");
 double calculateTimeToTarget(const float attackSpeed, const float ammoDrag, const float ammoMass, const float ammoLift, const float zd);
 double calculateHorizontalDistance(const float &attackSpeed, const float &ammoDrag, const float &ammoMass, const float &ammoLift, const double &time);
 Coord targetInterpolation(const int8_t &targetId, const double &time, const float &arrayTimeStep);
@@ -157,11 +146,15 @@ int calculateFlow()
     AmmoType ammo = {};
     SimStep simStep = {};
 
-    //  ------- Load ammo types from file   -------
+    //  ------- Load ammo types and config from file   -------
     AmmoType** bombTypes = nullptr;
     int ammoCount = 0;
 
-    loadAmmoTypesFromFile(bombTypes, ammoCount);
+    FileConfigLoader *cfgLoader = new FileConfigLoader();
+    cfgLoader->setFolderPath(DATA_FOLDER);
+    cfgLoader->load();
+    dConf = cfgLoader->getConfig();
+    bombTypes = cfgLoader->getAmmoParams(ammoCount);
 
     //  ------- Initialize target coordinates -------
     int targetCount = 0;
@@ -169,9 +162,7 @@ int calculateFlow()
 
     loadTargetsFromFile(targetCount, timeSteps, targets);
 
-    //  ------- Read input values from file -------
-    FileConfigLoader *cfgLoader = new FileConfigLoader();
-    cfgLoader->loadConfigFromFile(DATA_FOLDER + "config.json", dConf);
+    // Check readed data
 
     if (dConf.attackSpeed <= 0 || dConf.accelPath <= 0 || dConf.arrayTimeStep <= 0 || dConf.simTimeStep <= 0 || dConf.angularSpeed <= 0)
     {
@@ -593,35 +584,6 @@ bool loadTargetsFromFile(int &targetCount, int &timeSteps, Coord **&targets, con
             targets[i][j].x = data["targets"][i]["positions"][j]["x"];
             targets[i][j].y = data["targets"][i]["positions"][j]["y"];
         }
-    }
-
-    inputFile.close();
-    return true;
-}
-
-/**
- * Loads ammo types from a JSON file.
- */
-bool loadAmmoTypesFromFile(AmmoType **&ammoTypes, int &ammoCount, const std::string &filename)
-{
-    std::ifstream inputFile(DATA_FOLDER + filename);
-    if (!inputFile.is_open())
-    {
-        LOG("Error opening ammo types file");
-        return false;
-    }
-
-    json data = json::parse(inputFile);
-
-    ammoCount = data.size();
-
-    ammoTypes = new AmmoType*[ammoCount];
-    for (int i = 0 ; i < ammoCount; i++) {
-        ammoTypes[i] = new AmmoType;
-        std::strncpy(ammoTypes[i]->name, data[i]["name"].get<std::string>().c_str(), 31);
-        ammoTypes[i]->mass = data[i]["mass"];
-        ammoTypes[i]->drag = data[i]["drag"];
-        ammoTypes[i]->lift = data[i]["lift"];
     }
 
     inputFile.close();
