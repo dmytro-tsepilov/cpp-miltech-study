@@ -16,8 +16,7 @@
 using json = nlohmann::json;
 
 #include "drone/ConfigLoader.h"
-
-std::string DATA_FOLDER = "./";
+#include "target/TargetLoader.h"
 
 constexpr double g = 9.81;
 
@@ -43,10 +42,8 @@ struct SimStep {
 const int MAX_STEPS = 10000;
 
 // Traget coordintes arrays
-Coord** targets = nullptr;
+JsonTargetProvider jsProvider;
 
-
-bool loadTargetsFromFile(int &targetCount, int &timeSteps, Coord **&targets, const std::string &filename = "targets.json");
 double calculateTimeToTarget(const float attackSpeed, const float ammoDrag, const float ammoMass, const float ammoLift, const float zd);
 double calculateHorizontalDistance(const float &attackSpeed, const float &ammoDrag, const float &ammoMass, const float &ammoLift, const double &time);
 Coord targetInterpolation(const int8_t &targetId, const double &time, const float &arrayTimeStep);
@@ -55,7 +52,7 @@ double applyLimitedTurn(const SimStep &simStep, const double &maxTurnPerStep, co
 bool leadTarget(Coord pos, float zd, int tgtIdx, const double &currentTime, const float &attackSpeed,
                   const AmmoType &ammoType, float arrayTimeStep, Coord &firePos, Coord &predict);
 
-int calculateFlow();
+int calculateFlow(const std::string &dataFolder = "");
 bool saveResultsToJson(SimStep* steps, int stepCount, const std::string &filename = "simulation.json");
 
 int main(int argc, char** argv)
@@ -66,23 +63,21 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    DATA_FOLDER = argv[1];
-
-    calculateFlow();
+    calculateFlow(argv[1]);
 
     return 0;
 }
 
 // Extrapolate target position at time t + dtAhead
-Coord extrapTarget(int targetId, double currentTime, double dtAhead, float dt)
-{
-    int idx = (int)floor(currentTime / dt) % 60;
-    int next = (idx + 1) % 60;
-    Coord vPos = (targets[targetId][next] - targets[targetId][idx]) / dt;
+// Coord extrapTarget(int targetId, double currentTime, double dtAhead, float dt)
+// {
+//     int idx = (int)floor(currentTime / dt) % 60;
+//     int next = (idx + 1) % 60;
+//     Coord vPos = (targets[targetId][next] - targets[targetId][idx]) / dt;
 
-    Coord curPos = targetInterpolation(targetId, currentTime, dt);
-    return curPos + vPos * dtAhead;
-}
+//     Coord curPos = targetInterpolation(targetId, currentTime, dt);
+//     return curPos + vPos * dtAhead;
+// }
 
 double applyLimitedTurn(const SimStep &simStep, const double &maxTurnPerStep, const double &desiredDir)
 {
@@ -140,7 +135,7 @@ bool leadTarget(Coord pos, float zd, int tgtIdx, const double &currentTime,
     return true;
 }
 
-int calculateFlow()
+int calculateFlow(const std::string &dataFolder)
 {
     DroneConfig dConf;
     AmmoType ammo = {};
@@ -151,16 +146,17 @@ int calculateFlow()
     int ammoCount = 0;
 
     FileConfigLoader *cfgLoader = new FileConfigLoader();
-    cfgLoader->setFolderPath(DATA_FOLDER);
+    cfgLoader->setFolderPath(dataFolder);
     cfgLoader->load();
     dConf = cfgLoader->getConfig();
     bombTypes = cfgLoader->getAmmoParams(ammoCount);
 
     //  ------- Initialize target coordinates -------
-    int targetCount = 0;
-    int timeSteps = 0;
+    jsProvider.setFolderPath(dataFolder);
+    jsProvider.loadTargetsFromFile();
 
-    loadTargetsFromFile(targetCount, timeSteps, targets);
+    int targetCount = jsProvider.getTargetCount();
+    //int timeSteps = jsProvider.getTimeSteps();
 
     // Check readed data
 
@@ -477,16 +473,6 @@ int calculateFlow()
     delete[] steps;
     steps = nullptr;
 
-    for (int i = 0; i < ammoCount; i++)
-        delete bombTypes[i];
-    delete[] bombTypes;
-    bombTypes = nullptr;
-
-    for (int i = 0; i < targetCount; i++)
-        delete[] targets[i];
-    delete[] targets;
-    targets = nullptr;
-
     return 0;
 }
 
@@ -557,37 +543,13 @@ Coord targetInterpolation(const int8_t &targetId, const double &time, const floa
     int idx = (int)floor(time / arrayTimeStep) % 60;
     int next = (idx + 1) % 60;
     double frac = (time - idx * arrayTimeStep) / arrayTimeStep;
+
+    Target *curT = jsProvider.getTarget(targetId);
+
     return {
-        targets[targetId][idx].x + (targets[targetId][next].x - targets[targetId][idx].x) * frac,
-        targets[targetId][idx].y + (targets[targetId][next].y - targets[targetId][idx].y) * frac
+        curT[idx].x + (curT[next].x - curT[idx].x) * frac,
+        curT[idx].y + (curT[next].y - curT[idx].y) * frac
     };
-}
-
-bool loadTargetsFromFile(int &targetCount, int &timeSteps, Coord **&targets, const std::string &filename)
-{
-    std::ifstream inputFile(DATA_FOLDER + filename);
-    if (!inputFile.is_open())
-    {
-        LOG("Error opening targets file");
-        return false;
-    }
-
-    json data = json::parse(inputFile);
-
-    targetCount = (int)data["targetCount"];
-    timeSteps = (int)data["timeSteps"];
-
-    targets = new Coord*[targetCount];
-    for (int i = 0; i < targetCount; i++) {
-        targets[i] = new Coord[timeSteps];
-        for (int j = 0; j < timeSteps; j++) {
-            targets[i][j].x = data["targets"][i]["positions"][j]["x"];
-            targets[i][j].y = data["targets"][i]["positions"][j]["y"];
-        }
-    }
-
-    inputFile.close();
-    return true;
 }
 
 bool saveResultsToJson(SimStep* steps, int stepCount, const std::string &filename)
@@ -625,28 +587,3 @@ bool saveResultsToJson(SimStep* steps, int stepCount, const std::string &filenam
 
     return true;
 }
-
-
-class ITargetProvider {
-public:
-    virtual int    getTargetCount() = 0;
-    virtual Target getTarget(int index) = 0;
-    virtual ~ITargetProvider() {}
-};
-
-class JsonTargetProvider : public ITargetProvider {
-public:
-    JsonTargetProvider(const std::string &filename) {
-        // Load targets from JSON file
-    }
-
-    int getTargetCount() override {
-        // Return number of targets
-        return 0;
-    }
-
-    Target getTarget(int index) override {
-        // Return target at specified index
-        return Target();
-    }
-};
