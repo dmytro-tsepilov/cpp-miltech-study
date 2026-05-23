@@ -49,8 +49,8 @@ double calculateHorizontalDistance(const float &attackSpeed, const float &ammoDr
 Coord targetInterpolation(const int8_t &targetId, const double &time, const float &arrayTimeStep);
 Coord extrapTarget(int targetId, double currentTime, double dtAhead, float dt);
 double applyLimitedTurn(const SimStep &simStep, const double &maxTurnPerStep, const double &desiredDir);
-bool leadTarget(Coord pos, float zd, int tgtIdx, const double &currentTime, const float &attackSpeed,
-                  const AmmoType &ammoType, float arrayTimeStep, Coord &firePos, Coord &predict);
+bool leadTarget(Coord pos, const int tgtIdx, const double &currentTime, const float &attackSpeed,
+                  const double &hDistBomb, const double &ballisticTof, float arrayTimeStep, Coord &firePos, Coord &predict);
 
 int calculateFlow(const std::string &dataFolder = "");
 bool saveResultsToJson(SimStep* steps, int stepCount, const std::string &filename = "simulation.json");
@@ -69,15 +69,17 @@ int main(int argc, char** argv)
 }
 
 // Extrapolate target position at time t + dtAhead
-// Coord extrapTarget(int targetId, double currentTime, double dtAhead, float dt)
-// {
-//     int idx = (int)floor(currentTime / dt) % 60;
-//     int next = (idx + 1) % 60;
-//     Coord vPos = (targets[targetId][next] - targets[targetId][idx]) / dt;
+Coord extrapTarget(int targetId, double currentTime, double dtAhead, float dt)
+{
+    int idx = (int)floor(currentTime / dt) % 60;
+    int next = (idx + 1) % 60;
+    Target *curT = jsProvider.getTarget(targetId);
 
-//     Coord curPos = targetInterpolation(targetId, currentTime, dt);
-//     return curPos + vPos * dtAhead;
-// }
+    Coord vPos = (curT[next] - curT[idx]) / dt;
+
+    Coord curPos = targetInterpolation(targetId, currentTime, dt);
+    return curPos + vPos * dtAhead;
+}
 
 double applyLimitedTurn(const SimStep &simStep, const double &maxTurnPerStep, const double &desiredDir)
 {
@@ -96,15 +98,12 @@ double applyLimitedTurn(const SimStep &simStep, const double &maxTurnPerStep, co
 }
 
 // Iterative fire point calculation with lead targeting
-bool leadTarget(Coord pos, float zd, int tgtIdx, const double &currentTime,
-                  const float &attackSpeed, const AmmoType &ammoType, float arrayTimeStep,
+bool leadTarget(Coord pos, const int tgtIdx, const double &currentTime,
+                  const float &attackSpeed, const double &hDistBomb, const double &ballisticTof, float arrayTimeStep,
                   Coord &firePos, Coord &predict)
 {
-    double tof = calculateTimeToTarget(attackSpeed, ammoType.drag, ammoType.mass, ammoType.lift, zd);
-    double hDist = calculateHorizontalDistance(attackSpeed, ammoType.drag, ammoType.mass, ammoType.lift, tof);
-
-    //predict = extrapTarget(tgtIdx, currentTime, tof, arrayTimeStep);
-    predict = targetInterpolation(tgtIdx, currentTime + tof, arrayTimeStep);
+    //predict = extrapTarget(tgtIdx, currentTime, ballisticTof, arrayTimeStep);
+    predict = targetInterpolation(tgtIdx, currentTime + ballisticTof, arrayTimeStep);
     firePos = predict;
 
     // Iterative refinement (6 iterations)
@@ -116,17 +115,17 @@ bool leadTarget(Coord pos, float zd, int tgtIdx, const double &currentTime,
 
         // If target is closer than bomb range, set fire point to target position
         // (attack by positioning toward target and dropping at impact point)
-        if (distT <= hDist)
+        if (distT <= hDistBomb)
         {
             firePos = predict;
             return true;
         }
 
-        firePos.x = predict.x - (dxT / distT) * hDist;
-        firePos.y = predict.y - (dyT / distT) * hDist;
+        firePos.x = predict.x - (dxT / distT) * hDistBomb;
+        firePos.y = predict.y - (dyT / distT) * hDistBomb;
 
         double distToFire = firePos.distanceTo(pos);
-        double tImpact = distToFire / std::max(attackSpeed, 0.1f) + tof;
+        double tImpact = distToFire / std::max(attackSpeed, 0.1f) + ballisticTof;
 
         //predict = extrapTarget(tgtIdx, currentTime, tImpact, arrayTimeStep);
         predict = targetInterpolation(tgtIdx, currentTime + tImpact, arrayTimeStep);
@@ -237,9 +236,9 @@ int calculateFlow(const std::string &dataFolder)
             Coord firePos = {0.0, 0.0};
             Coord predict = {0.0, 0.0};
 
-            bool hasSolution = leadTarget(simStep.pos, dConf.altitude, tgtId, currentTime,
-                                            dConf.attackSpeed, ammo, dConf.arrayTimeStep,
-                                            firePos, predict);
+            bool hasSolution = leadTarget(simStep.pos, tgtId, currentTime,
+                                            dConf.attackSpeed, hDistBomb, ballisticTof, dConf.arrayTimeStep,
+                                             firePos, predict);
             if (!hasSolution)
             {
                 continue;
