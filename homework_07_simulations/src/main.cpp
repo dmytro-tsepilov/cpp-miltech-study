@@ -19,10 +19,6 @@ using json = nlohmann::json;
 #include "target/TargetLoader.h"
 #include "ballistic/BallisticSolver.h"
 
-enum class SolverType   { ANALYTICAL };
-enum class ProviderType { JSON };
-enum class LoaderType   { FILE };
-
 enum DroneState : int8_t
 {
     STOPPED      = 0,
@@ -201,7 +197,7 @@ int calculateFlow(const std::string &dataFolder)
 
     // Physical parameters
     float acceleration = (dConf.attackSpeed * dConf.attackSpeed) / (2.0f * dConf.accelPath);
-    IBallisticSolver *solver = new AnalyticalSolver();
+    IBallisticSolver *solver = createBallisticSolver(SolverType::ANALYTICAL);
     double ballisticTof = solver->calculateTimeToTarget(dConf.attackSpeed, ammo.drag, ammo.mass, ammo.lift, dConf.altitude);
     double hDistBomb = solver->calculateHorizontalDistance(dConf.attackSpeed, ammo.drag, ammo.mass, ammo.lift, ballisticTof);
 
