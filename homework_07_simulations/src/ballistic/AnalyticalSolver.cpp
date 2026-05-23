@@ -20,7 +20,7 @@ double AnalyticalSolver::calculateHorizontalDistance(const float &attackSpeed, c
     return horizontalDistance;
 }
 
-double AnalyticalSolver::calculateTimeToTarget(const float &attackSpeed, const float &ammoDrag, const float &ammoMass, const float &ammoLift, const float &zd)
+double AnalyticalSolver::calculateTimeToTarget(const float attackSpeed, const float ammoDrag, const float ammoMass, const float ammoLift, const float zd)
 {
     // Calculate time to target
     double a = ammoDrag * g * ammoMass - 2 * pow(ammoDrag, 2) * ammoLift * attackSpeed;
