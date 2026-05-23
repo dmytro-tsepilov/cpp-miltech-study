@@ -12,7 +12,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 ## target_include_directories(json PUBLIC include)
 
 # Один executable для задачі з drone simulations.
-add_executable(drone_simulations src/main.cpp src/drone/ConfigLoader.cpp)
+add_executable(drone_simulations src/main.cpp src/drone/ConfigLoader.cpp src/target/TargetLoader.cpp)
 
 target_include_directories(drone_simulations PRIVATE include)
 

@@ -1,8 +1,7 @@
 #include <string>
 #include "json.hpp"
-#include "DroneConfig.h"
 
-using json = nlohmann::json;
+#include "DroneConfig.h"
 
 // Інтерфейс
 class IConfigLoader {
@@ -28,4 +27,11 @@ public:
     void setFolderPath(const std::string folderPath = "");
     bool loadConfigFromFile(const std::string &filename = "config.json");
     bool loadAmmoTypesFromFile(const std::string &filename = "ammo.json");
+
+    ~FileConfigLoader() {
+        for (int i = 0; i < ammoCount; i++)
+            delete ammoTypes[i];
+        delete[] ammoTypes;
+        ammoTypes = nullptr; 
+    }
 };
