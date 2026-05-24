@@ -85,7 +85,7 @@ private:
     Coord extrapTarget(int targetId, double currentTime, double dtAhead, float dt);
     double applyLimitedTurn(const SimStep &simStep, const double &maxTurnPerStep, const double &desiredDir);
     bool leadTarget(Coord pos, const int tgtIdx, const double &currentTime,
-                  const float &attackSpeed, const double &hDistBomb, const double &ballisticTof, float arrayTimeStep,
+                  const float &attackSpeed, const float &arrayTimeStep,
                   Coord &firePos, Coord &predict);
-    void updateDroneState(const Coord& desiredPos, bool inBombingRange, const Coord& bestPredict);
+    void initDroneConstants();
 };
