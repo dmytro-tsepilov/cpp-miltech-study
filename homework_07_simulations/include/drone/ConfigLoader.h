@@ -5,7 +5,6 @@
 
 #include "DroneConfig.h"
 
-// Інтерфейс
 class IConfigLoader {
 public:
     virtual ~IConfigLoader() = default;
@@ -17,23 +16,45 @@ public:
 
 class FileConfigLoader : public IConfigLoader {
 private:
-    std::string folderPath;
+    std::string folderPath_;
+    std::string fileName_;
     DroneConfig dConf;
-    AmmoType** ammoTypes = nullptr;
-    int ammoCount;
+    AmmoType** ammoTypes_ = nullptr;
+    int ammoCount_;
 
 public:
+    FileConfigLoader (const std::string &folderPath = "", const std::string &filename = "config.json") {
+        fileName_ = filename;
+        folderPath_ = folderPath;
+    }
     bool load() override;
     DroneConfig getConfig() override;
     AmmoType **getAmmoParams(int &ammoCount) override;
-    void setFolderPath(const std::string folderPath = "");
+    void setFolderPath(const std::string &folderPath = "");
     bool loadConfigFromFile(const std::string &filename = "config.json");
     bool loadAmmoTypesFromFile(const std::string &filename = "ammo.json");
 
     ~FileConfigLoader() {
-        for (int i = 0; i < ammoCount; i++)
-            delete ammoTypes[i];
-        delete[] ammoTypes;
-        ammoTypes = nullptr; 
+        for (int i = 0; i < ammoCount_; i++)
+            delete ammoTypes_[i];
+        delete[] ammoTypes_;
+        ammoTypes_ = nullptr; 
     }
 };
+
+// ============ Factory Function ============
+
+enum class ConfigType {
+    JSON,
+    SERIAL,
+    TEST
+};
+
+inline IConfigLoader* createConfigLoader(ConfigType type, const char* param = nullptr, const char* param2 = nullptr) {
+    switch (type) {
+        case ConfigType::JSON:
+            return new FileConfigLoader(param ? param : "", param2 ? param2 : "config.json");
+        default:
+            return nullptr;
+    }
+}

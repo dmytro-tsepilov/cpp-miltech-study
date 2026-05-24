@@ -9,8 +9,8 @@ using json = nlohmann::json;
 
 bool FileConfigLoader::load()
 {
-    this->loadConfigFromFile();
-    this->loadAmmoTypesFromFile();
+    loadConfigFromFile();
+    loadAmmoTypesFromFile();
 
     return true;
 }
@@ -22,18 +22,18 @@ DroneConfig FileConfigLoader::getConfig()
 
 AmmoType **FileConfigLoader::getAmmoParams(int &ammoCount)
 {
-    ammoCount = this->ammoCount;
-    return ammoTypes;
+    ammoCount = ammoCount_;
+    return ammoTypes_;
 }
 
-void FileConfigLoader::setFolderPath(const std::string folderPath)
+void FileConfigLoader::setFolderPath(const std::string &folderPath)
 {
-    this->folderPath = folderPath;
+    folderPath_ = folderPath;
 }
 
 bool FileConfigLoader::loadConfigFromFile(const std::string &filename)
 {
-    std::ifstream inputFile(this->folderPath + filename);
+    std::ifstream inputFile(folderPath_ + filename);
     if (!inputFile.is_open())
     {
         LOG("Error opening ammo types file");
@@ -63,7 +63,7 @@ bool FileConfigLoader::loadConfigFromFile(const std::string &filename)
  */
 bool FileConfigLoader::loadAmmoTypesFromFile(const std::string &filename)
 {
-    std::ifstream inputFile(this->folderPath + filename);
+    std::ifstream inputFile(this->folderPath_ + filename);
     if (!inputFile.is_open())
     {
         LOG("Error opening ammo types file");
@@ -72,15 +72,15 @@ bool FileConfigLoader::loadAmmoTypesFromFile(const std::string &filename)
 
     json data = json::parse(inputFile);
 
-    ammoCount = data.size();
+    ammoCount_ = data.size();
 
-    ammoTypes = new AmmoType*[ammoCount];
-    for (int i = 0 ; i < ammoCount; i++) {
-        ammoTypes[i] = new AmmoType;
-        std::strncpy(ammoTypes[i]->name, data[i]["name"].get<std::string>().c_str(), 31);
-        ammoTypes[i]->mass = data[i]["mass"];
-        ammoTypes[i]->drag = data[i]["drag"];
-        ammoTypes[i]->lift = data[i]["lift"];
+    ammoTypes_ = new AmmoType*[ammoCount_];
+    for (int i = 0 ; i < ammoCount_; i++) {
+        ammoTypes_[i] = new AmmoType;
+        std::strncpy(ammoTypes_[i]->name, data[i]["name"].get<std::string>().c_str(), 31);
+        ammoTypes_[i]->mass = data[i]["mass"];
+        ammoTypes_[i]->drag = data[i]["drag"];
+        ammoTypes_[i]->lift = data[i]["lift"];
     }
 
     inputFile.close();

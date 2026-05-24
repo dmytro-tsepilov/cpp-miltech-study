@@ -19,11 +19,10 @@ int main(int argc, char** argv)
 
     IBallisticSolver *solver = createBallisticSolver(SolverType::ANALYTICAL);
     ITargetProvider *targetProvider = createTargetProvider(SourceType::JSON, dataFolder.c_str());
-    FileConfigLoader *cfgLoader = new FileConfigLoader();
+    IConfigLoader *cfgLoader = createConfigLoader(ConfigType::JSON, dataFolder.c_str());
     IResultWriter *wrtierProvider = createResultWriter(DestType::JSON);
 
     MissionProcessor *mission = new MissionProcessor(solver, targetProvider);
-    cfgLoader->setFolderPath(dataFolder);
     mission->init(cfgLoader, wrtierProvider);
 
     mission->calculateFlow();
