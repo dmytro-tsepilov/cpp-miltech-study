@@ -31,7 +31,7 @@ private:
     AmmoType** bombTypes_ = nullptr;
     double    ballisticTof_;         // time of flight (попередньо обчислений)
     double    hDistBomb_;            // horizontal distance (попередньо обчислений)
-    int       maxTurnPerStep_;       // максимальний поворот за крок (попередньо обчислений)
+    double    maxTurnPerStep_;       // максимальний поворот за крок (попередньо обчислений)
 
     // Внутрішній стан симуляції
     SimStep*  simSteps_ = nullptr;   // масив для зберігання кроків симуляції
