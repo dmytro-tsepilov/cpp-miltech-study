@@ -34,7 +34,7 @@ private:
     int       maxTurnPerStep_;       // максимальний поворот за крок (попередньо обчислений)
 
     // Внутрішній стан симуляції
-    SimStep*  simSteps_;
+    SimStep*  simSteps_ = nullptr;   // масив для зберігання кроків симуляції
     int       currentStep_;          // лічильник кроків симуляції
     int       targetCount_;          // кількість цілей
 
@@ -44,10 +44,7 @@ private:
 
 public:
     // Конструктор — приймає solver і targets через інтерфейси
-    MissionProcessor(IBallisticSolver* s, ITargetProvider* t) {
-        solver_ = s;
-        targets_ = t;
-    };
+    MissionProcessor(IBallisticSolver* s, ITargetProvider* t) : solver_(s), targets_(t) {};
 
     // Деструктор — звільняє пам'ять
     ~MissionProcessor() {
@@ -85,7 +82,7 @@ public:
     int calculateFlow();
 
 private:
-    Coord targetInterpolation(const int8_t &targetId, const double &time, const float &arrayTimeStep);
+    Coord targetInterpolation(const int &targetId, const double &time, const float &arrayTimeStep);
     Coord extrapTarget(int targetId, double currentTime, double dtAhead, float dt);
     double applyLimitedTurn(const SimStep &simStep, const double &maxTurnPerStep, const double &desiredDir);
     bool leadTarget(Coord pos, const int tgtIdx, const double &currentTime,
