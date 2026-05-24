@@ -101,8 +101,6 @@ int MissionProcessor::calculateFlow()
 {
     SimStep simStep = {};
 
-
-
     //  ------- Initialize target coordinates -------
     int targetCount = targets->getTargetCount();
     //int timeSteps = jsProvider.getTimeSteps();
@@ -118,9 +116,7 @@ int MissionProcessor::calculateFlow()
               << " speed=" << droneConfig.attackSpeed << " accelPath=" << droneConfig.accelPath << " ammo=" << droneConfig.ammoName
               << " arrayStep=" << droneConfig.arrayTimeStep << " simStep=" << droneConfig.simTimeStep);
 
-
-
-    // Drone state variables
+    // Initial drone state parasmeters
     simStep.pos = droneConfig.startPos;
     simStep.direction = droneConfig.initialDir;
     simStep.state = STOPPED;
@@ -141,23 +137,23 @@ int MissionProcessor::calculateFlow()
     double hDistBomb = solver->calculateHorizontalDistance(droneConfig.attackSpeed, ammo.drag, ammo.mass, ammo.lift, ballisticTof);
 
     // Allocate dynamic array for SimStep upfront
-    SimStep* steps = new SimStep[MAX_STEPS];
+    simSteps = new SimStep[MAX_STEPS];
 
     // Simulation loop
-    int step = 0;
-    while (step < MAX_STEPS)
+    currentStep = 0;
+    while (currentStep < MAX_STEPS)
     {
         // Calculate aimPoint - where the bomb will fall if dropped now
         simStep.aimPoint = simStep.pos + Coord{std::cos(simStep.direction),
                                                 std::sin(simStep.direction)} * (hDistBomb);
 
         // Store current state directly into SimStep array
-        steps[step] = simStep;
+        simSteps[currentStep] = simStep;
 
         // Print progress every 100 steps
-        if (step % 10 == 0)
+        if (currentStep % 10 == 0)
         {
-            LOG("Step " << step << ": pos=" << simStep.pos << " state=" << (int)simStep.state
+            LOG("Step " << currentStep << ": pos=" << simStep.pos << " state=" << (int)simStep.state
                       << " target=" << simStep.targetIdx << " speed=" << currentSpeed << " dir=" << simStep.direction);
         }
 
@@ -229,7 +225,7 @@ int MissionProcessor::calculateFlow()
 
         if (!foundValidTarget)
         {
-            LOG("No valid forward-drop solution for any target at step " << step);
+            LOG("No valid forward-drop solution for any target at step " << currentStep);
             break;
         }
 
@@ -259,7 +255,7 @@ int MissionProcessor::calculateFlow()
             if (aDiffMult < angStepMult && inBombingTime)
             {
                 LOG(std::fixed
-                          << "Reached fire point X at step " << step
+                          << "Reached fire point X at step " << currentStep
                           << " dronePos=" << simStep.pos << ""
                           << " firePoint=" << simStep.dropPoint << ""
                           << " dist=" << distToFirePoint
@@ -270,7 +266,7 @@ int MissionProcessor::calculateFlow()
         else if ((int)round(distToFirePoint) < droneConfig.hitRadius)
         {
             LOG(std::fixed
-                      << "Reached fire point at step " << step
+                      << "Reached fire point at step " << currentStep
                       << " dronePos=" << simStep.pos << ""
                       << " firePoint=" << simStep.dropPoint << ""
                       << " dist=" << distToFirePoint
@@ -295,7 +291,7 @@ int MissionProcessor::calculateFlow()
         while (angleDiff > M_PI) angleDiff -= 2 * M_PI;
         while (angleDiff < -M_PI) angleDiff += 2 * M_PI;
 
-        DEBUG("Step " << step << ": angleDiff=" << angleDiff << " maxTurn=" << (droneConfig.angularSpeed * droneConfig.simTimeStep) << " state=" << (int)simStep.state);
+        DEBUG("Step " << currentStep << ": angleDiff=" << angleDiff << " maxTurn=" << (droneConfig.angularSpeed * droneConfig.simTimeStep) << " state=" << (int)simStep.state);
 
         // State machine for drone movement
         switch (simStep.state)
@@ -400,15 +396,15 @@ int MissionProcessor::calculateFlow()
 
         currentTime += droneConfig.simTimeStep;
         simStep.targetIdx = bestTargetId;
-        step++;
+        currentStep++;
     }
 
     // Save to JSON format
-    resultWriter->write(steps, (step + 1));
+    resultWriter->write(simSteps, (currentStep + 1));
 
     // Free SimStep memory
-    delete[] steps;
-    steps = nullptr;
+    delete[] simSteps;
+    simSteps = nullptr;
 
     return 0;
 }
