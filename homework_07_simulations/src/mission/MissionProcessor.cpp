@@ -357,7 +357,7 @@ int MissionProcessor::calculateFlow()
     return 0;
 }
 
-Coord MissionProcessor::targetInterpolation(const int8_t &targetId, const double &time, const float &arrayTimeStep)
+Coord MissionProcessor::targetInterpolation(const int &targetId, const double &time, const float &arrayTimeStep)
 {
     int idx = (int)floor(time / arrayTimeStep) % 60;
     int next = (idx + 1) % 60;
