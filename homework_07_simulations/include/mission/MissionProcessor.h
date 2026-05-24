@@ -4,7 +4,7 @@
 #include "ballistic/BallisticSolver.h"
 #include "drone/ConfigLoader.h"
 #include "drone/DroneConfig.h"
-#include "common/SimStep.h"
+#include "common/DropPoint.h"
 
 const int MAX_STEPS = 10000;
 
@@ -19,41 +19,40 @@ enum DroneState : int8_t
 
 class MissionProcessor {
 private:
-    IBallisticSolver* solver_;       // стратегія балістики
-    ITargetProvider*  targets_;      // провайдер цілей
-    IConfigLoader*    configLoader_; // завантажувач конфігурації
-    IResultWriter*    resultWriter_;
+    IBallisticSolver* solver;       // стратегія балістики
+    ITargetProvider*  targets;      // провайдер цілей
+    IConfigLoader*    configLoader; // завантажувач конфігурації
+    IResultWriter*    resultWriter;
 
-    DroneConfig droneConfig_;        // конфігурація дрона
-    AmmoType  ammo_;                 // параметри боєприпасу
-    AmmoType** bombTypes_ = nullptr;
-    double    ballisticTof_;         // time of flight (попередньо обчислений)
-    double    hDistBomb_;            // horizontal distance (попередньо обчислений)
-    double    maxTurnPerStep_;       // максимальний поворот за крок (попередньо обчислений)
+    int currentIdx;                 // лічильник поточної цілі
+
+    DroneConfig droneConfig;        // конфігурація дрона
+    AmmoType  ammo;                 // параметри боєприпасу
+    AmmoType** bombTypes = nullptr;
+    double    ballisticTof;         // time of flight (попередньо обчислений)
+    double    hDistBomb;            // horizontal distance (попередньо обчислений)
 
     // Внутрішній стан симуляції
-    SimStep*  simSteps_ = nullptr;   // масив для зберігання кроків симуляції
-    SimStep   simStep_ = {};          // поточний шаг симуляції
-    int       currentStep_;          // лічильник кроків симуляції
-    int       targetCount_;          // кількість цілей
+    Coord     currentPos;           // поточна позиція дрона
+    float     currentSpeed;         // поточна швидкість
+    double    currentDirection;     // поточний напрямок (рад)
+    int8_t    currentState;         // стан дрона
+    int       remainingTurningSteps;
+    double    currentTime;
+    float     acceleration;
+    double    maxTurnPerStep;
 
-    float     currentSpeed_;         // поточна швидкість
-    double    currentTime_;
-    float     acceleration_;
-    int       remainingTurningSteps_;
-
-    bool      hasNext_;               // Наявность обчислення наступних кроків
-
- public:
+public:
     // Конструктор — приймає solver і targets через інтерфейси
-    MissionProcessor(IBallisticSolver* s, ITargetProvider* t) : solver_(s), targets_(t) {};
+    MissionProcessor(IBallisticSolver* s, ITargetProvider* t) {
+        solver = s;
+        targets = t;
+    };
 
     // Деструктор — звільняє пам'ять
     ~MissionProcessor() {
-        if (simSteps_ && currentStep_ < MAX_STEPS) {
-            delete[] simSteps_;
-        }
-    }
+        delete targets;
+    };
 
     // Ініціалізація: завантажити конфіг через IConfigLoader, підготувати дані
     bool init(IConfigLoader* loader, IResultWriter* resultWriter);
@@ -62,35 +61,31 @@ private:
     bool hasNext();
 
     // Обробити наступну ціль: взяти дані з targets, обчислити через solver, повернути DropPoint
-    SimStep step();
+    DropPoint step();
 
     // Почати ітерацію спочатку
     void reset();
 
     // Підмінити solver на льоту (Стратегія)
-    void changeSolver(IBallisticSolver* s) {
-        solver_ = s;
-    };
+    void changeSolver(IBallisticSolver* s);
 
     // Отримати поточну позицію дрона (для зовнішнього використання)
-    Coord getCurrentPos() const { return simSteps_[currentStep_].pos; }
+    Coord getCurrentPos() const { return currentPos; }
 
     // Отримати поточний час
-    double getCurrentTime() const { return currentTime_; }
+    double getCurrentTime() const { return currentTime; }
 
     // Отримати кількість цілей
-    int getTargetCount() const { return targets_->getTargetCount(); };
+    int getTargetCount() const;
 
-    bool exportResults();
+    int calculateFlow();
 
 private:
-    Coord targetInterpolation(const int &targetId, const double &time, const float &arrayTimeStep);
+    Coord targetInterpolation(const int8_t &targetId, const double &time, const float &arrayTimeStep);
     Coord extrapTarget(int targetId, double currentTime, double dtAhead, float dt);
     double applyLimitedTurn(const SimStep &simStep, const double &maxTurnPerStep, const double &desiredDir);
     bool leadTarget(Coord pos, const int tgtIdx, const double &currentTime,
-                  const float &attackSpeed, const float &arrayTimeStep,
+                  const float &attackSpeed, const double &hDistBomb, const double &ballisticTof, float arrayTimeStep,
                   Coord &firePos, Coord &predict);
-    void initDroneConstants();
-    int detectBestTarget(SimStep &simStep, const double &currentTime, const float &currentSpeed, 
-                   const int &remainingTurningSteps, int &bestTargetId, Coord &bestPredict);
+    void updateDroneState(const Coord& desiredPos, bool inBombingRange, const Coord& bestPredict);
 };

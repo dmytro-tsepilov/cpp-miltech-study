@@ -5,12 +5,29 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wtautological-overlap-compare"
 
-#include <nlohmann/json.hpp>
+#include "json.hpp"
 // Повертаємо попередження назад для решти коду
 #pragma GCC diagnostic pop
 
-#include "common/SimStep.h"
-#include "interfaces/IResultWriter.h"
+#include "drone/DroneConfig.h"
+
+struct SimStep {
+	Coord pos;          	// позиція дрона
+	float direction;    	// напрямок (рад)
+	int8_t state;        	// стан автомата (0-4)
+	int   targetIdx;    	// індекс поточної цілі
+	Coord dropPoint;    	// точка скиду (куди летить дрон)
+	Coord aimPoint;     	// куди впаде бомба (якщо скинути зараз)
+	Coord predictedTarget;  // прогнозована позиція цілі
+};
+
+// ============ IResultWriter Interface ============
+
+class IResultWriter {
+public:
+    virtual ~IResultWriter() = default;
+    virtual bool write(SimStep* steps, int stepCount) = 0;
+};
 
 // ============ JsonResultWriter ============
 
@@ -25,7 +42,7 @@ public:
         this->folderPath = folderPath;
     }
 
-    bool write(const SimStep* steps, const int &stepCount) override;
+    bool write(SimStep* steps, int stepCount) override;
     void setFolderPath(const std::string folderPath = "");
     void setFilename(const std::string &filename);
 };
@@ -43,7 +60,7 @@ public:
         this->authToken = token;
     }
 
-    bool write(const SimStep* steps, const int &stepCount) override;
+    bool write(SimStep* steps, int stepCount) override;
     void setApiUrl(const std::string &url);
     void setAuthToken(const std::string &token);
 };
@@ -61,7 +78,7 @@ public:
         this->tableName = tableName;
     }
 
-    bool write(const SimStep* steps, const int &stepCount) override;
+    bool write(SimStep* steps, int stepCount) override;
     void setConnectionString(const std::string &connectionString);
     void setTableName(const std::string &tableName);
 };

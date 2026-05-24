@@ -9,7 +9,7 @@ using json = nlohmann::json;
 
 // ============ JsonResultWriter Implementation ============
 
-bool JsonResultWriter::write(const SimStep* steps, const int &stepCount)
+bool JsonResultWriter::write(SimStep* steps, int stepCount)
 {
     std::ofstream outFile(folderPath + filename);
     if (!outFile.is_open())
@@ -57,9 +57,7 @@ void JsonResultWriter::setFilename(const std::string &filename)
 
 // ============ ApiResultWriter Implementation ============
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunused-parameter"
-bool ApiResultWriter::write(const SimStep* steps, const int &stepCount)
+bool ApiResultWriter::write(SimStep* steps, int stepCount)
 {
     // TODO: Implement API submission logic
     // TODO: Handle HTTP POST request with authentication
@@ -69,7 +67,6 @@ bool ApiResultWriter::write(const SimStep* steps, const int &stepCount)
     LOG("Auth Token: " << (authToken.empty() ? "(not set)" : "(set)"));
     return false;
 }
-#pragma clang diagnostic pop
 
 void ApiResultWriter::setApiUrl(const std::string &url)
 {
@@ -83,9 +80,7 @@ void ApiResultWriter::setAuthToken(const std::string &token)
 
 // ============ DatabaseResultWriter Implementation ============
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunused-parameter"
-bool DatabaseResultWriter::write(const SimStep* steps, const int &stepCount)
+bool DatabaseResultWriter::write(SimStep* steps, int stepCount)
 {
     // TODO: Implement database insertion logic
     // TODO: Handle connection management
@@ -95,7 +90,6 @@ bool DatabaseResultWriter::write(const SimStep* steps, const int &stepCount)
     LOG("Table Name: " << tableName);
     return false;
 }
-#pragma clang diagnostic pop
 
 void DatabaseResultWriter::setConnectionString(const std::string &connectionString)
 {

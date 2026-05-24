@@ -13,9 +13,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Один executable для задачі з drone simulations.
 add_executable(drone_simulations src/main.cpp
+    src/mission/MissionProcessor.cpp
     src/ballistic/AnalyticalSolver.cpp
     src/drone/ConfigLoader.cpp
-    src/target/TargetLoader.cpp)
+    src/target/TargetLoader.cpp
+    src/result/ResultWriter.cpp)
 
 target_include_directories(drone_simulations PRIVATE include)
 
