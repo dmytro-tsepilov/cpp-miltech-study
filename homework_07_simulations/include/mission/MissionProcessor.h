@@ -50,7 +50,11 @@ public:
     };
 
     // Деструктор — звільняє пам'ять
-    ~MissionProcessor() {};
+    ~MissionProcessor() {
+        if (simSteps_ && currentStep_ < MAX_STEPS) {
+            delete[] simSteps_;
+        }
+    }
 
     // Ініціалізація: завантажити конфіг через IConfigLoader, підготувати дані
     bool init(IConfigLoader* loader, IResultWriter* resultWriter);
