@@ -57,6 +57,8 @@ void JsonResultWriter::setFilename(const std::string &filename)
 
 // ============ ApiResultWriter Implementation ============
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
 bool ApiResultWriter::write(SimStep* steps, int stepCount)
 {
     // TODO: Implement API submission logic
@@ -67,6 +69,7 @@ bool ApiResultWriter::write(SimStep* steps, int stepCount)
     LOG("Auth Token: " << (authToken.empty() ? "(not set)" : "(set)"));
     return false;
 }
+#pragma clang diagnostic pop
 
 void ApiResultWriter::setApiUrl(const std::string &url)
 {
@@ -80,6 +83,8 @@ void ApiResultWriter::setAuthToken(const std::string &token)
 
 // ============ DatabaseResultWriter Implementation ============
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
 bool DatabaseResultWriter::write(SimStep* steps, int stepCount)
 {
     // TODO: Implement database insertion logic
@@ -90,6 +95,7 @@ bool DatabaseResultWriter::write(SimStep* steps, int stepCount)
     LOG("Table Name: " << tableName);
     return false;
 }
+#pragma clang diagnostic pop
 
 void DatabaseResultWriter::setConnectionString(const std::string &connectionString)
 {

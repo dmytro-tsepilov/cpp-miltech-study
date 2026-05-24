@@ -11,11 +11,10 @@ int main(int argc, char** argv)
 {
     // The executable expects folder path with simulation files
     if (argc != 2) {
-        std::cerr << "usage: drone_simulations <input_path>\n";
+        LOG("usage: drone_simulations <input_path>\n");
         return 1;
     }
 
-    //calculateFlow(argv[1]);
     std::string dataFolder = argv[1];
 
     IBallisticSolver *solver = createBallisticSolver(SolverType::ANALYTICAL);

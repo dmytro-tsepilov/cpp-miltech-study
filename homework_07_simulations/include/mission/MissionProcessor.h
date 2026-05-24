@@ -4,7 +4,7 @@
 #include "ballistic/BallisticSolver.h"
 #include "drone/ConfigLoader.h"
 #include "drone/DroneConfig.h"
-#include "common/DropPoint.h"
+#include "common/SimStep.h"
 
 const int MAX_STEPS = 10000;
 
@@ -33,14 +33,13 @@ private:
     double    hDistBomb;            // horizontal distance (попередньо обчислений)
 
     // Внутрішній стан симуляції
-    Coord     currentPos;           // поточна позиція дрона
+    SimStep*  simSteps;
+    int       currentStep;                   // лічильник кроків симуляції
+
     float     currentSpeed;         // поточна швидкість
-    double    currentDirection;     // поточний напрямок (рад)
-    int8_t    currentState;         // стан дрона
     int       remainingTurningSteps;
     double    currentTime;
     float     acceleration;
-    double    maxTurnPerStep;
 
 public:
     // Конструктор — приймає solver і targets через інтерфейси
@@ -61,16 +60,18 @@ public:
     bool hasNext();
 
     // Обробити наступну ціль: взяти дані з targets, обчислити через solver, повернути DropPoint
-    DropPoint step();
+    SimStep step();
 
     // Почати ітерацію спочатку
     void reset();
 
     // Підмінити solver на льоту (Стратегія)
-    void changeSolver(IBallisticSolver* s);
+    void changeSolver(IBallisticSolver* s) {
+        solver = s;
+    };
 
     // Отримати поточну позицію дрона (для зовнішнього використання)
-    Coord getCurrentPos() const { return currentPos; }
+    Coord getCurrentPos() const { return simSteps[currentStep].pos; }
 
     // Отримати поточний час
     double getCurrentTime() const { return currentTime; }
