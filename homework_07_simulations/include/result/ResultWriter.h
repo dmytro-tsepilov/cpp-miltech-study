@@ -17,7 +17,7 @@
 class IResultWriter {
 public:
     virtual ~IResultWriter() = default;
-    virtual bool write(SimStep* steps, int stepCount) = 0;
+    virtual bool write(const SimStep* steps, const int &stepCount) = 0;
 };
 
 // ============ JsonResultWriter ============
@@ -33,7 +33,7 @@ public:
         this->folderPath = folderPath;
     }
 
-    bool write(SimStep* steps, int stepCount) override;
+    bool write(const SimStep* steps, const int &stepCount) override;
     void setFolderPath(const std::string folderPath = "");
     void setFilename(const std::string &filename);
 };
@@ -51,7 +51,7 @@ public:
         this->authToken = token;
     }
 
-    bool write(SimStep* steps, int stepCount) override;
+    bool write(const SimStep* steps, const int &stepCount) override;
     void setApiUrl(const std::string &url);
     void setAuthToken(const std::string &token);
 };
@@ -69,7 +69,7 @@ public:
         this->tableName = tableName;
     }
 
-    bool write(SimStep* steps, int stepCount) override;
+    bool write(const SimStep* steps, const int &stepCount) override;
     void setConnectionString(const std::string &connectionString);
     void setTableName(const std::string &tableName);
 };
