@@ -103,7 +103,7 @@ int MissionProcessor::calculateFlow()
 
     //  ------- Initialize target coordinates -------
     int targetCount = targets->getTargetCount();
-    //int timeSteps = jsProvider.getTimeSteps();
+    //int timeSteps = targets->getTimeSteps();
 
     // Check readed data
     if (droneConfig.attackSpeed <= 0 || droneConfig.accelPath <= 0 || droneConfig.arrayTimeStep <= 0 || droneConfig.simTimeStep <= 0 || droneConfig.angularSpeed <= 0)

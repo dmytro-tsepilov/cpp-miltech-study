@@ -28,5 +28,11 @@ int main(int argc, char** argv)
 
     mission->calculateFlow();
 
+    delete solver;
+    delete targetProvider;
+    delete cfgLoader;
+    delete wrtierProvider;
+    delete mission;
+
     return 0;
 }

@@ -34,10 +34,9 @@ private:
 
     // Внутрішній стан симуляції
     SimStep*  simSteps;
-    int       currentStep;                   // лічильник кроків симуляції
+    int       currentStep;          // лічильник кроків симуляції
 
     float     currentSpeed;         // поточна швидкість
-    int       remainingTurningSteps;
     double    currentTime;
     float     acceleration;
 
@@ -49,9 +48,7 @@ public:
     };
 
     // Деструктор — звільняє пам'ять
-    ~MissionProcessor() {
-        delete targets;
-    };
+    ~MissionProcessor() {};
 
     // Ініціалізація: завантажити конфіг через IConfigLoader, підготувати дані
     bool init(IConfigLoader* loader, IResultWriter* resultWriter);
@@ -77,7 +74,7 @@ public:
     double getCurrentTime() const { return currentTime; }
 
     // Отримати кількість цілей
-    int getTargetCount() const;
+    int getTargetCount() const { return targets->getTargetCount(); };
 
     int calculateFlow();
 
