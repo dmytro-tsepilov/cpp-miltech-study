@@ -3,26 +3,26 @@
 
 bool MissionProcessor::init(IConfigLoader* loader, IResultWriter* writer)
 {
-    configLoader = loader;
-    resultWriter = writer;
-    targets->load();
+    configLoader_ = loader;
+    resultWriter_ = writer;
+    targets_->load();
 
-    configLoader->load();
-    droneConfig = configLoader->getConfig();
+    configLoader_->load();
+    droneConfig_ = configLoader_->getConfig();
 
     //  ------- Load ammo types and config from file   -------    
     int ammoCount = 0;
-    bombTypes = configLoader->getAmmoParams(ammoCount);
+    bombTypes_ = configLoader_->getAmmoParams(ammoCount);
 
     // ------- Detect Ammo Type -------
     for (int i = 0; i < ammoCount; ++i)
     {
-        if (!strcasecmp(droneConfig.ammoName, bombTypes[i]->name)) {
-            ammo = *bombTypes[i];
+        if (!strcasecmp(droneConfig_.ammoName, bombTypes_[i]->name)) {
+            ammo_ = *bombTypes_[i];
             break;
         }
     }
-    if (ammo.mass == 0)
+    if (ammo_.mass == 0)
     {
         LOG("Error: Unknown ammo type");
         return false;
@@ -36,7 +36,7 @@ Coord MissionProcessor::extrapTarget(int targetId, double currentTime, double dt
 {
     int idx = (int)floor(currentTime / dt) % 60;
     int next = (idx + 1) % 60;
-    Target *curT = targets->getTarget(targetId);
+    Target *curT = targets_->getTarget(targetId);
 
     Coord vPos = (curT[next] - curT[idx]) / dt;
 
@@ -102,58 +102,58 @@ int MissionProcessor::calculateFlow()
     SimStep simStep = {};
 
     //  ------- Initialize target coordinates -------
-    int targetCount = targets->getTargetCount();
-    //int timeSteps = targets->getTimeSteps();
+    int targetCount = targets_->getTargetCount();
+    //int timeSteps = targets_->getTimeSteps();
 
     // Check readed data
-    if (droneConfig.attackSpeed <= 0 || droneConfig.accelPath <= 0 || droneConfig.arrayTimeStep <= 0 || droneConfig.simTimeStep <= 0 || droneConfig.angularSpeed <= 0)
+    if (droneConfig_.attackSpeed <= 0 || droneConfig_.accelPath <= 0 || droneConfig_.arrayTimeStep <= 0 || droneConfig_.simTimeStep <= 0 || droneConfig_.angularSpeed <= 0)
     {
         LOG("Error: Invalid simulation parameters");
         return 1;
     }
 
-    DEBUG("Input data: xd=" << droneConfig.startPos.x << " yd=" << droneConfig.startPos.y << " droneConfig.altitude=" << droneConfig.altitude << " dir=" << droneConfig.initialDir
-              << " speed=" << droneConfig.attackSpeed << " accelPath=" << droneConfig.accelPath << " ammo=" << droneConfig.ammoName
-              << " arrayStep=" << droneConfig.arrayTimeStep << " simStep=" << droneConfig.simTimeStep);
+    DEBUG("Input data: xd=" << droneConfig_.startPos.x << " yd=" << droneConfig_.startPos.y << " droneConfig.altitude=" << droneConfig_.altitude << " dir=" << droneConfig_.initialDir
+              << " speed=" << droneConfig_.attackSpeed << " accelPath=" << droneConfig_.accelPath << " ammo=" << droneConfig_.ammoName
+              << " arrayStep=" << droneConfig_.arrayTimeStep << " simStep=" << droneConfig_.simTimeStep);
 
     // Initial drone state parasmeters
-    simStep.pos = droneConfig.startPos;
-    simStep.direction = droneConfig.initialDir;
+    simStep.pos = droneConfig_.startPos;
+    simStep.direction = droneConfig_.initialDir;
     simStep.state = STOPPED;
     simStep.targetIdx = 0;
-    simStep.dropPoint = droneConfig.startPos;
-    simStep.aimPoint = droneConfig.startPos;
-    simStep.predictedTarget = droneConfig.startPos;
+    simStep.dropPoint = droneConfig_.startPos;
+    simStep.aimPoint = droneConfig_.startPos;
+    simStep.predictedTarget = droneConfig_.startPos;
 
     float currentSpeed = 0;
     int remainingTurningSteps = 0;
     double currentTime = 0;
-    const double maxTurnPerStep = droneConfig.angularSpeed * droneConfig.simTimeStep;
+    const double maxTurnPerStep = droneConfig_.angularSpeed * droneConfig_.simTimeStep;
 
     // Physical parameters
-    float acceleration = (droneConfig.attackSpeed * droneConfig.attackSpeed) / (2.0f * droneConfig.accelPath);
+    float acceleration = (droneConfig_.attackSpeed * droneConfig_.attackSpeed) / (2.0f * droneConfig_.accelPath);
 
-    double ballisticTof = solver->calculateTimeToTarget(droneConfig.attackSpeed, ammo.drag, ammo.mass, ammo.lift, droneConfig.altitude);
-    double hDistBomb = solver->calculateHorizontalDistance(droneConfig.attackSpeed, ammo.drag, ammo.mass, ammo.lift, ballisticTof);
+    double ballisticTof = solver_->calculateTimeToTarget(droneConfig_.attackSpeed, ammo_.drag, ammo_.mass, ammo_.lift, droneConfig_.altitude);
+    double hDistBomb = solver_->calculateHorizontalDistance(droneConfig_.attackSpeed, ammo_.drag, ammo_.mass, ammo_.lift, ballisticTof);
 
     // Allocate dynamic array for SimStep upfront
-    simSteps = new SimStep[MAX_STEPS];
+    simSteps_ = new SimStep[MAX_STEPS];
 
     // Simulation loop
-    currentStep = 0;
-    while (currentStep < MAX_STEPS)
+    currentStep_ = 0;
+    while (currentStep_ < MAX_STEPS)
     {
         // Calculate aimPoint - where the bomb will fall if dropped now
         simStep.aimPoint = simStep.pos + Coord{std::cos(simStep.direction),
                                                 std::sin(simStep.direction)} * (hDistBomb);
 
         // Store current state directly into SimStep array
-        simSteps[currentStep] = simStep;
+        simSteps_[currentStep_] = simStep;
 
         // Print progress every 100 steps
-        if (currentStep % 10 == 0)
+        if (currentStep_ % 10 == 0)
         {
-            LOG("Step " << currentStep << ": pos=" << simStep.pos << " state=" << (int)simStep.state
+            LOG("Step " << currentStep_ << ": pos=" << simStep.pos << " state=" << (int)simStep.state
                       << " target=" << simStep.targetIdx << " speed=" << currentSpeed << " dir=" << simStep.direction);
         }
 
@@ -171,7 +171,7 @@ int MissionProcessor::calculateFlow()
             Coord predict = {0.0, 0.0};
 
             bool hasSolution = leadTarget(simStep.pos, tgtId, currentTime,
-                                            droneConfig.attackSpeed, hDistBomb, ballisticTof, droneConfig.arrayTimeStep,
+                                            droneConfig_.attackSpeed, hDistBomb, ballisticTof, droneConfig_.arrayTimeStep,
                                              firePos, predict);
             if (!hasSolution)
             {
@@ -183,7 +183,7 @@ int MissionProcessor::calculateFlow()
             double distToFire = firePos.distanceTo(simStep.pos);
 
             // Total time = distance to fire point / attack speed + time of flight
-            double timeToFire = distToFire / std::max(droneConfig.attackSpeed, 0.1f);
+            double timeToFire = distToFire / std::max(droneConfig_.attackSpeed, 0.1f);
             double totalTime = timeToFire + ballisticTof;
 
             DEBUG("  Target " << tgtId << ": fireX=" << firePos << " predict=" << predict
@@ -204,10 +204,10 @@ int MissionProcessor::calculateFlow()
                         timeToStop = currentSpeed / acceleration;
                         break;
                     case MOVING:
-                        timeToStop = droneConfig.attackSpeed / acceleration;
+                        timeToStop = droneConfig_.attackSpeed / acceleration;
                         break;
                     case TURNING:
-                        timeToStop = remainingTurningSteps * droneConfig.simTimeStep;
+                        timeToStop = remainingTurningSteps * droneConfig_.simTimeStep;
                         break;
                 }
             }
@@ -225,7 +225,7 @@ int MissionProcessor::calculateFlow()
 
         if (!foundValidTarget)
         {
-            LOG("No valid forward-drop solution for any target at step " << currentStep);
+            LOG("No valid forward-drop solution for any target at step " << currentStep_);
             break;
         }
 
@@ -236,8 +236,8 @@ int MissionProcessor::calculateFlow()
 
         double distToPred = bestPredict.distanceTo(simStep.pos);
         // If drone is already within bombing range, it just needs correct orientation
-        bool inBombingRange = (int)round(distToPred) < (int)round(hDistBomb + droneConfig.hitRadius);
-        //bool inBombingRange = distToPred < hDistBomb + droneConfig.hitRadius;
+        bool inBombingRange = (int)round(distToPred) < (int)round(hDistBomb + droneConfig_.hitRadius);
+        //bool inBombingRange = distToPred < hDistBomb + droneConfig_.hitRadius;
 
         if (inBombingRange)
         {
@@ -251,11 +251,11 @@ int MissionProcessor::calculateFlow()
             bool inBombingTime = true; //(minTotalTime - ballisticTof) < 0.2f;
 
             double aDiffMult = round(std::abs(aDiff * 10));
-            double angStepMult = (droneConfig.angularSpeed * droneConfig.simTimeStep) * 10;
+            double angStepMult = (droneConfig_.angularSpeed * droneConfig_.simTimeStep) * 10;
             if (aDiffMult < angStepMult && inBombingTime)
             {
                 LOG(std::fixed
-                          << "Reached fire point X at step " << currentStep
+                          << "Reached fire point X at step " << currentStep_
                           << " dronePos=" << simStep.pos << ""
                           << " firePoint=" << simStep.dropPoint << ""
                           << " dist=" << distToFirePoint
@@ -263,10 +263,10 @@ int MissionProcessor::calculateFlow()
                 break;
             }
         }
-        else if ((int)round(distToFirePoint) < droneConfig.hitRadius)
+        else if ((int)round(distToFirePoint) < droneConfig_.hitRadius)
         {
             LOG(std::fixed
-                      << "Reached fire point at step " << currentStep
+                      << "Reached fire point at step " << currentStep_
                       << " dronePos=" << simStep.pos << ""
                       << " firePoint=" << simStep.dropPoint << ""
                       << " dist=" << distToFirePoint
@@ -291,19 +291,19 @@ int MissionProcessor::calculateFlow()
         while (angleDiff > M_PI) angleDiff -= 2 * M_PI;
         while (angleDiff < -M_PI) angleDiff += 2 * M_PI;
 
-        DEBUG("Step " << currentStep << ": angleDiff=" << angleDiff << " maxTurn=" << (droneConfig.angularSpeed * droneConfig.simTimeStep) << " state=" << (int)simStep.state);
+        DEBUG("Step " << currentStep_ << ": angleDiff=" << angleDiff << " maxTurn=" << (droneConfig_.angularSpeed * droneConfig_.simTimeStep) << " state=" << (int)simStep.state);
 
         // State machine for drone movement
         switch (simStep.state)
         {
             case DroneState::STOPPED:
                 // Check if need to turn or accelerate
-                if (std::abs(angleDiff) > droneConfig.turnThreshold)
+                if (std::abs(angleDiff) > droneConfig_.turnThreshold)
                 {
                     // Need to turn first
                     simStep.state = DroneState::TURNING;
                     // Use max to ensure at least 1 step, but avoid overshoot by not adding +1
-                    remainingTurningSteps = (int)std::max(1, (int)std::ceil(std::abs(angleDiff) / (droneConfig.angularSpeed * droneConfig.simTimeStep)));
+                    remainingTurningSteps = (int)std::max(1, (int)std::ceil(std::abs(angleDiff) / (droneConfig_.angularSpeed * droneConfig_.simTimeStep)));
                 }
                 else
                 {
@@ -315,7 +315,7 @@ int MissionProcessor::calculateFlow()
 
             case DroneState::ACCELERATING:
                 // Only decelerate if actually moving — prevents TURNING→ACCEL→DECEL→TURNING oscillation at zero speed
-                if (std::abs(angleDiff) > droneConfig.turnThreshold * 2 && currentSpeed > droneConfig.attackSpeed * 0.1f)
+                if (std::abs(angleDiff) > droneConfig_.turnThreshold * 2 && currentSpeed > droneConfig_.attackSpeed * 0.1f)
                 {
                     simStep.state = DECELERATING;
                 }
@@ -323,8 +323,8 @@ int MissionProcessor::calculateFlow()
                 {
                     simStep.direction = applyLimitedTurn(simStep, maxTurnPerStep, desiredDir);
                     // Accelerate to attack speed
-                    currentSpeed = std::min(droneConfig.attackSpeed, currentSpeed + acceleration * droneConfig.simTimeStep);
-                    if (currentSpeed >= droneConfig.attackSpeed - 0.01)
+                    currentSpeed = std::min(droneConfig_.attackSpeed, currentSpeed + acceleration * droneConfig_.simTimeStep);
+                    if (currentSpeed >= droneConfig_.attackSpeed - 0.01)
                     {
                         simStep.state = MOVING;
                     }
@@ -333,16 +333,16 @@ int MissionProcessor::calculateFlow()
 
             case DECELERATING:
                 // Decelerate
-                currentSpeed = std::max(0.0f, currentSpeed - acceleration * droneConfig.simTimeStep);
+                currentSpeed = std::max(0.0f, currentSpeed - acceleration * droneConfig_.simTimeStep);
                 if (currentSpeed < 0.01)
                 {
                     currentSpeed = 0.0f;
                     // If already roughly aligned, skip turning and start accelerating
-                    if (std::abs(angleDiff) > droneConfig.turnThreshold)
+                    if (std::abs(angleDiff) > droneConfig_.turnThreshold)
                     {
                         simStep.state = TURNING;
                         // Use max to ensure at least 1 step, but avoid overshoot by not adding +1
-                        remainingTurningSteps = (int)std::max(1, (int)std::ceil(std::abs(angleDiff) / (droneConfig.angularSpeed * droneConfig.simTimeStep)));
+                        remainingTurningSteps = (int)std::max(1, (int)std::ceil(std::abs(angleDiff) / (droneConfig_.angularSpeed * droneConfig_.simTimeStep)));
                     }
                     else
                     {
@@ -373,16 +373,16 @@ int MissionProcessor::calculateFlow()
                 break;
 
             case DroneState::MOVING:
-                DEBUG("  MOVING: angleDiff=" << angleDiff << " threshold=" << (droneConfig.turnThreshold * 2));
+                DEBUG("  MOVING: angleDiff=" << angleDiff << " threshold=" << (droneConfig_.turnThreshold * 2));
                 // Check if need to turn
-                if (std::abs(angleDiff) > droneConfig.turnThreshold * 2)
+                if (std::abs(angleDiff) > droneConfig_.turnThreshold * 2)
                 {
                     simStep.state = DroneState::DECELERATING;
                 }
                 else
                 {
                     simStep.direction = applyLimitedTurn(simStep, maxTurnPerStep, desiredDir);
-                    currentSpeed = droneConfig.attackSpeed;
+                    currentSpeed = droneConfig_.attackSpeed;
                 }
                 break;
         }
@@ -391,20 +391,20 @@ int MissionProcessor::calculateFlow()
         while (simStep.direction < -M_PI) simStep.direction += 2 * M_PI;
 
         // Move drone in current direction
-        simStep.pos.x += cos(simStep.direction) * currentSpeed * droneConfig.simTimeStep;
-        simStep.pos.y += sin(simStep.direction) * currentSpeed * droneConfig.simTimeStep;
+        simStep.pos.x += cos(simStep.direction) * currentSpeed * droneConfig_.simTimeStep;
+        simStep.pos.y += sin(simStep.direction) * currentSpeed * droneConfig_.simTimeStep;
 
-        currentTime += droneConfig.simTimeStep;
+        currentTime += droneConfig_.simTimeStep;
         simStep.targetIdx = bestTargetId;
-        currentStep++;
+        currentStep_++;
     }
 
     // Save to JSON format
-    resultWriter->write(simSteps, (currentStep + 1));
+    resultWriter_->write(simSteps_, (currentStep_ + 1));
 
     // Free SimStep memory
-    delete[] simSteps;
-    simSteps = nullptr;
+    delete[] simSteps_;
+    simSteps_ = nullptr;
 
     return 0;
 }
@@ -415,7 +415,7 @@ Coord MissionProcessor::targetInterpolation(const int8_t &targetId, const double
     int next = (idx + 1) % 60;
     double frac = (time - idx * arrayTimeStep) / arrayTimeStep;
 
-    Target *curT = targets->getTarget(targetId);
+    Target *curT = targets_->getTarget(targetId);
 
     return {
         curT[idx].x + (curT[next].x - curT[idx].x) * frac,

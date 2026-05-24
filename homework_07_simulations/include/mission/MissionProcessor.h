@@ -19,32 +19,34 @@ enum DroneState : int8_t
 
 class MissionProcessor {
 private:
-    IBallisticSolver* solver;       // стратегія балістики
-    ITargetProvider*  targets;      // провайдер цілей
-    IConfigLoader*    configLoader; // завантажувач конфігурації
-    IResultWriter*    resultWriter;
+    IBallisticSolver* solver_;       // стратегія балістики
+    ITargetProvider*  targets_;      // провайдер цілей
+    IConfigLoader*    configLoader_; // завантажувач конфігурації
+    IResultWriter*    resultWriter_;
 
-    int currentIdx;                 // лічильник поточної цілі
+    int currentIdx_;                 // лічильник поточної цілі
 
-    DroneConfig droneConfig;        // конфігурація дрона
-    AmmoType  ammo;                 // параметри боєприпасу
-    AmmoType** bombTypes = nullptr;
-    double    ballisticTof;         // time of flight (попередньо обчислений)
-    double    hDistBomb;            // horizontal distance (попередньо обчислений)
+    DroneConfig droneConfig_;        // конфігурація дрона
+    AmmoType  ammo_;                 // параметри боєприпасу
+    AmmoType** bombTypes_ = nullptr;
+    double    ballisticTof_;         // time of flight (попередньо обчислений)
+    double    hDistBomb_;            // horizontal distance (попередньо обчислений)
+    int       maxTurnPerStep_;       // максимальний поворот за крок (попередньо обчислений)
 
     // Внутрішній стан симуляції
-    SimStep*  simSteps;
-    int       currentStep;          // лічильник кроків симуляції
+    SimStep*  simSteps_;
+    int       currentStep_;          // лічильник кроків симуляції
+    int       targetCount_;          // кількість цілей
 
-    float     currentSpeed;         // поточна швидкість
-    double    currentTime;
-    float     acceleration;
+    float     currentSpeed_;         // поточна швидкість
+    double    currentTime_;
+    float     acceleration_;
 
 public:
     // Конструктор — приймає solver і targets через інтерфейси
     MissionProcessor(IBallisticSolver* s, ITargetProvider* t) {
-        solver = s;
-        targets = t;
+        solver_ = s;
+        targets_ = t;
     };
 
     // Деструктор — звільняє пам'ять
@@ -64,17 +66,17 @@ public:
 
     // Підмінити solver на льоту (Стратегія)
     void changeSolver(IBallisticSolver* s) {
-        solver = s;
+        solver_ = s;
     };
 
     // Отримати поточну позицію дрона (для зовнішнього використання)
-    Coord getCurrentPos() const { return simSteps[currentStep].pos; }
+    Coord getCurrentPos() const { return simSteps_[currentStep_].pos; }
 
     // Отримати поточний час
-    double getCurrentTime() const { return currentTime; }
+    double getCurrentTime() const { return currentTime_; }
 
     // Отримати кількість цілей
-    int getTargetCount() const { return targets->getTargetCount(); };
+    int getTargetCount() const { return targets_->getTargetCount(); };
 
     int calculateFlow();
 
