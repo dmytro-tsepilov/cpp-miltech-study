@@ -9,7 +9,7 @@
 // Повертаємо попередження назад для решти коду
 #pragma GCC diagnostic pop
 
-#include "drone/DroneConfig.h"
+//#include "drone/DroneConfig.h"
 #include "common/SimStep.h"
 
 // ============ IResultWriter Interface ============

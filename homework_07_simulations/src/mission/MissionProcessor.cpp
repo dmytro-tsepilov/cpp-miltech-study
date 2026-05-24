@@ -5,8 +5,13 @@ bool MissionProcessor::init(IConfigLoader* loader, IResultWriter* writer)
 {
     configLoader_ = loader;
     resultWriter_ = writer;
-    targets_->load();
 
+    //  ------- Initialize target coordinates -------
+    targets_->load();
+    targetCount_ = targets_->getTargetCount();
+    //int timeSteps = targets_->getTimeSteps();
+
+    //  ------- Initialize drone configuration -------
     configLoader_->load();
     droneConfig_ = configLoader_->getConfig();
 
@@ -112,10 +117,6 @@ int MissionProcessor::calculateFlow()
 {
     SimStep simStep = {};
 
-    //  ------- Initialize target coordinates -------
-    int targetCount = targets_->getTargetCount();
-    //int timeSteps = targets_->getTimeSteps();
-
     // Check readed data
     if (droneConfig_.attackSpeed <= 0 || droneConfig_.accelPath <= 0 || droneConfig_.arrayTimeStep <= 0 || droneConfig_.simTimeStep <= 0 || droneConfig_.angularSpeed <= 0)
     {
@@ -164,72 +165,13 @@ int MissionProcessor::calculateFlow()
         }
 
         // For each target, calculate ballistics with lead targeting
-        double minTotalTime = 1e9;
+
         int bestTargetId = simStep.targetIdx;
         // TODO: Check init coordinates
         simStep.dropPoint = simStep.pos;
         Coord bestPredict = simStep.pos;
-        bool foundValidTarget = false;
 
-        for (int tgtId = 0; tgtId < targetCount; tgtId++)
-        {
-            Coord firePos = {0.0, 0.0};
-            Coord predict = {0.0, 0.0};
-
-            bool hasSolution = leadTarget(simStep.pos, tgtId, currentTime,
-                                            droneConfig_.attackSpeed, droneConfig_.arrayTimeStep,
-                                             firePos, predict);
-            if (!hasSolution)
-            {
-                continue;
-            }
-            foundValidTarget = true;
-
-            // Distance from drone to target
-            double distToFire = firePos.distanceTo(simStep.pos);
-
-            // Total time = distance to fire point / attack speed + time of flight
-            double timeToFire = distToFire / std::max(droneConfig_.attackSpeed, 0.1f);
-            double totalTime = timeToFire + ballisticTof_;
-
-            DEBUG("  Target " << tgtId << ": fireX=" << firePos << " predict=" << predict
-                 << " distToFire=" << distToFire << " timeToFire=" << timeToFire << " ballisticTof=" << ballisticTof_
-                 << " totalTime=" << totalTime);
-
-            // If changing target, add time to stop
-            double timeToStop = 0;
-            if (tgtId != simStep.targetIdx)
-            {
-                switch (simStep.state)
-                {
-                    case STOPPED:
-                        timeToStop = 0;
-                        break;
-                    case ACCELERATING:
-                    case DECELERATING:
-                        timeToStop = currentSpeed / acceleration_;
-                        break;
-                    case MOVING:
-                        timeToStop = droneConfig_.attackSpeed / acceleration_;
-                        break;
-                    case TURNING:
-                        timeToStop = remainingTurningSteps * droneConfig_.simTimeStep;
-                        break;
-                }
-            }
-            totalTime += timeToStop;
-
-            if (totalTime < minTotalTime)
-            {
-                minTotalTime = totalTime;
-                bestTargetId = tgtId;
-                simStep.dropPoint = firePos;
-                simStep.predictedTarget = predict;
-                bestPredict = predict;
-            }
-        }
-
-        if (!foundValidTarget)
+        if (!detectBestTarget(simStep, currentTime, currentSpeed, remainingTurningSteps, bestTargetId, bestPredict))
         {
             LOG("No valid forward-drop solution for any target at step " << currentStep_);
             break;
@@ -427,4 +369,71 @@ Coord MissionProcessor::targetInterpolation(const int8_t &targetId, const double
         curT[idx].x + (curT[next].x - curT[idx].x) * frac,
         curT[idx].y + (curT[next].y - curT[idx].y) * frac
     };
+}
+
+int MissionProcessor::detectBestTarget(SimStep &simStep, const double &currentTime, const float &currentSpeed,
+        const int &remainingTurningSteps, int &bestTargetId, Coord &bestPredict)
+{
+    double minTotalTime = 1e9;
+    bool foundValidTarget = false;
+
+    for (int tgtId = 0; tgtId < targetCount_; tgtId++)
+    {
+        Coord firePos = {0.0, 0.0};
+        Coord predict = {0.0, 0.0};
+
+        bool hasSolution = leadTarget(simStep.pos, tgtId, currentTime,
+                                        droneConfig_.attackSpeed, droneConfig_.arrayTimeStep,
+                                            firePos, predict);
+        if (!hasSolution)
+        {
+            continue;
+        }
+        foundValidTarget = true;
+
+        // Distance from drone to target
+        double distToFire = firePos.distanceTo(simStep.pos);
+
+        // Total time = distance to fire point / attack speed + time of flight
+        double timeToFire = distToFire / std::max(droneConfig_.attackSpeed, 0.1f);
+        double totalTime = timeToFire + ballisticTof_;
+
+        DEBUG("  Target " << tgtId << ": fireX=" << firePos << " predict=" << predict
+                << " distToFire=" << distToFire << " timeToFire=" << timeToFire << " ballisticTof=" << ballisticTof_
+                << " totalTime=" << totalTime);
+
+        // If changing target, add time to stop
+        double timeToStop = 0;
+        if (tgtId != simStep.targetIdx)
+        {
+            switch (simStep.state)
+            {
+                case STOPPED:
+                    timeToStop = 0;
+                    break;
+                case ACCELERATING:
+                case DECELERATING:
+                    timeToStop = currentSpeed / acceleration_;
+                    break;
+                case MOVING:
+                    timeToStop = droneConfig_.attackSpeed / acceleration_;
+                    break;
+                case TURNING:
+                    timeToStop = remainingTurningSteps * droneConfig_.simTimeStep;
+                    break;
+            }
+        }
+        totalTime += timeToStop;
+
+        if (totalTime < minTotalTime)
+        {
+            minTotalTime = totalTime;
+            bestTargetId = tgtId;
+            simStep.dropPoint = firePos;
+            simStep.predictedTarget = predict;
+            bestPredict = predict;
+        }
+    }
+
+    return foundValidTarget;
 }
