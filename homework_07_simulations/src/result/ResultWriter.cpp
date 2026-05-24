@@ -9,7 +9,7 @@ using json = nlohmann::json;
 
 // ============ JsonResultWriter Implementation ============
 
-bool JsonResultWriter::write(SimStep* steps, int stepCount)
+bool JsonResultWriter::write(const SimStep* steps, const int &stepCount)
 {
     std::ofstream outFile(folderPath + filename);
     if (!outFile.is_open())
@@ -59,7 +59,7 @@ void JsonResultWriter::setFilename(const std::string &filename)
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
-bool ApiResultWriter::write(SimStep* steps, int stepCount)
+bool ApiResultWriter::write(const SimStep* steps, const int &stepCount)
 {
     // TODO: Implement API submission logic
     // TODO: Handle HTTP POST request with authentication
@@ -85,7 +85,7 @@ void ApiResultWriter::setAuthToken(const std::string &token)
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
-bool DatabaseResultWriter::write(SimStep* steps, int stepCount)
+bool DatabaseResultWriter::write(const SimStep* steps, const int &stepCount)
 {
     // TODO: Implement database insertion logic
     // TODO: Handle connection management
