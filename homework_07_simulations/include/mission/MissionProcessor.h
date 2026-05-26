@@ -35,12 +35,16 @@ private:
 
     // Внутрішній стан симуляції
     SimStep*  simSteps_ = nullptr;   // масив для зберігання кроків симуляції
+    SimStep   simStep_ = {};          // поточний шаг симуляції
     int       currentStep_;          // лічильник кроків симуляції
     int       targetCount_;          // кількість цілей
 
     float     currentSpeed_;         // поточна швидкість
     double    currentTime_;
     float     acceleration_;
+    int       remainingTurningSteps_;
+
+    bool      hasNext_;               // Наявность обчислення наступних кроків
 
 public:
     // Конструктор — приймає solver і targets через інтерфейси
@@ -79,7 +83,7 @@ public:
     // Отримати кількість цілей
     int getTargetCount() const { return targets_->getTargetCount(); };
 
-    int calculateFlow();
+    bool exportResults();
 
 private:
     Coord targetInterpolation(const int &targetId, const double &time, const float &arrayTimeStep);

@@ -25,7 +25,11 @@ int main(int argc, char** argv)
     MissionProcessor *mission = new MissionProcessor(solver, targetProvider);
     mission->init(cfgLoader, wrtierProvider);
 
-    mission->calculateFlow();
+    while (mission->hasNext()) {
+        mission->step();
+    }
+
+    mission->exportResults();
 
     delete solver;
     delete targetProvider;
