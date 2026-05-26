@@ -1,20 +1,10 @@
 #pragma once
 
 #include <string>
-#include "json.hpp"
+#include <nlohmann/json.hpp>
 
+#include "interfaces/ITargetProvider.h"
 #include "drone/DroneConfig.h"
-
-// ============ ITargetProvider Interface ============
-
-class ITargetProvider {
-public:
-    virtual ~ITargetProvider() = default;
-    virtual bool load() = 0;
-    virtual int getTargetCount() = 0;
-    virtual int getTimeSteps() = 0;
-    virtual Target *getTarget(int index) = 0;
-};
 
 // ============ JsonTargetProvider ============
 

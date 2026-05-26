@@ -4,6 +4,17 @@ cmake_minimum_required(VERSION 3.20)
 # через root CMakeLists.txt, так і напряму з цієї директорії.
 project(drone_simulations CXX)
 
+include(FetchContent)
+
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json
+    GIT_TAG v3.12.0
+)
+
+set(JSON_BuildTests OFF CACHE BOOL "Build tests" FORCE)
+FetchContent_MakeAvailable(nlohmann_json)
+
 # Код домашньої роботи збирається з тим самим стандартом, що й лекційні приклади.
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -16,8 +27,12 @@ add_executable(drone_simulations src/main.cpp
     src/mission/MissionProcessor.cpp
     src/ballistic/AnalyticalSolver.cpp
     src/drone/ConfigLoader.cpp
-    src/target/TargetLoader.cpp
+    src/target/JsonTargetProvider.cpp
+    src/target/SerialTargetProvider.cpp
+    src/target/TestTargetProvider.cpp
     src/result/ResultWriter.cpp)
+
+target_link_libraries(drone_simulations PRIVATE nlohmann_json::nlohmann_json)
 
 target_include_directories(drone_simulations PRIVATE include)
 

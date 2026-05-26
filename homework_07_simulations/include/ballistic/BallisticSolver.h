@@ -1,13 +1,8 @@
 #pragma once
 
-constexpr double g = 9.81;
+#include "interfaces/IBallisticSolver.h"
 
-class IBallisticSolver {
-public:
-    virtual ~IBallisticSolver() = default;
-    virtual double calculateHorizontalDistance(const float &attackSpeed, const float &ammoDrag, const float &ammoMass, const float &ammoLift, const double &time) = 0;
-    virtual double calculateTimeToTarget(const float &attackSpeed, const float &ammoDrag, const float &ammoMass, const float &ammoLift, const float &zd) = 0;
-};
+constexpr double g = 9.81;
 
 class AnalyticalSolver : public IBallisticSolver {
 public:
