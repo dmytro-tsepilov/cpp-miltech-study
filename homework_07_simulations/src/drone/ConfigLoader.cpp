@@ -3,7 +3,7 @@
 #include "common/macros.h"
 
 #include "drone/ConfigLoader.h"
-//#include "drone/DroneConfig.h" // Потрібно включити структуру DroneConfig
+
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;

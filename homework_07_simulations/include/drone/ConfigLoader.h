@@ -1,18 +1,10 @@
 #pragma once
 
 #include <string>
-#include "json.hpp"
+#include <nlohmann/json.hpp>
 
+#include "interfaces/IConfigLoader.h"
 #include "DroneConfig.h"
-
-class IConfigLoader {
-public:
-    virtual ~IConfigLoader() = default;
-    virtual bool load() = 0;
-
-    virtual DroneConfig getConfig() = 0;
-    virtual AmmoType **getAmmoParams(int &ammoCount) = 0;
-};
 
 class FileConfigLoader : public IConfigLoader {
 private:

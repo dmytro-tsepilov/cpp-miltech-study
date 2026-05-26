@@ -5,20 +5,12 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wtautological-overlap-compare"
 
-#include "json.hpp"
+#include <nlohmann/json.hpp>
 // Повертаємо попередження назад для решти коду
 #pragma GCC diagnostic pop
 
-//#include "drone/DroneConfig.h"
 #include "common/SimStep.h"
-
-// ============ IResultWriter Interface ============
-
-class IResultWriter {
-public:
-    virtual ~IResultWriter() = default;
-    virtual bool write(const SimStep* steps, const int &stepCount) = 0;
-};
+#include "interfaces/IResultWriter.h"
 
 // ============ JsonResultWriter ============
 
