@@ -1,11 +1,12 @@
 #include <fstream>
-
+#include <filesystem>
 #include "common/macros.h"
 
 #include "drone/ConfigLoader.h"
 //#include "drone/DroneConfig.h" // Потрібно включити структуру DroneConfig
 
 using json = nlohmann::json;
+namespace fs = std::filesystem;
 
 bool FileConfigLoader::load()
 {
@@ -33,10 +34,11 @@ void FileConfigLoader::setFolderPath(const std::string &folderPath)
 
 bool FileConfigLoader::loadConfigFromFile(const std::string &filename)
 {
-    std::ifstream inputFile(folderPath_ + filename);
+    fs::path fullPath = fs::path(folderPath_) / filename;
+    std::ifstream inputFile(fullPath);
     if (!inputFile.is_open())
     {
-        LOG("Error opening ammo types file");
+        LOG("Error opening ammo types file: " << fullPath);
         return false;
     }
 
@@ -63,10 +65,11 @@ bool FileConfigLoader::loadConfigFromFile(const std::string &filename)
  */
 bool FileConfigLoader::loadAmmoTypesFromFile(const std::string &filename)
 {
-    std::ifstream inputFile(this->folderPath_ + filename);
+    fs::path fullPath = fs::path(folderPath_) / filename;
+    std::ifstream inputFile(fullPath);
     if (!inputFile.is_open())
     {
-        LOG("Error opening ammo types file");
+        LOG("Error opening ammo types file: " << fullPath);
         return false;
     }
 

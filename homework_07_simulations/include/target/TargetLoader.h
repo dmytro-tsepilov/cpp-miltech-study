@@ -20,16 +20,16 @@ public:
 
 class JsonTargetProvider : public ITargetProvider {
 private:
-    std::string fileName;
-    std::string folderPath;
+    std::string fileName_;
+    std::string folderPath_;
     int targetCount;
     int timeSteps;
     Target** targets = nullptr;
 
 public:
     JsonTargetProvider(const std::string &folderPath = "", const std::string &filename = "targets.json") {
-        this->fileName = filename;
-        this->folderPath = folderPath;
+        fileName_ = filename;
+        folderPath_ = folderPath;
     }
 
     bool load() override;

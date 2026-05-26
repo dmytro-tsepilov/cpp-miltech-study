@@ -33,6 +33,19 @@ bool MissionProcessor::init(IConfigLoader* loader, IResultWriter* writer)
         return false;
     }
 
+    // Check readed data
+    if (droneConfig_.attackSpeed <= 0 || droneConfig_.accelPath <= 0 || droneConfig_.arrayTimeStep <= 0 || droneConfig_.simTimeStep <= 0 || droneConfig_.angularSpeed <= 0)
+    {
+        LOG("Error: Invalid simulation parameters");
+        return false;
+    }
+
+    DEBUG("Input data: xd=" << droneConfig_.startPos.x << " yd=" << droneConfig_.startPos.y << " droneConfig.altitude=" << droneConfig_.altitude << " dir=" << droneConfig_.initialDir
+              << " speed=" << droneConfig_.attackSpeed << " accelPath=" << droneConfig_.accelPath << " ammo=" << droneConfig_.ammoName
+              << " arrayStep=" << droneConfig_.arrayTimeStep << " simStep=" << droneConfig_.simTimeStep);
+
+    initDroneConstants();
+
     return true;
 }
 
@@ -117,17 +130,6 @@ int MissionProcessor::calculateFlow()
 {
     SimStep simStep = {};
 
-    // Check readed data
-    if (droneConfig_.attackSpeed <= 0 || droneConfig_.accelPath <= 0 || droneConfig_.arrayTimeStep <= 0 || droneConfig_.simTimeStep <= 0 || droneConfig_.angularSpeed <= 0)
-    {
-        LOG("Error: Invalid simulation parameters");
-        return 1;
-    }
-
-    DEBUG("Input data: xd=" << droneConfig_.startPos.x << " yd=" << droneConfig_.startPos.y << " droneConfig.altitude=" << droneConfig_.altitude << " dir=" << droneConfig_.initialDir
-              << " speed=" << droneConfig_.attackSpeed << " accelPath=" << droneConfig_.accelPath << " ammo=" << droneConfig_.ammoName
-              << " arrayStep=" << droneConfig_.arrayTimeStep << " simStep=" << droneConfig_.simTimeStep);
-
     // Initial drone state parasmeters
     simStep.pos = droneConfig_.startPos;
     simStep.direction = droneConfig_.initialDir;
@@ -140,8 +142,6 @@ int MissionProcessor::calculateFlow()
     float currentSpeed = 0;
     int remainingTurningSteps = 0;
     double currentTime = 0;
-
-    initDroneConstants();
 
     // Allocate dynamic array for SimStep upfront
     simSteps_ = new SimStep[MAX_STEPS];
