@@ -21,6 +21,8 @@ FetchContent_Declare(
 
 set(JSON_BuildTests OFF CACHE BOOL "Build tests" FORCE)
 FetchContent_MakeAvailable(nlohmann_json)
+
+set(CPPHTTPLIB_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(httplib)
 
 # Код домашньої роботи збирається з тим самим стандартом, що й лекційні приклади.
