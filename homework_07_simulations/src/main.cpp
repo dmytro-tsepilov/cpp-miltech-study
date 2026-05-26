@@ -18,7 +18,9 @@ int main(int argc, char** argv)
     std::string dataFolder = argv[1];
 
     IBallisticSolver *solver = createBallisticSolver(SolverType::ANALYTICAL);
-    ITargetProvider *targetProvider = createTargetProvider(SourceType::JSON, dataFolder.c_str());
+    //ITargetProvider *targetProvider = createTargetProvider(SourceType::JSON, dataFolder.c_str());
+    ITargetProvider *targetProvider = createTargetProvider(SourceType::HTTP, "http://cppmiltech.com.ua", "/hw3/api/tests/test10_extreme");
+    
     IConfigLoader *cfgLoader = createConfigLoader(ConfigType::JSON, dataFolder.c_str());
     IResultWriter *wrtierProvider = createResultWriter(DestType::JSON);
 
