@@ -1,4 +1,5 @@
 #include <fstream>
+#include <filesystem>
 #include <string>
 #include <cstring>
 
@@ -6,6 +7,7 @@
 #include "target/TargetLoader.h"
 
 using json = nlohmann::json;
+namespace fs = std::filesystem;
 
 // ============ JsonTargetProvider Implementation ============
 
@@ -21,15 +23,16 @@ int JsonTargetProvider::getTimeSteps()
 
 void JsonTargetProvider::setFolderPath(const std::string folderPath)
 {
-    this->folderPath = folderPath;
+    folderPath_ = folderPath;
 }
 
 bool JsonTargetProvider::load()
 {
-    std::ifstream inputFile(folderPath + this->fileName);
+    fs::path fullPath = fs::path(folderPath_) / fileName_;
+    std::ifstream inputFile(fullPath);
     if (!inputFile.is_open())
     {
-        LOG("Error opening targets file");
+        LOG("Error opening targets file: " << fullPath);
         return false;
     }
 
