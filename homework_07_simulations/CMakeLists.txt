@@ -12,8 +12,16 @@ FetchContent_Declare(
     GIT_TAG v3.12.0
 )
 
+# Для завдання з HttpTargetProvider нам потрібна бібліотека для HTTP-запитів.
+FetchContent_Declare(
+    httplib
+    GIT_REPOSITORY https://github.com/yhirose/cpp-httplib
+    GIT_TAG v0.46.0
+)
+
 set(JSON_BuildTests OFF CACHE BOOL "Build tests" FORCE)
 FetchContent_MakeAvailable(nlohmann_json)
+FetchContent_MakeAvailable(httplib)
 
 # Код домашньої роботи збирається з тим самим стандартом, що й лекційні приклади.
 set(CMAKE_CXX_STANDARD 20)
@@ -23,16 +31,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 ## target_include_directories(json PUBLIC include)
 
 # Один executable для задачі з drone simulations.
-add_executable(drone_simulations src/main.cpp
-    src/mission/MissionProcessor.cpp
-    src/ballistic/AnalyticalSolver.cpp
-    src/drone/ConfigLoader.cpp
-    src/target/JsonTargetProvider.cpp
-    src/target/SerialTargetProvider.cpp
-    src/target/TestTargetProvider.cpp
-    src/result/ResultWriter.cpp)
+file(GLOB_RECURSE SIMULATION_RESOURCES CONFIGURE_DEPENDS src/*.cpp)
+
+add_executable(drone_simulations ${SIMULATION_RESOURCES})
 
 target_link_libraries(drone_simulations PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(drone_simulations PRIVATE httplib::httplib)
 
 target_include_directories(drone_simulations PRIVATE include)
 
