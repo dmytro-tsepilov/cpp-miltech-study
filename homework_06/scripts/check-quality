@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# check-quality.sh - Quality check script for homework_06
+# Usage: cd /path/to/repo && ./homework_06/scripts/check-quality
+# This script runs formatting, compilation, testing, and static analysis.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Navigate to project root (parent of homework_06)
+cd "$PROJECT_ROOT/.."
+
+echo "== Quality Check for homework_06 =="
+echo ""
+
+# Step 1: Format C++ files
+echo "--- Step 1: Formatting C++ files ---"
+clang-format -i \
+  "homework_06/include/ballistics.hpp" \
+  "homework_06/src/ballistics.cpp" \
+  "homework_06/src/main.cpp" \
+  "homework_06/tests/ballistics_tests.cpp"
+echo "C++ formatting done."
+echo ""
+
+# Step 2: Format CMake files
+echo "--- Step 2: Formatting CMake files ---"
+cmake-format -i "CMakeLists.txt" "homework_06/CMakeLists.txt"
+echo "CMake formatting done."
+echo ""
+
+# Step 3: Configure and build
+echo "--- Step 3: Building project ---"
+cmake --preset debug 2>&1 | tail -1
+cmake --build --preset debug 2>&1 | tail -5
+echo "Build successful."
+echo ""
+
+# Step 4: Run tests
+echo "--- Step 4: Running tests ---"
+ctest --test-dir build/debug --output-on-failure
+echo "Tests passed."
+echo ""
+
+# Step 5: Run clang-tidy
+echo "--- Step 5: Running clang-tidy ---"
+clang-tidy -p build/debug \
+  "homework_06/src/ballistics.cpp" \
+  "homework_06/src/main.cpp" \
+  --header-filter='homework_06/.*' \
+  2>&1 | grep -v "^Suppressed" || true
+echo "clang-tidy check done."
+echo ""
+
+echo "== Quality check complete =="
