@@ -150,31 +150,6 @@ DropSolution compute_drop_solution(const BallisticsInput& input, std::string& re
     return result;
   }
 
-  // // Calculate fire point coordinates
-  // double fire_x, fire_y;
-
-  // // The fire point is located at distance 'horizontalDistance' from the target toward the drone
-  // // ratio = (distance - horizontalDistance) / distance represents the fraction of the path
-  // // from the drone to the fire point
-  // const double ratio = (distance - horizontalDistance) / distance;
-
-  // if (horizontalDistance + input.acceleration_path > distance) {
-  //   // Target is out of range - compute closest reachable point
-  //   // Use ratio based on (horizontalDistance + acceleration_path) / distance
-  //   const double outOfRangeRatio = (horizontalDistance + input.acceleration_path) / distance;
-  //   fire_x = input.drone_x + delta_x * outOfRangeRatio;
-  //   fire_y = input.drone_y + delta_y * outOfRangeRatio;
-  // }
-  // else {
-  //   // Calculate firing point along the line to target
-  //   fire_x = input.drone_x + delta_x * ratio;
-  //   fire_y = input.drone_y + delta_y * ratio;
-  // }
-
-  // result.fire_x = fire_x;
-  // result.fire_y = fire_y;
-  // result.time_of_flight = t;
-  // result.valid = true;
 
   char buf[64];
   resultCalculation = "";
