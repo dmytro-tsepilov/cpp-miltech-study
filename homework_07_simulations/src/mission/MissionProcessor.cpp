@@ -46,23 +46,7 @@ bool MissionProcessor::init(IConfigLoader* loader, IResultWriter* writer)
 
     initDroneConstants();
 
-    // Initial drone state parasmeters
-    simStep_.pos = droneConfig_.startPos;
-    simStep_.direction = droneConfig_.initialDir;
-    simStep_.state = STOPPED;
-    simStep_.targetIdx = 0;
-    simStep_.dropPoint = droneConfig_.startPos;
-    simStep_.aimPoint = droneConfig_.startPos;
-    simStep_.predictedTarget = droneConfig_.startPos;
-
-    // Allocate dynamic array for SimStep upfront
-    simSteps_ = new SimStep[MAX_STEPS];
-
-    hasNext_ = true;
-    currentStep_ = 0;
-    currentTime_ = 0;
-    currentSpeed_ = 0;
-    remainingTurningSteps_ = 0;
+    reset();
 
     return true;
 }
@@ -448,4 +432,30 @@ int MissionProcessor::detectBestTarget(SimStep &simStep, const double &currentTi
     }
 
     return foundValidTarget;
+}
+
+// Reset simulation state to initial position (after init(), before first step())
+void MissionProcessor::reset()
+{
+    // Initial drone state parasmeters
+    simStep_.pos = droneConfig_.startPos;
+    simStep_.direction = droneConfig_.initialDir;
+    simStep_.state = STOPPED;
+    simStep_.targetIdx = 0;
+    simStep_.dropPoint = droneConfig_.startPos;
+    simStep_.aimPoint = droneConfig_.startPos;
+    simStep_.predictedTarget = droneConfig_.startPos;
+
+    hasNext_ = true;
+    currentStep_ = 0;
+    currentTime_ = 0;
+    currentSpeed_ = 0;
+    remainingTurningSteps_ = 0;
+
+    if (simSteps_) {
+        delete[] simSteps_;
+    }
+
+    // Allocate dynamic array for SimStep upfront
+    simSteps_ = new SimStep[MAX_STEPS];
 }
