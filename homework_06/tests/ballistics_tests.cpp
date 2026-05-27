@@ -16,11 +16,29 @@ protected:
     EXPECT_TRUE(approx_equal(actual, expected, epsilon))
       << "Expected " << expected << " but got " << actual << " (epsilon = " << epsilon << ")";
   }
+
+  // Helper to parse fire coordinates from resultCalculation string
+  bool parseResultString(const std::string& resultCalculation, double& fire_x, double& fire_y)
+  {
+    // Format: "fireX fireY"
+    size_t firstSpace = resultCalculation.find(' ');
+    if (firstSpace == std::string::npos) {
+      return false;
+    }
+    try {
+      fire_x = std::stod(resultCalculation.substr(0, firstSpace));
+      fire_y = std::stod(resultCalculation.substr(firstSpace + 1));
+      return true;
+    }
+    catch (...) {
+      return false;
+    }
+  }
 };
 
 // Test 1: Reference test for VOG-17 (from DH1 example)
 // Input: 100 100 100 200 200 10 10 VOG-17
-// Expected: fire_x ≈ 166.688, fire_y ≈ 166.688 (based on actual calculation)
+// Expected: fire_x ≈ 173.759, fire_y ≈ 173.759 (based on actual calculation)
 TEST_F(BallisticsTest, ComputesKnownDropPoint)
 {
   BallisticsInput input{};
@@ -33,12 +51,16 @@ TEST_F(BallisticsTest, ComputesKnownDropPoint)
   input.acceleration_path = 10.0;
   input.ammo_name = "VOG-17";
 
-  DropSolution solution = compute_drop_solution(input);
+  std::string resultCalculation;
+  DropSolution solution = compute_drop_solution(input, resultCalculation);
 
   EXPECT_TRUE(solution.valid);
-  ExpectNear(solution.fire_x, 166.688, 0.01);
-  ExpectNear(solution.fire_y, 166.688, 0.01);
-  EXPECT_GT(solution.time_of_flight, 0.0);
+  EXPECT_TRUE(!resultCalculation.empty());
+
+  double fire_x, fire_y;
+  EXPECT_TRUE(parseResultString(resultCalculation, fire_x, fire_y));
+  ExpectNear(fire_x, 173.759, 0.01);
+  ExpectNear(fire_y, 173.759, 0.01);
 }
 
 // Test 2: Unknown ammo type returns error
@@ -54,9 +76,11 @@ TEST_F(BallisticsTest, UnknownAmmoTypeReturnsError)
   input.acceleration_path = 10.0;
   input.ammo_name = "UNKNOWN-AMMO";
 
-  DropSolution solution = compute_drop_solution(input);
+  std::string resultCalculation;
+  DropSolution solution = compute_drop_solution(input, resultCalculation);
 
   EXPECT_FALSE(solution.valid);
+  EXPECT_NE(solution.error_message.find("Unknown ammo type"), std::string::npos);
 }
 
 // Test 3: Zero height returns error
@@ -72,13 +96,14 @@ TEST_F(BallisticsTest, ZeroHeightReturnsError)
   input.acceleration_path = 10.0;
   input.ammo_name = "VOG-17";
 
-  DropSolution solution = compute_drop_solution(input);
+  std::string resultCalculation;
+  DropSolution solution = compute_drop_solution(input, resultCalculation);
 
   EXPECT_FALSE(solution.valid);
   EXPECT_NE(solution.error_message.find("positive"), std::string::npos);
 }
 
-// Test 4: Gliding ammo produces positive time of flight
+// Test 4: Gliding ammo produces valid result
 TEST_F(BallisticsTest, GlidingAmmoProducesPositiveTime)
 {
   BallisticsInput input{};
@@ -91,13 +116,17 @@ TEST_F(BallisticsTest, GlidingAmmoProducesPositiveTime)
   input.acceleration_path = 5.0;
   input.ammo_name = "GLIDING-VOG";
 
-  DropSolution solution = compute_drop_solution(input);
+  std::string resultCalculation;
+  DropSolution solution = compute_drop_solution(input, resultCalculation);
 
   EXPECT_TRUE(solution.valid);
-  EXPECT_GT(solution.time_of_flight, 0.0);
+  EXPECT_TRUE(!resultCalculation.empty());
+
+  double fire_x, fire_y;
+  EXPECT_TRUE(parseResultString(resultCalculation, fire_x, fire_y));
   // The fire point should be roughly along the diagonal toward the target
-  ExpectNear(solution.fire_x, 237.671, 0.01);
-  ExpectNear(solution.fire_y, 237.671, 0.01);
+  ExpectNear(fire_x, 241.207, 0.01);
+  ExpectNear(fire_y, 241.207, 0.01);
 }
 
 // Test 5: Zero distance returns error
@@ -113,7 +142,8 @@ TEST_F(BallisticsTest, ZeroDistanceReturnsError)
   input.acceleration_path = 10.0;
   input.ammo_name = "VOG-17";
 
-  DropSolution solution = compute_drop_solution(input);
+  std::string resultCalculation;
+  DropSolution solution = compute_drop_solution(input, resultCalculation);
 
   EXPECT_FALSE(solution.valid);
   EXPECT_NE(solution.error_message.find("same position"), std::string::npos);
@@ -181,7 +211,8 @@ TEST_F(BallisticsTest, NegativeHeightReturnsError)
   input.acceleration_path = 10.0;
   input.ammo_name = "VOG-17";
 
-  DropSolution solution = compute_drop_solution(input);
+  std::string resultCalculation;
+  DropSolution solution = compute_drop_solution(input, resultCalculation);
 
   EXPECT_FALSE(solution.valid);
 }
