@@ -15,11 +15,11 @@
 
 const int8_t BOMB_TYPES = 5;
 
-const AmmoType bombTypes[BOMB_TYPES] = {{"VOG-17", 0.35f, 0.07f, 0.0f},
-                                        {"M67", 0.6f, 0.10f, 0.0f},
-                                        {"RKG-3", 1.2f, 0.10f, 0.0f},
-                                        {"GLIDING-VOG", 0.45f, 0.10f, 1.0f},
-                                        {"GLIDING-RKG", 1.4f, 0.10f, 1.0f}};
+const AmmoType bombTypes[BOMB_TYPES] = {{"VOG-17", 0.35f, 0.07f, 0.0f, false},
+                                        {"M67", 0.6f, 0.10f, 0.0f, false},
+                                        {"RKG-3", 1.2f, 0.10f, 0.0f, false},
+                                        {"GLIDING-VOG", 0.45f, 0.10f, 1.0f, true},
+                                        {"GLIDING-RKG", 1.4f, 0.10f, 1.0f, true}};
 
 bool detectAmmoType(const char* ammoName, AmmoType& outAmmoType)
 {
@@ -87,7 +87,7 @@ bool parse_input_line(const std::string& line, BallisticsInput& output)
   return true;
 }
 
-DropSolution compute_drop_solution(const BallisticsInput& input)
+DropSolution compute_drop_solution(const BallisticsInput& input, std::string& resultCalculation)
 {
   DropSolution result{};
   result.valid = false;
@@ -107,9 +107,14 @@ DropSolution compute_drop_solution(const BallisticsInput& input)
   // Look up ammo properties
   AmmoType ammo;
 
-  detectAmmoType(input.ammo_name.c_str(), ammo);
-  if (ammo.mass == 0) {
-    std::cout << "Error: Unknown ammo type" << std::endl;
+  if (!detectAmmoType(input.ammo_name.c_str(), ammo)) {
+    result.error_message = "Unknown ammo type: " + input.ammo_name;
+    return result;
+  }
+
+  // Validate ammo properties
+  if (ammo.mass == 0.f) {
+    result.error_message = "Invalid ammo properties (mass is zero)";
     return result;
   }
 
@@ -129,7 +134,7 @@ DropSolution compute_drop_solution(const BallisticsInput& input)
   const double velocity = input.attack_speed;
   const double height = input.drone_z;
 
-  // Calculate time of flight using Kardano's method
+  // Calculate time of flight using Cardano's method
   const double t = calculateTimeToTarget(velocity, drag_coeff, mass, lift_coeff, height);
 
   if (t <= 0) {
@@ -145,26 +150,56 @@ DropSolution compute_drop_solution(const BallisticsInput& input)
     return result;
   }
 
-  // Calculate fire point coordinates
-  double fire_x, fire_y;
+  // // Calculate fire point coordinates
+  // double fire_x, fire_y;
+
+  // // The fire point is located at distance 'horizontalDistance' from the target toward the drone
+  // // ratio = (distance - horizontalDistance) / distance represents the fraction of the path
+  // // from the drone to the fire point
+  // const double ratio = (distance - horizontalDistance) / distance;
+
+  // if (horizontalDistance + input.acceleration_path > distance) {
+  //   // Target is out of range - compute closest reachable point
+  //   // Use ratio based on (horizontalDistance + acceleration_path) / distance
+  //   const double outOfRangeRatio = (horizontalDistance + input.acceleration_path) / distance;
+  //   fire_x = input.drone_x + delta_x * outOfRangeRatio;
+  //   fire_y = input.drone_y + delta_y * outOfRangeRatio;
+  // }
+  // else {
+  //   // Calculate firing point along the line to target
+  //   fire_x = input.drone_x + delta_x * ratio;
+  //   fire_y = input.drone_y + delta_y * ratio;
+  // }
+
+  // result.fire_x = fire_x;
+  // result.fire_y = fire_y;
+  // result.time_of_flight = t;
+  // result.valid = true;
+
+  char buf[64];
+  resultCalculation = "";
+  LOG("Horizontal distance to target: " << horizontalDistance);
 
   if (horizontalDistance + input.acceleration_path > distance) {
-    // Target is out of range - compute closest reachable point
-    const double reachable = horizontalDistance + input.acceleration_path;
-    const double ratio = reachable / distance;
-    fire_x = input.drone_x + delta_x * ratio;
-    fire_y = input.drone_y + delta_y * ratio;
-  }
-  else {
-    // Calculate firing point along the line to target
-    fire_x = input.drone_x + delta_x * (1.0 - (horizontalDistance + input.acceleration_path) / distance);
-    fire_y = input.drone_y + delta_y * (1.0 - (horizontalDistance + input.acceleration_path) / distance);
+    LOG("Target is out of range");
+
+    float xd_prime = input.target_x - (input.target_x - input.drone_x) * (horizontalDistance + input.acceleration_path) / distance;
+    float yd_prime = input.target_y - (input.target_y - input.drone_y) * (horizontalDistance + input.acceleration_path) / distance;
+
+    snprintf(buf, sizeof(buf), "%.3f %.3f ", xd_prime, yd_prime);
+    resultCalculation += buf;
   }
 
-  result.fire_x = fire_x;
-  result.fire_y = fire_y;
-  result.time_of_flight = t;
+  // Calculate targert coordinates after acceleration path
+  float ratio = (distance - horizontalDistance) / distance;
+  float fireX = input.drone_x + (input.target_x - input.drone_x) * ratio;
+  float fireY = input.drone_y + (input.target_y - input.drone_y) * ratio;
+
+  snprintf(buf, sizeof(buf), "%.3f %.3f", fireX, fireY);
+  resultCalculation += buf;
+
   result.valid = true;
+  LOG("Fire coordinates: (" << fireX << ", " << fireY << ")");
 
   return result;
 }
@@ -172,7 +207,7 @@ DropSolution compute_drop_solution(const BallisticsInput& input)
 double calculateHorizontalDistance(
   const float& attackSpeed, const float& ammoDrag, const float& ammoMass, const float& ammoLift, const double& time)
 {
-  // Calclulate horizontal distance to target
+  // Calculate horizontal distance to target
   // h = V₀t − t²d·V₀/(2m) + t³(6d·g·l·m − 6d²(l²-1)·V₀)/(36m²) +
   //     + t⁴ (−6d²g·l·(1+l²+l⁴)m + 3d³l²(1+l²)V₀ + 6d³l⁴(1+l²)V₀)  / (36(1+l²)²m³)
   //     + t⁵(3d³g·l³m − 3d⁴l²(1+l²)V₀) / (36(1+l²)m⁴)
@@ -200,7 +235,8 @@ double calculateHorizontalDistance(
 
 double calculateTimeToTarget(const float& attackSpeed, const float& ammoDrag, const float& ammoMass, const float& ammoLift, const float& zd)
 {
-  // Calculate time to target
+  // Calculate time to target using Cardano's method
+  // These formulas match the correct implementation in main.cpp
   double a = ammoDrag * g * ammoMass - 2 * pow(ammoDrag, 2) * ammoLift * attackSpeed;
   double b = -3 * g * pow(ammoMass, 2) + 3 * ammoDrag * ammoLift * ammoMass * attackSpeed;
   double c = 6 * pow(ammoMass, 2) * zd;
@@ -210,7 +246,7 @@ double calculateTimeToTarget(const float& attackSpeed, const float& ammoDrag, co
     return std::sqrt(2 * zd / g);
   }
 
-  // Calculate Kardano method
+  // Calculate Cardano's method parameters (matching main.cpp formulas)
   double p = -pow(b, 2) / (3 * pow(a, 2));
   double q = (2 * pow(b, 3)) / (27 * pow(a, 3)) + c / a;
 

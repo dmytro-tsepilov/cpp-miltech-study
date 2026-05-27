@@ -35,27 +35,22 @@ int main(int argc, char* argv[])
   }
 
   std::string output_content;
+  std::string resultCalculation;
 
-  for (size_t i = 0; i < lines.size(); ++i) {
-    BallisticsInput input;
-    if (!parse_input_line(lines[i], input)) {
-      LOG("Warning: cannot parse line " << (i + 1) << ", skipping: " << lines[i]);
-      continue;
-    }
-
-    DropSolution solution = compute_drop_solution(input);
-
-    if (!solution.valid) {
-      LOG("Error on line " << (i + 1) << ": " << solution.error_message);
-      return 1;
-    }
-
-    std::array<char, 256> buffer{};
-    std::snprintf(buffer.data(), buffer.size(), "%.3f %.3f\n", solution.fire_x, solution.fire_y);
-    output_content += buffer.data();
+  BallisticsInput input;
+  if (!parse_input_line(lines[0], input)) {
+    LOG("Warning: cannot parse line skipping: " << lines[0]);
+    return 1;
   }
 
-  if (!write_output_file(output_file, output_content)) {
+  DropSolution result = compute_drop_solution(input, resultCalculation);
+
+  if (!result.valid) {
+    LOG("Error on line: " << result.error_message);
+    return 1;
+  }
+
+  if (!write_output_file(output_file, resultCalculation)) {
     LOG("Error: cannot write output file: " << output_file);
     return 1;
   }

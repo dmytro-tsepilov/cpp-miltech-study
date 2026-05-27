@@ -53,7 +53,7 @@ struct AmmoType {
  * @param input The ballistics input parameters
  * @return DropSolution with fire coordinates and flight time, or invalid solution with error
  */
-DropSolution compute_drop_solution(const BallisticsInput &input);
+DropSolution compute_drop_solution(const BallisticsInput &input, std::string &resultCalculation);
 
 /**
  * Look up ammo properties by name.
