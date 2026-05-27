@@ -24,8 +24,6 @@ private:
     IConfigLoader*    configLoader_; // завантажувач конфігурації
     IResultWriter*    resultWriter_;
 
-    int currentIdx_;                 // лічильник поточної цілі
-
     DroneConfig droneConfig_;        // конфігурація дрона
     AmmoType  ammo_;                 // параметри боєприпасу
     AmmoType** bombTypes_ = nullptr;
@@ -46,7 +44,7 @@ private:
 
     bool      hasNext_;               // Наявность обчислення наступних кроків
 
-public:
+ public:
     // Конструктор — приймає solver і targets через інтерфейси
     MissionProcessor(IBallisticSolver* s, ITargetProvider* t) : solver_(s), targets_(t) {};
 
