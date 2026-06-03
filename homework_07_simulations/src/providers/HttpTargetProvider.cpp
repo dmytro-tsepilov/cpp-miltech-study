@@ -22,14 +22,42 @@ Target *HttpTargetProvider::getTarget(int index) {
     return &targets[index][0];
 }
 
+std::string HttpTargetProvider::getBaseUrl() {
+    if(homeWork_ == "hw3") {
+        return "/" + homeWork_ + "/" + basePath_;
+    } else if (homeWork_ == "hw9") {
+        return "/" + homeWork_ + "/api/hw9/tests";
+    } else {
+            return "/";
+    }
+}
+
 bool HttpTargetProvider::load()
 {
-    std::string rawResponse;
-    rawResponse = downloadFile(apiURL_, testName_);
+    std::string testName = getTestName(10);
+    std::string fullPath = getBaseUrl() + "/" + testName;
+    std::string  rawResponse = downloadFile(fullPath);
 
     parseTargets(rawResponse);
 
     return true;
+}
+
+std::string HttpTargetProvider::getTestName(const int testNumber)
+{
+    std::string fullPath = getBaseUrl();
+    std::string rawResponse = downloadFile(fullPath);
+
+    json data = json::parse(rawResponse);
+
+    if (testNumber < 1 || testNumber > static_cast<int>(data.size())) {
+        LOG("Invalid test number: " << testNumber << " (valid range: 1-" << static_cast<int>(data.size()) << ")");
+        return "";
+    }
+
+    DEBUG("Test found: " << data[testNumber - 1]["name"].get<std::string>());
+
+    return data[testNumber - 1]["id"].get<std::string>();
 }
 
 bool HttpTargetProvider::parseTargets(const std::string &rawResponse)
@@ -50,13 +78,18 @@ bool HttpTargetProvider::parseTargets(const std::string &rawResponse)
     return true;
 }
 
-std::string HttpTargetProvider::downloadFile(const std::string& baseUrl, const std::string& path) {
-    httplib::Client cli(baseUrl);
-    auto res = cli.Get(path);
+std::string HttpTargetProvider::downloadFile(const std::string& fullPath) {
+
+    DEBUG("Downloading data from: " << apiURL_ << fullPath);
+    
+    httplib::Client cli(apiURL_);
+    auto res = cli.Get(fullPath);
 
     if (res && res->status == 200) {
         std::string data = res->body;
         return data;
+    } else {
+        LOG("Failed to download targets: " << (res ? res->status : 0) << " URL:" << res->location);
     }
 
     return "";

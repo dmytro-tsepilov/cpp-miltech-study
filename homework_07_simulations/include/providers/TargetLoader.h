@@ -74,19 +74,26 @@ private:
     int targetCount;
     int timeSteps;
     std::vector<std::vector<Target>> targets;
-    std::string apiURL_;
+    std::string apiURL_ = "http://cppmiltech.com.ua";
     std::string testName_;
+    std::string basePath_ = "api/tests";
+    std::string homeWork_ = "hw3";
 
-    std::string downloadFile(const std::string& baseUrl, const std::string& path);
+    std::string downloadFile(const std::string& fullPath);
+    std::string getTestName(const int testNumber);
     bool parseTargets(const std::string &rawResponse);
 
 public:
-    HttpTargetProvider(const std::string &apiURL = "http://cppmiltech.com.ua", const std::string &testname = "/hw3/api/tests/test10_extreme") {
-        apiURL_ = apiURL;
+    HttpTargetProvider(const std::string &homeWork = "hw3", const std::string &testname = "test10_extreme") {
+        homeWork_ = homeWork;
         testName_ = testname;
     };
 
     bool load() override;
+    void setApiUrl(const std::string &apiUrl) {  apiURL_ = apiUrl; };
+    std::string getBaseUrl();
+    void setTestName(const std::string &testName) { testName_ = testName; }
+    void setHomeWork(const std::string &homeWork) { homeWork_ = homeWork; }
     int getTargetCount() override;
     int getTimeSteps() override;
     Target *getTarget(int index) override;
@@ -117,9 +124,9 @@ inline ITargetProvider* createTargetProvider(SourceType type,
             }
             return new SerialTargetProvider(param.value());
         case SourceType::HTTP: {
-            auto apiUrl = param.has_value() && !param->empty() ? param.value() : std::string("http://cppmiltech.com.ua");
-            auto testName = param2.has_value() && !param2->empty() ? param2.value() : std::string("/hw3/api/tests/test10_extreme");
-            return new HttpTargetProvider(apiUrl, testName);
+            auto homeWork = param.has_value() && !param->empty() ? param.value() : std::string("hw3");
+            auto testName = param2.has_value() && !param2->empty() ? param2.value() : std::string("test10_extreme");
+            return new HttpTargetProvider(homeWork, testName);
         }
         case SourceType::TEST:
             return new TestTargetProvider();
