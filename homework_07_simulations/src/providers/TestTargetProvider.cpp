@@ -3,7 +3,7 @@
 // ============ TestTargetProvider Implementation ============
 
 TestTargetProvider::TestTargetProvider()
-    : targetCount(0), timeSteps(0), targets(nullptr)
+    : targetCount(0), timeSteps(0)
 {
 }
 
@@ -12,8 +12,7 @@ bool TestTargetProvider::load()
     // Create test data for simulation
     targetCount = 1;
     timeSteps = 60;
-    targets = new Target*[targetCount];
-    targets[0] = new Target[timeSteps];
+    targets.resize(targetCount, std::vector<Target>(timeSteps));
 
     // Generate circular motion pattern for testing
     for (int j = 0; j < timeSteps; j++) {
@@ -37,8 +36,8 @@ int TestTargetProvider::getTimeSteps()
 
 Target *TestTargetProvider::getTarget(int index)
 {
-    if (targets && index >= 0 && index < targetCount) {
-        return targets[index];
+    if (index >= 0 && index < targetCount) {
+        return &targets[index][0];
     }
     return nullptr;
 }

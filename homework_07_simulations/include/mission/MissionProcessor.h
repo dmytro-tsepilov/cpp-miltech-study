@@ -1,10 +1,12 @@
 #pragma once
+#include <vector>
 #include "providers/TargetLoader.h"
 #include "result/ResultWriter.h"
 #include "solvers/BallisticSolver.h"
 #include "drone/ConfigLoader.h"
-#include "drone/DroneConfig.h"
-#include "common/SimStep.h"
+
+struct SimStep;
+struct DroneConfig;
 
 const int MAX_STEPS = 10000;
 
@@ -26,7 +28,7 @@ private:
 
     DroneConfig droneConfig_;        // конфігурація дрона
     AmmoType  ammo_;                 // параметри боєприпасу
-    AmmoType** bombTypes_ = nullptr;
+    const std::vector<AmmoType>* bombTypes_ = nullptr;
     double    ballisticTof_;         // time of flight (попередньо обчислений)
     double    hDistBomb_;            // horizontal distance (попередньо обчислений)
     double    maxTurnPerStep_;       // максимальний поворот за крок (попередньо обчислений)
@@ -42,7 +44,7 @@ private:
     float     acceleration_;
     int       remainingTurningSteps_;
 
-    bool      hasNext_;               // Наявность обчислення наступних кроків
+    bool      hasNext_;               // Наявність обчислення наступних кроків
 
  public:
     // Конструктор — приймає solver і targets через інтерфейси
@@ -83,7 +85,7 @@ private:
 
     bool exportResults();
 
-private:
+ private:
     Coord targetInterpolation(const int &targetId, const double &time, const float &arrayTimeStep);
     Coord extrapTarget(int targetId, double currentTime, double dtAhead, float dt);
     double applyLimitedTurn(const SimStep &simStep, const double &maxTurnPerStep, const double &desiredDir);

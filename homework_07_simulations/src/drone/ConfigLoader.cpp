@@ -21,9 +21,8 @@ DroneConfig FileConfigLoader::getConfig()
     return this->dConf;
 }
 
-AmmoType **FileConfigLoader::getAmmoParams(int &ammoCount)
+const std::vector<AmmoType>& FileConfigLoader::getAmmoParams()
 {
-    ammoCount = ammoCount_;
     return ammoTypes_;
 }
 
@@ -49,7 +48,7 @@ bool FileConfigLoader::loadConfigFromFile(const std::string &filename)
     dConf.initialDir = data["drone"]["initialDirection"];
     dConf.attackSpeed = data["drone"]["attackSpeed"];
     dConf.accelPath = data["drone"]["accelerationPath"];
-    dConf.ammoName = data["ammo"].get<std::string>().c_str();
+    dConf.ammoName = data["ammo"].get<std::string>();
     dConf.arrayTimeStep = data["targetArrayTimeStep"];
     dConf.simTimeStep = data["simulation"]["timeStep"];
     dConf.hitRadius = data["simulation"]["hitRadius"];
@@ -75,15 +74,14 @@ bool FileConfigLoader::loadAmmoTypesFromFile(const std::string &filename)
 
     json data = json::parse(inputFile);
 
-    ammoCount_ = data.size();
-
-    ammoTypes_ = new AmmoType*[ammoCount_];
-    for (int i = 0 ; i < ammoCount_; i++) {
-        ammoTypes_[i] = new AmmoType;
-        ammoTypes_[i]->name = data[i]["name"].get<std::string>().c_str();
-        ammoTypes_[i]->mass = data[i]["mass"];
-        ammoTypes_[i]->drag = data[i]["drag"];
-        ammoTypes_[i]->lift = data[i]["lift"];
+    ammoTypes_.clear();
+    for (const auto& item : data) {
+        AmmoType ammo;
+        ammo.name = item["name"].get<std::string>();
+        ammo.mass = item["mass"];
+        ammo.drag = item["drag"];
+        ammo.lift = item["lift"];
+        ammoTypes_.push_back(ammo);
     }
 
     inputFile.close();

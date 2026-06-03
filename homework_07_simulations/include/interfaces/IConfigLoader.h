@@ -1,4 +1,7 @@
-#include "drone/DroneConfig.h"
+#include <vector>
+
+struct AmmoType;
+struct DroneConfig;
 
 class IConfigLoader {
 public:
@@ -6,5 +9,5 @@ public:
     virtual bool load() = 0;
 
     virtual DroneConfig getConfig() = 0;
-    virtual AmmoType **getAmmoParams(int &ammoCount) = 0;
+    virtual const std::vector<AmmoType>& getAmmoParams() = 0;
 };

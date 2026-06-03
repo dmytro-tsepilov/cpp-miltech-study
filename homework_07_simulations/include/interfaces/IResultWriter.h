@@ -1,5 +1,4 @@
-#include "common/SimStep.h"
-
+struct SimStep;
 // ============ IResultWriter Interface ============
 
 class IResultWriter {

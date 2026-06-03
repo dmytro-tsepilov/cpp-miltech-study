@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include <nlohmann/json.hpp>
 
 #include "interfaces/IConfigLoader.h"
@@ -11,8 +12,7 @@ private:
     std::string folderPath_;
     std::string fileName_;
     DroneConfig dConf;
-    AmmoType** ammoTypes_ = nullptr;
-    int ammoCount_;
+    std::vector<AmmoType> ammoTypes_;
 
 public:
     FileConfigLoader (const std::string &folderPath = "", const std::string &filename = "config.json") {
@@ -21,17 +21,12 @@ public:
     }
     bool load() override;
     DroneConfig getConfig() override;
-    AmmoType **getAmmoParams(int &ammoCount) override;
+    const std::vector<AmmoType>& getAmmoParams() override;
     void setFolderPath(const std::string &folderPath = "");
     bool loadConfigFromFile(const std::string &filename = "config.json");
     bool loadAmmoTypesFromFile(const std::string &filename = "ammo.json");
 
-    ~FileConfigLoader() {
-        for (int i = 0; i < ammoCount_; i++)
-            delete ammoTypes_[i];
-        delete[] ammoTypes_;
-        ammoTypes_ = nullptr; 
-    }
+    ~FileConfigLoader() = default;
 };
 
 // ============ Factory Function ============

@@ -19,7 +19,7 @@ int HttpTargetProvider::getTimeSteps()
 }
 
 Target *HttpTargetProvider::getTarget(int index) {
-    return targets[index];
+    return &targets[index][0];
 }
 
 bool HttpTargetProvider::load()
@@ -39,9 +39,8 @@ bool HttpTargetProvider::parseTargets(const std::string &rawResponse)
     targetCount = (int)data["targets"]["targetCount"];
     timeSteps = (int)data["targets"]["timeSteps"];
 
-    targets = new Target*[targetCount];
+    targets.resize(targetCount, std::vector<Target>(timeSteps));
     for (int i = 0; i < targetCount; i++) {
-        targets[i] = new Target[timeSteps];
         for (int j = 0; j < timeSteps; j++) {
             targets[i][j].x = data["targets"]["targets"][i]["positions"][j]["x"];
             targets[i][j].y = data["targets"]["targets"][i]["positions"][j]["y"];

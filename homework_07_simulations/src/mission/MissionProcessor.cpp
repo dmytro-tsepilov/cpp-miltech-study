@@ -16,14 +16,14 @@ bool MissionProcessor::init(IConfigLoader* loader, IResultWriter* writer)
     droneConfig_ = configLoader_->getConfig();
 
     //  ------- Load ammo types and config from file   -------    
-    int ammoCount = 0;
-    bombTypes_ = configLoader_->getAmmoParams(ammoCount);
+    const auto& ammoTypes = configLoader_->getAmmoParams();
+    bombTypes_ = &ammoTypes;
 
     // ------- Detect Ammo Type -------
-    for (int i = 0; i < ammoCount; ++i)
+    for (size_t i = 0; i < ammoTypes.size(); ++i)
     {
-        if (!strcasecmp(droneConfig_.ammoName.c_str(), bombTypes_[i]->name.c_str())) {
-            ammo_ = *bombTypes_[i];
+        if (!strcasecmp(droneConfig_.ammoName.c_str(), ammoTypes[i].name.c_str())) {
+            ammo_ = ammoTypes[i];
             break;
         }
     }

@@ -29,7 +29,6 @@ void JsonTargetProvider::setFolderPath(const std::string folderPath)
 bool JsonTargetProvider::load()
 {
     fs::path fullPath = fs::path(folderPath_) / fileName_;
-    LOG("Filename: " << fullPath);
     std::ifstream inputFile(fullPath);
     if (!inputFile.is_open())
     {
@@ -42,9 +41,8 @@ bool JsonTargetProvider::load()
     targetCount = (int)data["targetCount"];
     timeSteps = (int)data["timeSteps"];
 
-    targets = new Target*[targetCount];
+    targets.resize(targetCount, std::vector<Target>(timeSteps));
     for (int i = 0; i < targetCount; i++) {
-        targets[i] = new Target[timeSteps];
         for (int j = 0; j < timeSteps; j++) {
             targets[i][j].x = data["targets"][i]["positions"][j]["x"];
             targets[i][j].y = data["targets"][i]["positions"][j]["y"];
@@ -56,5 +54,5 @@ bool JsonTargetProvider::load()
 }
 
 Target *JsonTargetProvider::getTarget(int index) {
-    return targets[index];
+    return targets[index].data();
 }

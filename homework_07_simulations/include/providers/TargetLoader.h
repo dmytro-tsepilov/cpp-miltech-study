@@ -2,6 +2,7 @@
 
 #include <string>
 #include <optional>
+#include <vector>
 #include <nlohmann/json.hpp>
 
 #include "interfaces/ITargetProvider.h"
@@ -16,11 +17,10 @@ private:
     std::string folderPath_;
     int targetCount;
     int timeSteps;
-    Target** targets = nullptr;
+    std::vector<std::vector<Target>> targets;
 
 public:
     JsonTargetProvider(const std::string &folderPath = "", const std::string &filename = "targets.json") {
-        LOG("Test: " << filename);
         fileName_ = filename;
         folderPath_ = folderPath;
     }
@@ -30,14 +30,6 @@ public:
     int getTimeSteps() override;
     Target *getTarget(int index) override;
     void setFolderPath(const std::string folderPath = "");
-
-    ~JsonTargetProvider() override
-    {
-        for (int i = 0; i < targetCount; i++)
-            delete[] targets[i];
-        delete[] targets;
-        targets = nullptr;
-    }
 };
 
 // ============ SerialTargetProvider ============
@@ -47,7 +39,7 @@ private:
     std::string portName;
     int targetCount;
     int timeSteps;
-    Target** targets = nullptr;
+    std::vector<std::vector<Target>> targets;
 
 public:
     SerialTargetProvider(const std::string &port);
@@ -56,14 +48,6 @@ public:
     int getTargetCount() override;
     int getTimeSteps() override;
     Target *getTarget(int index) override;
-
-    ~SerialTargetProvider() override
-    {
-        for (int i = 0; i < targetCount; i++)
-            delete[] targets[i];
-        delete[] targets;
-        targets = nullptr;
-    }
 };
 
 // ============ TestTargetProvider ============
@@ -72,7 +56,7 @@ class TestTargetProvider : public ITargetProvider {
 private:
     int targetCount;
     int timeSteps;
-    Target** targets = nullptr;
+    std::vector<std::vector<Target>> targets;
 
 public:
     TestTargetProvider();
@@ -81,14 +65,6 @@ public:
     int getTargetCount() override;
     int getTimeSteps() override;
     Target *getTarget(int index) override;
-
-    ~TestTargetProvider() override
-    {
-        for (int i = 0; i < targetCount; i++)
-            delete[] targets[i];
-        delete[] targets;
-        targets = nullptr;
-    }
 };
 
 // ============ HttpTargetProvider ============
@@ -97,7 +73,7 @@ class HttpTargetProvider : public ITargetProvider {
 private:
     int targetCount;
     int timeSteps;
-    Target** targets = nullptr;
+    std::vector<std::vector<Target>> targets;
     std::string apiURL_;
     std::string testName_;
 
@@ -114,14 +90,6 @@ public:
     int getTargetCount() override;
     int getTimeSteps() override;
     Target *getTarget(int index) override;
-
-    ~HttpTargetProvider() override
-    {
-        for (int i = 0; i < targetCount; i++)
-            delete[] targets[i];
-        delete[] targets;
-        targets = nullptr;
-    }
 };
 
 // ============ Factory Function ============
