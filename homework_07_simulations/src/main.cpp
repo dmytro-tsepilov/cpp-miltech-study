@@ -3,8 +3,8 @@
 #include "common/macros.h"
 #include "result/ResultWriter.h"
 #include "drone/ConfigLoader.h"
-#include "target/TargetLoader.h"
-#include "ballistic/BallisticSolver.h"
+#include "providers/TargetLoader.h"
+#include "solvers/BallisticSolver.h"
 #include "mission/MissionProcessor.h"
 
 int main(int argc, char** argv)

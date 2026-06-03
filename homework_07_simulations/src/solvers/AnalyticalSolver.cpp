@@ -1,5 +1,5 @@
 #include <cmath>
-#include "ballistic/BallisticSolver.h"
+#include "solvers/BallisticSolver.h"
 
 double AnalyticalSolver::calculateHorizontalDistance(const float &attackSpeed, const float &ammoDrag, const float &ammoMass, const float &ammoLift, const double &time)
 {

@@ -1,7 +1,7 @@
 #pragma once
-#include "target/TargetLoader.h"
+#include "providers/TargetLoader.h"
 #include "result/ResultWriter.h"
-#include "ballistic/BallisticSolver.h"
+#include "solvers/BallisticSolver.h"
 #include "drone/ConfigLoader.h"
 #include "drone/DroneConfig.h"
 #include "common/SimStep.h"
