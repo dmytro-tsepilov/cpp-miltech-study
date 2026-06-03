@@ -9,7 +9,7 @@ using json = nlohmann::json;
 
 // ============ JsonResultWriter Implementation ============
 
-bool JsonResultWriter::write(const SimStep* steps, const int &stepCount)
+bool JsonResultWriter::write(const std::vector<SimStep>& steps)
 {
     std::ofstream outFile(folderPath + filename);
     if (!outFile.is_open())
@@ -18,13 +18,13 @@ bool JsonResultWriter::write(const SimStep* steps, const int &stepCount)
         return false;
     }
 
-    LOG("Writing " << stepCount << " steps to " << folderPath + filename << " (JSON format)");
+    LOG("Writing " << steps.size() << " steps to " << folderPath + filename << " (JSON format)");
 
     json out;
-    out["totalSteps"] = stepCount;
+    out["totalSteps"] = steps.size();
     out["steps"] = json::array();
 
-    for (int i = 0; i < stepCount; i++)
+    for (size_t i = 0; i < steps.size(); i++)
     {
         json step;
         step["position"] = {{"x", steps[i].pos.x}, {"y", steps[i].pos.y}};
@@ -40,7 +40,7 @@ bool JsonResultWriter::write(const SimStep* steps, const int &stepCount)
     outFile << out.dump(2);  // 2 = indent for readability
     outFile.close();
 
-    LOG("JSON simulation completed: " << stepCount << " steps written to " << folderPath + filename);
+    LOG("JSON simulation completed: " << steps.size() << " steps written to " << folderPath + filename);
 
     return true;
 }
@@ -59,7 +59,7 @@ void JsonResultWriter::setFilename(const std::string &filename)
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
-bool ApiResultWriter::write(const SimStep* steps, const int &stepCount)
+bool ApiResultWriter::write(const std::vector<SimStep>& steps)
 {
     // TODO: Implement API submission logic
     // TODO: Handle HTTP POST request with authentication
@@ -85,7 +85,7 @@ void ApiResultWriter::setAuthToken(const std::string &token)
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
-bool DatabaseResultWriter::write(const SimStep* steps, const int &stepCount)
+bool DatabaseResultWriter::write(const std::vector<SimStep>& steps)
 {
     // TODO: Implement database insertion logic
     // TODO: Handle connection management

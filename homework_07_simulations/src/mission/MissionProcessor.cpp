@@ -1,5 +1,7 @@
 #include "common/macros.h"
+#include "drone/DroneConfig.h"
 #include "mission/MissionProcessor.h"
+#include <vector>
 
 bool MissionProcessor::init(IConfigLoader* loader, IResultWriter* writer)
 {
@@ -16,7 +18,7 @@ bool MissionProcessor::init(IConfigLoader* loader, IResultWriter* writer)
     droneConfig_ = configLoader_->getConfig();
 
     //  ------- Load ammo types and config from file   -------    
-    const auto& ammoTypes = configLoader_->getAmmoParams();
+    const std::vector<AmmoType>& ammoTypes = configLoader_->getAmmoParams();
     bombTypes_ = &ammoTypes;
 
     // ------- Detect Ammo Type -------
@@ -343,12 +345,9 @@ bool MissionProcessor::hasNext()
 
 bool MissionProcessor::exportResults()
 {
-    // Save to JSON format
-    resultWriter_->write(simSteps_, (currentStep_ + 1));
-
-    // Free SimStep memory
-    delete[] simSteps_;
-    simSteps_ = nullptr;
+    // Resize vector to actual step count and save
+    simSteps_.resize(currentStep_ + 1);
+    resultWriter_->write(simSteps_);
 
     return true;
 }
@@ -379,8 +378,8 @@ int MissionProcessor::detectBestTarget(SimStep &simStep, const double &currentTi
         Coord predict = {0.0, 0.0};
 
         bool hasSolution = leadTarget(simStep.pos, tgtId, currentTime,
-                                        droneConfig_.attackSpeed, droneConfig_.arrayTimeStep,
-                                            firePos, predict);
+                                         droneConfig_.attackSpeed, droneConfig_.arrayTimeStep,
+                                             firePos, predict);
         if (!hasSolution)
         {
             continue;
@@ -452,10 +451,6 @@ void MissionProcessor::reset()
     currentSpeed_ = 0;
     remainingTurningSteps_ = 0;
 
-    if (simSteps_) {
-        delete[] simSteps_;
-    }
-
-    // Allocate dynamic array for SimStep upfront
-    simSteps_ = new SimStep[MAX_STEPS];
+    // Pre-allocate vector for SimStep
+    simSteps_.resize(MAX_STEPS);
 }

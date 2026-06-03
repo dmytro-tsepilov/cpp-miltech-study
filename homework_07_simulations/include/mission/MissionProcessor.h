@@ -34,7 +34,7 @@ private:
     double    maxTurnPerStep_;       // максимальний поворот за крок (попередньо обчислений)
 
     // Внутрішній стан симуляції
-    SimStep*  simSteps_ = nullptr;   // масив для зберігання кроків симуляції
+    std::vector<SimStep> simSteps_;  // вектор для зберігання кроків симуляції
     SimStep   simStep_ = {};          // поточний шаг симуляції
     int       currentStep_;          // лічильник кроків симуляції
     int       targetCount_;          // кількість цілей
@@ -50,12 +50,8 @@ private:
     // Конструктор — приймає solver і targets через інтерфейси
     MissionProcessor(IBallisticSolver* s, ITargetProvider* t) : solver_(s), targets_(t) {};
 
-    // Деструктор — звільняє пам'ять
-    ~MissionProcessor() {
-        if (simSteps_ && currentStep_ < MAX_STEPS) {
-            delete[] simSteps_;
-        }
-    }
+    // Деструктор — vector auto-cleans via RAII
+    ~MissionProcessor() = default;
 
     // Ініціалізація: завантажити конфіг через IConfigLoader, підготувати дані
     bool init(IConfigLoader* loader, IResultWriter* resultWriter);
