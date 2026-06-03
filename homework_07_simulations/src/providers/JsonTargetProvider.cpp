@@ -29,6 +29,7 @@ void JsonTargetProvider::setFolderPath(const std::string folderPath)
 bool JsonTargetProvider::load()
 {
     fs::path fullPath = fs::path(folderPath_) / fileName_;
+    LOG("Filename: " << fullPath);
     std::ifstream inputFile(fullPath);
     if (!inputFile.is_open())
     {

@@ -49,7 +49,7 @@ bool FileConfigLoader::loadConfigFromFile(const std::string &filename)
     dConf.initialDir = data["drone"]["initialDirection"];
     dConf.attackSpeed = data["drone"]["attackSpeed"];
     dConf.accelPath = data["drone"]["accelerationPath"];
-    std::strncpy(dConf.ammoName, data["ammo"].get<std::string>().c_str(), 32);
+    dConf.ammoName = data["ammo"].get<std::string>().c_str();
     dConf.arrayTimeStep = data["targetArrayTimeStep"];
     dConf.simTimeStep = data["simulation"]["timeStep"];
     dConf.hitRadius = data["simulation"]["hitRadius"];
@@ -80,7 +80,7 @@ bool FileConfigLoader::loadAmmoTypesFromFile(const std::string &filename)
     ammoTypes_ = new AmmoType*[ammoCount_];
     for (int i = 0 ; i < ammoCount_; i++) {
         ammoTypes_[i] = new AmmoType;
-        std::strncpy(ammoTypes_[i]->name, data[i]["name"].get<std::string>().c_str(), 31);
+        ammoTypes_[i]->name = data[i]["name"].get<std::string>().c_str();
         ammoTypes_[i]->mass = data[i]["mass"];
         ammoTypes_[i]->drag = data[i]["drag"];
         ammoTypes_[i]->lift = data[i]["lift"];

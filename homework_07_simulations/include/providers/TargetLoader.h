@@ -1,10 +1,12 @@
 #pragma once
 
 #include <string>
+#include <optional>
 #include <nlohmann/json.hpp>
 
 #include "interfaces/ITargetProvider.h"
 #include "drone/DroneConfig.h"
+#include "common/macros.h"
 
 // ============ JsonTargetProvider ============
 
@@ -18,6 +20,7 @@ private:
 
 public:
     JsonTargetProvider(const std::string &folderPath = "", const std::string &filename = "targets.json") {
+        LOG("Test: " << filename);
         fileName_ = filename;
         folderPath_ = folderPath;
     }
@@ -130,17 +133,30 @@ enum class SourceType {
     TEST
 };
 
-inline ITargetProvider* createTargetProvider(SourceType type, const char* param = nullptr, const char* param2 = nullptr) {
+inline ITargetProvider* createTargetProvider(SourceType type,
+                                              const std::optional<std::string>& param = std::nullopt,
+                                              const std::optional<std::string>& param2 = std::nullopt) {
     switch (type) {
-        case SourceType::JSON:
-            return new JsonTargetProvider(param ? param : "", param2 ? param2 : "targets.json");
+        case SourceType::JSON: {
+            auto folderPath = param.has_value() ? param.value() : std::string("");
+            auto filename = param2.has_value() ? param2.value() : std::string("targets.json");
+            return new JsonTargetProvider(folderPath, filename);
+        }
         case SourceType::SERIAL:
-            return new SerialTargetProvider(param ? param : "/dev/ttyUSB0");
-        case SourceType::HTTP:
-            return new HttpTargetProvider(param ? param : "", param2 ? param2 : "");
+            if (!param.has_value() || param->empty()) {
+                LOG("SerialTargetProvider requires a valid port name");
+                return nullptr;
+            }
+            return new SerialTargetProvider(param.value());
+        case SourceType::HTTP: {
+            auto apiUrl = param.has_value() && !param->empty() ? param.value() : std::string("http://cppmiltech.com.ua");
+            auto testName = param2.has_value() && !param2->empty() ? param2.value() : std::string("/hw3/api/tests/test10_extreme");
+            return new HttpTargetProvider(apiUrl, testName);
+        }
         case SourceType::TEST:
             return new TestTargetProvider();
         default:
+            LOG("Unknown SourceType");
             return nullptr;
-    }
+        }
 }

@@ -42,10 +42,10 @@ enum class ConfigType {
     TEST
 };
 
-inline IConfigLoader* createConfigLoader(ConfigType type, const char* param = nullptr, const char* param2 = nullptr) {
+inline IConfigLoader* createConfigLoader(ConfigType type, const std::string& param = "", const std::string& param2 = "") {
     switch (type) {
         case ConfigType::JSON:
-            return new FileConfigLoader(param ? param : "", param2 ? param2 : "config.json");
+            return new FileConfigLoader(param, param2);
         default:
             return nullptr;
     }

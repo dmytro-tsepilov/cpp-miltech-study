@@ -22,7 +22,7 @@ bool MissionProcessor::init(IConfigLoader* loader, IResultWriter* writer)
     // ------- Detect Ammo Type -------
     for (int i = 0; i < ammoCount; ++i)
     {
-        if (!strcasecmp(droneConfig_.ammoName, bombTypes_[i]->name)) {
+        if (!strcasecmp(droneConfig_.ammoName.c_str(), bombTypes_[i]->name.c_str())) {
             ammo_ = *bombTypes_[i];
             break;
         }
