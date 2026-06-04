@@ -18,8 +18,8 @@ int main(int argc, char** argv)
     std::string dataFolder = argv[1];
 
     auto solver = createBallisticSolver(SolverType::ANALYTICAL);
-    //ITargetProvider *targetProvider = createTargetProvider(SourceType::JSON, dataFolder.c_str());
-    auto targetProvider = createTargetProvider(SourceType::HTTP, "hw3", "0");
+    auto targetProvider = createTargetProvider(SourceType::JSON, dataFolder.c_str());
+    //auto targetProvider = createTargetProvider(SourceType::HTTP, "hw3", "0");
     // Cast to HttpTargetProvider to access setTestName (not in base interface)
     if (auto httpProvider = dynamic_cast<HttpTargetProvider*>(targetProvider.get())) {
         httpProvider->setTestName("test10_extreme");
@@ -28,7 +28,7 @@ int main(int argc, char** argv)
     auto cfgLoader = createConfigLoader(ConfigType::JSON, dataFolder.c_str());
     auto resultWriter = createResultWriter(DestType::JSON);
 
-    MissionProcessor *mission = new MissionProcessor(std::move(solver), std::move(targetProvider));
+    auto mission = std::make_unique<MissionProcessor>(std::move(solver), std::move(targetProvider));
     mission->init(std::move(cfgLoader), std::move(resultWriter));
 
     while (mission->hasNext()) {
@@ -36,8 +36,6 @@ int main(int argc, char** argv)
     }
 
     mission->exportResults();
-
-    delete mission;
 
     return 0;
 }

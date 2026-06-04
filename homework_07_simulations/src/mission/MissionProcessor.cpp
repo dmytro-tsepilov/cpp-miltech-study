@@ -130,6 +130,12 @@ bool MissionProcessor::leadTarget(Coord pos, const int tgtIdx, const double &cur
     return true;
 }
 
+double MissionProcessor::normalizeAngle(double angle) {
+    angle = std::fmod(angle + M_PI, 2 * M_PI);
+    if (angle < 0) angle += 2 * M_PI;
+    return angle - M_PI;
+}
+
 SimStep MissionProcessor::step()
 {
     // Calculate aimPoint - where the bomb will fall if dropped now
@@ -175,8 +181,7 @@ SimStep MissionProcessor::step()
         // Fire when oriented toward predicted target (attack direction)
         double atkDir = atan2(bestPredict.y - simStep_.pos.y, bestPredict.x - simStep_.pos.x);
         double aDiff = atkDir - simStep_.direction;
-        while (aDiff >  M_PI) aDiff -= 2 * M_PI;
-        while (aDiff < -M_PI) aDiff += 2 * M_PI;
+        aDiff = normalizeAngle(aDiff);
 
         // Incomplete implementation when dron stay at place and waiting some time for drop bomb
         bool inBombingTime = true; //(minTotalTime - ballisticTof_) < 0.2f;
@@ -221,8 +226,7 @@ SimStep MissionProcessor::step()
 
     // Normalize angle difference
     double angleDiff = desiredDir - simStep_.direction;
-    while (angleDiff > M_PI) angleDiff -= 2 * M_PI;
-    while (angleDiff < -M_PI) angleDiff += 2 * M_PI;
+    angleDiff = normalizeAngle(angleDiff);
 
     DEBUG("Step " << currentStep_ << ": angleDiff=" << angleDiff << " maxTurn=" << (droneConfig_.angularSpeed * droneConfig_.simTimeStep) << " state=" << (int)simStep_.state);
 
@@ -320,8 +324,9 @@ SimStep MissionProcessor::step()
             break;
     }
 
-    while (simStep_.direction > M_PI) simStep_.direction -= 2 * M_PI;
-    while (simStep_.direction < -M_PI) simStep_.direction += 2 * M_PI;
+    // while (simStep_.direction > M_PI) simStep_.direction -= 2 * M_PI;
+    // while (simStep_.direction < -M_PI) simStep_.direction += 2 * M_PI;
+    simStep_.direction = normalizeAngle(simStep_.direction);
 
     // Move drone in current direction
     simStep_.pos.x += cos(simStep_.direction) * currentSpeed_ * droneConfig_.simTimeStep;

@@ -82,6 +82,7 @@ private:
  private:
     Coord targetInterpolation(const int &targetId, const double &time, const float &arrayTimeStep);
     Coord extrapTarget(int targetId, double currentTime, double dtAhead, float dt);
+    double normalizeAngle(double angle);
     double applyLimitedTurn(const SimStep &simStep, const double &maxTurnPerStep, const double &desiredDir);
     bool leadTarget(Coord pos, const int tgtIdx, const double &currentTime,
                   const float &attackSpeed, const float &arrayTimeStep,
