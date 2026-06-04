@@ -1,7 +1,6 @@
 #include <fstream>
 #include <filesystem>
 #include "common/macros.h"
-
 #include "config/ConfigLoader.h"
 
 
@@ -21,7 +20,7 @@ DroneConfig FileConfigLoader::getConfig()
     return this->dConf;
 }
 
-const std::vector<AmmoType>& FileConfigLoader::getAmmoParams()
+const std::unordered_map<std::string, AmmoType>& FileConfigLoader::getAmmoParams()
 {
     return ammoTypes_;
 }
@@ -77,11 +76,15 @@ bool FileConfigLoader::loadAmmoTypesFromFile(const std::string &filename)
     ammoTypes_.clear();
     for (const auto& item : data) {
         AmmoType ammo;
-        ammo.name = item["name"].get<std::string>();
+        std::string rawName = item["name"].get<std::string>();
+        ammo.name = rawName;
+        std::string lowerName = rawName;
+        std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(),
+                       [](unsigned char c){ return std::tolower(c); });
         ammo.mass = item["mass"];
         ammo.drag = item["drag"];
         ammo.lift = item["lift"];
-        ammoTypes_.push_back(ammo);
+        ammoTypes_[lowerName] = ammo;
     }
 
     inputFile.close();

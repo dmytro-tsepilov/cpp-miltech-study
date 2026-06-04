@@ -1,3 +1,4 @@
+#pragma once
 #include <iostream>
 
 #define ENABLE_LOG	1

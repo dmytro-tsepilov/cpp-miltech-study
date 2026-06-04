@@ -1,7 +1,9 @@
+#include <vector>
+#include <unordered_map>
+#include <cstring>
 #include "common/macros.h"
 #include "config/DroneConfig.h"
 #include "mission/MissionProcessor.h"
-#include <vector>
 
 bool MissionProcessor::init(std::unique_ptr<IConfigLoader> loader, std::unique_ptr<IResultWriter> writer)
 {
@@ -17,17 +19,16 @@ bool MissionProcessor::init(std::unique_ptr<IConfigLoader> loader, std::unique_p
     configLoader_->load();
     droneConfig_ = configLoader_->getConfig();
 
-    //  ------- Load ammo types and config from file   -------    
-    const std::vector<AmmoType>& ammoTypes = configLoader_->getAmmoParams();
+    //  ------- Load ammo types and config from file   -------
+    const std::unordered_map<std::string, AmmoType>& ammoTypes = configLoader_->getAmmoParams();
     bombTypes_ = &ammoTypes;
 
-    // ------- Detect Ammo Type -------
-    for (size_t i = 0; i < ammoTypes.size(); ++i)
-    {
-        if (!strcasecmp(droneConfig_.ammoName.c_str(), ammoTypes[i].name.c_str())) {
-            ammo_ = ammoTypes[i];
-            break;
-        }
+    // ------- Detect Ammo Type by name key -------
+    std::string searchKey = droneConfig_.ammoName;
+    std::transform(searchKey.begin(), searchKey.end(), searchKey.begin(), ::tolower);
+    auto it = ammoTypes.find(searchKey);
+    if (it != ammoTypes.end()) {
+        ammo_ = it->second;
     }
     if (ammo_.mass == 0)
     {

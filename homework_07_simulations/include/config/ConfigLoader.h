@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include <vector>
+#include <unordered_map>
 #include <memory>
 #include <nlohmann/json.hpp>
 
@@ -13,7 +13,7 @@ private:
     std::string folderPath_;
     std::string fileName_;
     DroneConfig dConf;
-    std::vector<AmmoType> ammoTypes_;
+    std::unordered_map<std::string, AmmoType> ammoTypes_;
 
 public:
     FileConfigLoader (const std::string &folderPath = "", const std::string &filename = "config.json") {
@@ -22,7 +22,7 @@ public:
     }
     bool load() override;
     DroneConfig getConfig() override;
-    const std::vector<AmmoType>& getAmmoParams() override;
+    const std::unordered_map<std::string, AmmoType>& getAmmoParams() override;
     void setFolderPath(const std::string &folderPath = "");
     bool loadConfigFromFile(const std::string &filename = "config.json");
     bool loadAmmoTypesFromFile(const std::string &filename = "ammo.json");
@@ -36,7 +36,7 @@ public:
 class HttpConfigLoader : public IConfigLoader {
 private:
     DroneConfig dConf_;
-    std::vector<AmmoType> ammoTypes_;
+    std::unordered_map<std::string, AmmoType> ammoTypes_;
     std::string apiURL_ = "http://cppmiltech.com.ua";
     std::string homeWork_ = "hw3";
     int testNumber_;
@@ -61,7 +61,7 @@ public:
     void setTestName(const std::string &testName) { configTestName_ = testName; }
     void setAmmoTestName(const std::string &ammoTestName) { ammoTestName_ = ammoTestName; }
     DroneConfig getConfig() override;
-    const std::vector<AmmoType>& getAmmoParams() override;
+    const std::unordered_map<std::string, AmmoType>& getAmmoParams() override;
 };
 
 // ============ Factory Function ============

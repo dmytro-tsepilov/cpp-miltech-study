@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cctype>
 #include <string>
 #include <httplib.h>
 
@@ -13,7 +15,7 @@ DroneConfig HttpConfigLoader::getConfig()
     return this->dConf_;
 }
 
-const std::vector<AmmoType>& HttpConfigLoader::getAmmoParams()
+const std::unordered_map<std::string, AmmoType>& HttpConfigLoader::getAmmoParams()
 {
     return this->ammoTypes_;
 }
@@ -72,11 +74,15 @@ bool HttpConfigLoader::parseAmmoTypes(const std::string &rawResponse)
     ammoTypes_.clear();
     for (const auto& item : data["ammo"]) {
         AmmoType ammo;
-        ammo.name = item["name"].get<std::string>();
+        std::string rawName = item["name"].get<std::string>();
+        ammo.name = rawName;
+        std::string lowerName = rawName;
+        std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(),
+                       [](unsigned char c){ return std::tolower(c); });
         ammo.mass = item["mass"];
         ammo.drag = item["drag"];
         ammo.lift = item["lift"];
-        ammoTypes_.push_back(ammo);
+        ammoTypes_[lowerName] = ammo;
     }
 
     return true;
