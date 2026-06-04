@@ -43,7 +43,8 @@ bool HttpTargetProvider::load()
         return false;
     }
 
-    std::string rawResponse = downloadFile(getBaseUrl() + "/" + testName_);
+    std::string rawResponse;
+    downloadFile(getBaseUrl() + "/" + testName_, rawResponse);
 
     parseTargets(rawResponse);
 
@@ -52,7 +53,8 @@ bool HttpTargetProvider::load()
 
 std::string HttpTargetProvider::getTestName(const int testNumber)
 {
-    std::string rawResponse = downloadFile(getBaseUrl());
+    std::string rawResponse;
+    downloadFile(getBaseUrl(), rawResponse);
 
     json data = json::parse(rawResponse);
 
@@ -84,19 +86,17 @@ bool HttpTargetProvider::parseTargets(const std::string &rawResponse)
     return true;
 }
 
-std::string HttpTargetProvider::downloadFile(const std::string& fullPath) {
-
-    DEBUG("Downloading data from: " << apiURL_ << fullPath);
-    
+int HttpTargetProvider::downloadFile(const std::string& fullPath, std::string &rawResponse) {
     httplib::Client cli(apiURL_);
     auto res = cli.Get(fullPath);
 
     if (res && res->status == 200) {
         std::string data = res->body;
-        return data;
+        DEBUG("[" << typeid(*this).name() << "] Download completed from: size=" << data.size() << " url=" << apiURL_ << fullPath);
+        rawResponse = data;
     } else {
-        LOG("Failed to download targets: " << (res ? res->status : 0));
+        LOG("[" << typeid(*this).name() << "] Failed to download targets: " << (res ? res->status : 0));
     }
 
-    return "";
+    return res->status;
 }

@@ -80,7 +80,7 @@ private:
     std::string basePath_ = "api/tests";
     std::string homeWork_ = "hw3";
 
-    std::string downloadFile(const std::string& fullPath);
+    int downloadFile(const std::string& fullPath, std::string &rawResponse);
     std::string getTestName(const int testNumber);
     bool parseTargets(const std::string &rawResponse);
 
