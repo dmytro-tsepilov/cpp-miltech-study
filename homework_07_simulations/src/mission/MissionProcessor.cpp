@@ -81,14 +81,12 @@ double MissionProcessor::applyLimitedTurn(const SimStep &simStep, const double &
 {
     double diff = desiredDir - simStep.direction;
     float direction = simStep.direction;
-    while (diff > M_PI) diff -= 2 * M_PI;
-    while (diff < -M_PI) diff += 2 * M_PI;
+    diff = normalizeAngle(diff);
 
     double turn = std::clamp(diff, -maxTurnPerStep, maxTurnPerStep);
     direction += turn;
 
-    while (direction > M_PI) direction -= 2 * M_PI;
-    while (direction < -M_PI) direction += 2 * M_PI;
+    direction = normalizeAngle(direction);
 
     return direction;
 }

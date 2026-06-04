@@ -24,18 +24,18 @@ bool JsonResultWriter::write(const std::vector<SimStep>& steps)
     out["totalSteps"] = steps.size();
     out["steps"] = json::array();
 
-    for (size_t i = 0; i < steps.size(); i++)
+    std::for_each(steps.begin(), steps.end(), [&out](const SimStep& s)
     {
         json step;
-        step["position"] = {{"x", steps[i].pos.x}, {"y", steps[i].pos.y}};
-        step["direction"] = steps[i].direction;
-        step["state"] = steps[i].state;
-        step["targetIndex"] = steps[i].targetIdx;
-        step["dropPoint"] = {{"x", steps[i].dropPoint.x}, {"y", steps[i].dropPoint.y}};
-        step["aimPoint"] = {{"x", steps[i].aimPoint.x}, {"y", steps[i].aimPoint.y}};
-        step["predictedTarget"] = {{"x", steps[i].predictedTarget.x}, {"y", steps[i].predictedTarget.y}};
+        step["position"] = {{"x", s.pos.x}, {"y", s.pos.y}};
+        step["direction"] = s.direction;
+        step["state"] = s.state;
+        step["targetIndex"] = s.targetIdx;
+        step["dropPoint"] = {{"x", s.dropPoint.x}, {"y", s.dropPoint.y}};
+        step["aimPoint"] = {{"x", s.aimPoint.x}, {"y", s.aimPoint.y}};
+        step["predictedTarget"] = {{"x", s.predictedTarget.x}, {"y", s.predictedTarget.y}};
         out["steps"].push_back(step);
-    }
+    });
 
     outFile << out.dump(2);  // 2 = indent for readability
     outFile.close();
