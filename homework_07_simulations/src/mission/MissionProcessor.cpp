@@ -294,8 +294,7 @@ SimStep MissionProcessor::step()
 
                 // Recalculate angle difference after rotation
                 double newAngleDiff = desiredDir - simStep_.direction;
-                while (newAngleDiff > M_PI) newAngleDiff -= 2 * M_PI;
-                while (newAngleDiff < -M_PI) newAngleDiff += 2 * M_PI;
+                newAngleDiff = normalizeAngle(newAngleDiff);
 
                 DEBUG("  TURNING: angleDiff=" << angleDiff << " newAngleDiff=" << newAngleDiff << " remaining=" << remainingTurningSteps_);
 
@@ -322,8 +321,6 @@ SimStep MissionProcessor::step()
             break;
     }
 
-    // while (simStep_.direction > M_PI) simStep_.direction -= 2 * M_PI;
-    // while (simStep_.direction < -M_PI) simStep_.direction += 2 * M_PI;
     simStep_.direction = normalizeAngle(simStep_.direction);
 
     // Move drone in current direction
