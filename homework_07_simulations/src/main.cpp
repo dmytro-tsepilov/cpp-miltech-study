@@ -19,7 +19,11 @@ int main(int argc, char** argv)
 
     IBallisticSolver *solver = createBallisticSolver(SolverType::ANALYTICAL);
     //ITargetProvider *targetProvider = createTargetProvider(SourceType::JSON, dataFolder.c_str());
-    ITargetProvider *targetProvider = createTargetProvider(SourceType::HTTP, "hw3", "test10_extreme");
+    ITargetProvider *targetProvider = createTargetProvider(SourceType::HTTP, "hw3", "0");
+    // Cast to HttpTargetProvider to access setTestName (not in base interface)
+    if (auto *httpProvider = dynamic_cast<HttpTargetProvider *>(targetProvider)) {
+        httpProvider->setTestName("test10_extreme");
+    }
 
     IConfigLoader *cfgLoader = createConfigLoader(ConfigType::JSON, dataFolder.c_str());
     IResultWriter *wrtierProvider = createResultWriter(DestType::JSON);

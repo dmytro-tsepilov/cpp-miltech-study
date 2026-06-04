@@ -23,20 +23,27 @@ Target *HttpTargetProvider::getTarget(int index) {
 }
 
 std::string HttpTargetProvider::getBaseUrl() {
-    if(homeWork_ == "hw3") {
+    if (homeWork_ == "hw3") {
         return "/" + homeWork_ + "/" + basePath_;
     } else if (homeWork_ == "hw9") {
-        return "/" + homeWork_ + "/api/hw9/tests";
+        return "/hw3/api/hw9/tests";
     } else {
-            return "/";
+        return "/";
     }
 }
 
 bool HttpTargetProvider::load()
 {
-    std::string testName = getTestName(10);
-    std::string fullPath = getBaseUrl() + "/" + testName;
-    std::string  rawResponse = downloadFile(fullPath);
+    if (testNumber_) {
+        testName_ = getTestName(testNumber_);
+    }
+
+    if (testName_.empty()) {
+        LOG("Test name is empty. Cannot load targets.");
+        return false;
+    }
+
+    std::string rawResponse = downloadFile(getBaseUrl() + "/" + testName_);
 
     parseTargets(rawResponse);
 
@@ -45,8 +52,7 @@ bool HttpTargetProvider::load()
 
 std::string HttpTargetProvider::getTestName(const int testNumber)
 {
-    std::string fullPath = getBaseUrl();
-    std::string rawResponse = downloadFile(fullPath);
+    std::string rawResponse = downloadFile(getBaseUrl());
 
     json data = json::parse(rawResponse);
 
@@ -89,7 +95,7 @@ std::string HttpTargetProvider::downloadFile(const std::string& fullPath) {
         std::string data = res->body;
         return data;
     } else {
-        LOG("Failed to download targets: " << (res ? res->status : 0) << " URL:" << res->location);
+        LOG("Failed to download targets: " << (res ? res->status : 0));
     }
 
     return "";

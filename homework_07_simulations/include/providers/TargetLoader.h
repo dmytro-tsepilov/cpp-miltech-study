@@ -76,6 +76,7 @@ private:
     std::vector<std::vector<Target>> targets;
     std::string apiURL_ = "http://cppmiltech.com.ua";
     std::string testName_;
+    int testNumber_;
     std::string basePath_ = "api/tests";
     std::string homeWork_ = "hw3";
 
@@ -84,9 +85,9 @@ private:
     bool parseTargets(const std::string &rawResponse);
 
 public:
-    HttpTargetProvider(const std::string &homeWork = "hw3", const std::string &testname = "test10_extreme") {
+    HttpTargetProvider(const std::string &homeWork = "hw3", const int &testNumber = 0) {
         homeWork_ = homeWork;
-        testName_ = testname;
+        testNumber_ = testNumber;
     };
 
     bool load() override;
@@ -125,8 +126,8 @@ inline ITargetProvider* createTargetProvider(SourceType type,
             return new SerialTargetProvider(param.value());
         case SourceType::HTTP: {
             auto homeWork = param.has_value() && !param->empty() ? param.value() : std::string("hw3");
-            auto testName = param2.has_value() && !param2->empty() ? param2.value() : std::string("test10_extreme");
-            return new HttpTargetProvider(homeWork, testName);
+            auto testNumber = param2.has_value() && !param2->empty() ? std::stoi(param2.value()) : 0;
+            return new HttpTargetProvider(homeWork, testNumber);
         }
         case SourceType::TEST:
             return new TestTargetProvider();
