@@ -3,7 +3,7 @@
 #include "providers/TargetLoader.h"
 #include "result/ResultWriter.h"
 #include "solvers/BallisticSolver.h"
-#include "drone/ConfigLoader.h"
+#include "config/ConfigLoader.h"
 
 struct SimStep;
 struct DroneConfig;

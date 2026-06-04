@@ -1,5 +1,5 @@
 #include "common/macros.h"
-#include "drone/DroneConfig.h"
+#include "config/DroneConfig.h"
 #include "mission/MissionProcessor.h"
 #include <vector>
 

@@ -6,7 +6,7 @@
 #include <nlohmann/json.hpp>
 
 #include "interfaces/ITargetProvider.h"
-#include "drone/DroneConfig.h"
+#include "config/DroneConfig.h"
 #include "common/macros.h"
 
 // ============ JsonTargetProvider ============
