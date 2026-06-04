@@ -3,10 +3,10 @@
 #include "mission/MissionProcessor.h"
 #include <vector>
 
-bool MissionProcessor::init(IConfigLoader* loader, IResultWriter* writer)
+bool MissionProcessor::init(std::unique_ptr<IConfigLoader> loader, std::unique_ptr<IResultWriter> writer)
 {
-    configLoader_ = loader;
-    resultWriter_ = writer;
+    configLoader_ = std::move(loader);
+    resultWriter_ = std::move(writer);
 
     //  ------- Initialize target coordinates -------
     targets_->load();

@@ -74,14 +74,14 @@ enum class DestType {
     DATABASE
 };
 
-inline IResultWriter* createResultWriter(DestType type, const char* param = nullptr, const char* param2 = nullptr) {
+inline std::unique_ptr<IResultWriter> createResultWriter(DestType type, const char* param = nullptr, const char* param2 = nullptr) {
     switch (type) {
         case DestType::JSON:
-            return new JsonResultWriter(param ? param : "", param2 ? param2 : "simulation.json");
+            return std::make_unique<JsonResultWriter>(param ? param : "", param2 ? param2 : "simulation.json");
         case DestType::API:
-            return new ApiResultWriter(param ? param : "", param2 ? param2 : "");
+            return std::make_unique<ApiResultWriter>(param ? param : "", param2 ? param2 : "");
         case DestType::DATABASE:
-            return new DatabaseResultWriter(param ? param : "", param2 ? param2 : "simulation_results");
+            return std::make_unique<DatabaseResultWriter>(param ? param : "", param2 ? param2 : "simulation_results");
         default:
             return nullptr;
     }

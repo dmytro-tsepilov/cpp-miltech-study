@@ -21,10 +21,10 @@ enum DroneState : int8_t
 
 class MissionProcessor {
 private:
-    IBallisticSolver* solver_;       // стратегія балістики
-    ITargetProvider*  targets_;      // провайдер цілей
-    IConfigLoader*    configLoader_; // завантажувач конфігурації
-    IResultWriter*    resultWriter_;
+    std::unique_ptr<IBallisticSolver> solver_;       // стратегія балістики
+    std::unique_ptr<ITargetProvider>  targets_;      // провайдер цілей
+    std::unique_ptr<IConfigLoader>    configLoader_; // завантажувач конфігурації
+    std::unique_ptr<IResultWriter>    resultWriter_;
 
     DroneConfig droneConfig_;        // конфігурація дрона
     AmmoType  ammo_;                 // параметри боєприпасу
@@ -48,13 +48,13 @@ private:
 
  public:
     // Конструктор — приймає solver і targets через інтерфейси
-    MissionProcessor(IBallisticSolver* s, ITargetProvider* t) : solver_(s), targets_(t) {};
+    MissionProcessor(std::unique_ptr<IBallisticSolver> s, std::unique_ptr<ITargetProvider> t) : solver_(std::move(s)), targets_(std::move(t)) {};
 
     // Деструктор — vector auto-cleans via RAII
     ~MissionProcessor() = default;
 
     // Ініціалізація: завантажити конфіг через IConfigLoader, підготувати дані
-    bool init(IConfigLoader* loader, IResultWriter* resultWriter);
+    bool init(std::unique_ptr<IConfigLoader> loader, std::unique_ptr<IResultWriter> writer);
 
     // Перевірити, чи є ще необроблені цілі
     bool hasNext();
@@ -66,9 +66,7 @@ private:
     void reset();
 
     // Підмінити solver на льоту (Стратегія)
-    void changeSolver(IBallisticSolver* s) {
-        solver_ = s;
-    };
+    void changeSolver(std::unique_ptr<IBallisticSolver> s) { solver_ = std::move(s); };
 
     // Отримати поточну позицію дрона (для зовнішнього використання)
     Coord getCurrentPos() const { return simSteps_[currentStep_].pos; }

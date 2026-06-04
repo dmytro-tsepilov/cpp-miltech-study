@@ -1,5 +1,8 @@
 #pragma once
 
+#include <memory>
+
+#include "common/macros.h"
 #include "interfaces/IBallisticSolver.h"
 
 constexpr double g = 9.81;
@@ -16,11 +19,12 @@ enum class SolverType {
     ANALYTICAL
 };
 
-inline IBallisticSolver* createBallisticSolver(SolverType type) {
+inline std::unique_ptr<IBallisticSolver> createBallisticSolver(SolverType type) {
     switch (type) {
         case SolverType::ANALYTICAL:
-            return new AnalyticalSolver();
+            return std::make_unique<AnalyticalSolver>();
         default:
+            LOG("Unknown SolverType");
             return nullptr;
     }
 }

@@ -37,10 +37,10 @@ enum class ConfigType {
     TEST
 };
 
-inline IConfigLoader* createConfigLoader(ConfigType type, const std::string& param = "", const std::string& param2 = "") {
+inline std::unique_ptr<IConfigLoader> createConfigLoader(ConfigType type, const std::string& param = "", const std::string& param2 = "") {
     switch (type) {
         case ConfigType::JSON:
-            return new FileConfigLoader(param, param2);
+            return std::make_unique<FileConfigLoader>(param, param2);
         default:
             return nullptr;
     }
