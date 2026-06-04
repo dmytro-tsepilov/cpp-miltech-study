@@ -35,16 +35,17 @@ private:
 
     // Внутрішній стан симуляції
     std::vector<SimStep> simSteps_;  // вектор для зберігання кроків симуляції
-    SimStep   simStep_ = {};          // поточний шаг симуляції
+    SimStep   simStep_ = {};         // поточний шаг симуляції
     int       currentStep_;          // лічильник кроків симуляції
     int       targetCount_;          // кількість цілей
 
     float     currentSpeed_;         // поточна швидкість
     double    currentTime_;
-    float     acceleration_;
-    int       remainingTurningSteps_;
+    float     acceleration_;         // прискорення для розрахунку часу розгону/гальмування
+    int       remainingTurningSteps_;// Кількість кроків, що залишилися для завершення повороту
+    int       timeSteps_;            // кількість часових кроків у даних цілей
 
-    bool      hasNext_;               // Наявність обчислення наступних кроків
+    bool      hasNext_;              // Наявність обчислення наступних кроків
 
  public:
     // Конструктор — приймає solver і targets через інтерфейси

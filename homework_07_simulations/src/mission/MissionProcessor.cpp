@@ -11,7 +11,7 @@ bool MissionProcessor::init(std::unique_ptr<IConfigLoader> loader, std::unique_p
     //  ------- Initialize target coordinates -------
     targets_->load();
     targetCount_ = targets_->getTargetCount();
-    //int timeSteps = targets_->getTimeSteps();
+    timeSteps_ = targets_->getTimeSteps();
 
     //  ------- Initialize drone configuration -------
     configLoader_->load();
@@ -64,6 +64,7 @@ void MissionProcessor::initDroneConstants()
     hDistBomb_ = solver_->calculateHorizontalDistance(droneConfig_.attackSpeed, ammo_.drag, ammo_.mass, ammo_.lift, ballisticTof_);
 }
 
+// Old implementation: not used anymore, but can be reference for target interpolation
 // Extrapolate target position at time t + dtAhead
 Coord MissionProcessor::extrapTarget(int targetId, double currentTime, double dtAhead, float dt)
 {
@@ -354,8 +355,8 @@ bool MissionProcessor::exportResults()
 
 Coord MissionProcessor::targetInterpolation(const int &targetId, const double &time, const float &arrayTimeStep)
 {
-    int idx = (int)floor(time / arrayTimeStep) % 60;
-    int next = (idx + 1) % 60;
+    int idx = (int)floor(time / arrayTimeStep) % timeSteps_;
+    int next = (idx + 1) % timeSteps_;
     double frac = (time - idx * arrayTimeStep) / arrayTimeStep;
 
     Target *curT = targets_->getTarget(targetId);
