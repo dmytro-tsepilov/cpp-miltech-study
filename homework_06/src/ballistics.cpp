@@ -150,7 +150,6 @@ DropSolution compute_drop_solution(const BallisticsInput& input, std::string& re
     return result;
   }
 
-
   char buf[64];
   resultCalculation = "";
   LOG("Horizontal distance to target: " << horizontalDistance);

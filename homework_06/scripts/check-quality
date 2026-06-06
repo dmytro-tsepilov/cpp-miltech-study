@@ -18,6 +18,7 @@ echo ""
 echo "--- Step 1: Formatting C++ files ---"
 clang-format -i \
   "homework_06/include/ballistics.hpp" \
+  "homework_06/include/macros.h" \
   "homework_06/src/ballistics.cpp" \
   "homework_06/src/main.cpp" \
   "homework_06/tests/ballistics_tests.cpp"
