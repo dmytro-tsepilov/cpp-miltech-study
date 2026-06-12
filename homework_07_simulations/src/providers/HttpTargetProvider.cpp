@@ -44,7 +44,10 @@ bool HttpTargetProvider::load()
     }
 
     std::string rawResponse;
-    downloadFile(getBaseUrl() + "/" + testName_, rawResponse);
+    int configStatus = downloadFile(getBaseUrl() + "/" + testName_, rawResponse);
+    if (configStatus != 200) {
+        return false;
+    }
 
     parseTargets(rawResponse);
 
@@ -95,7 +98,7 @@ int HttpTargetProvider::downloadFile(const std::string& fullPath, std::string &r
         DEBUG("[" << typeid(*this).name() << "] Download completed from: size=" << data.size() << " url=" << apiURL_ << fullPath);
         rawResponse = data;
     } else {
-        LOG("[" << typeid(*this).name() << "] Failed to download targets: " << (res ? res->status : 0));
+        LOG("[" << typeid(*this).name() << "] Failed to download targets from " << apiURL_ << fullPath << ": Error: " << (res ? res->status : 0));
     }
 
     return res->status;

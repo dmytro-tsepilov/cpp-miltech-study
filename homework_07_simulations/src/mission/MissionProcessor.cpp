@@ -11,12 +11,18 @@ bool MissionProcessor::init(std::unique_ptr<IConfigLoader> loader, std::unique_p
     resultWriter_ = std::move(writer);
 
     //  ------- Initialize target coordinates -------
-    targets_->load();
+    if (!targets_->load()) {
+        LOG("Failed to load targets");
+        return false;
+    }
     targetCount_ = targets_->getTargetCount();
     timeSteps_ = targets_->getTimeSteps();
 
     //  ------- Initialize drone configuration -------
-    configLoader_->load();
+    if (!configLoader_->load()) {
+        LOG("Failed to load drone config");
+        return false;
+    }
     droneConfig_ = configLoader_->getConfig();
 
     //  ------- Load ammo types and config from file   -------
