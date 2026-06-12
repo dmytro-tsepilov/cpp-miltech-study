@@ -1,10 +1,10 @@
 #include <string>
 
 #include "common/macros.h"
-#include "result/ResultWriter.h"
-#include "config/ConfigLoader.h"
-#include "providers/TargetLoader.h"
-#include "solvers/BallisticSolver.h"
+#include "factories/ConfigLoaderFactory.h"
+#include "factories/SolverFactory.h"
+#include "factories/TargetProviderFactory.h"
+#include "factories/ResultWriterFactory.h"
 #include "mission/MissionProcessor.h"
 
 int main(int argc, char** argv)
