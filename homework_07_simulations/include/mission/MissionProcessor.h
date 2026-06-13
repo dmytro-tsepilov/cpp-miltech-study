@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include "result/ResultWriter.h"
 #include "providers/TargetLoader.h"
-#include "solvers/BallisticSolver.h"
+#include "solvers/AnalyticalSolver.h"
 #include "config/ConfigLoader.h"
 
 struct SimStep;

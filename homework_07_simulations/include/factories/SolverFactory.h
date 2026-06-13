@@ -2,18 +2,22 @@
 
 #include <memory>
 
-#include "solvers/BallisticSolver.h"
+#include "solvers/AnalyticalSolver.h"
+#include "solvers/TableSolver.h"
 #include "interfaces/IBallisticSolver.h"
 #include "common/macros.h"
 
 enum class SolverType {
-    ANALYTICAL
+    ANALYTICAL,
+    TABLE
 };
 
 inline std::unique_ptr<IBallisticSolver> createBallisticSolver(SolverType type) {
     switch (type) {
         case SolverType::ANALYTICAL:
             return std::make_unique<AnalyticalSolver>();
+        case SolverType::TABLE:
+            return std::make_unique<TableSolver>();
         default:
             LOG("Unknown SolverType");
             return nullptr;
