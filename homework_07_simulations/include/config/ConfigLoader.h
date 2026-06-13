@@ -32,6 +32,7 @@ public:
 
 // ============ HttpConfigLoader ============
 
+#if ENABLE_HTTP
 class HttpConfigLoader : public IConfigLoader {
 private:
     DroneConfig dConf_;
@@ -62,4 +63,5 @@ public:
     DroneConfig getConfig() override;
     const std::unordered_map<std::string, AmmoType>& getAmmoParams() override;
 };
+#endif // ENABLE_HTTP
 

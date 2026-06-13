@@ -29,11 +29,17 @@ inline std::unique_ptr<ITargetProvider> createTargetProvider(SourceType type,
                 return nullptr;
             }
             return std::make_unique<SerialTargetProvider>(param.value());
-        case SourceType::HTTP: {
+        case SourceType::HTTP:
+        #if ENABLE_HTTP
+        {
             auto homeWork = param.has_value() && !param->empty() ? param.value() : std::string("hw3");
             auto testNumber = param2.has_value() && !param2->empty() ? std::stoi(param2.value()) : 0;
             return std::make_unique<HttpTargetProvider>(homeWork, testNumber);
         }
+        #else
+            LOG("HTTP support is disabled. Cannot create HttpTargetProvider.");
+            return nullptr;
+        #endif
         case SourceType::TEST:
             return std::make_unique<TestTargetProvider>();
         default:
