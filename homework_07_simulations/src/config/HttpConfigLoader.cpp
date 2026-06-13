@@ -101,7 +101,7 @@ int HttpConfigLoader::downloadFile(const std::string& fullPath, std::string &raw
         LOG("[" << typeid(*this).name() << "] Failed to download config: " << (res ? res->status : 0) << " url=" << apiURL_ << fullPath);
     }
 
-    return res->status;
+    return res ? res->status : -1;
 }
 
 bool HttpConfigLoader::load()

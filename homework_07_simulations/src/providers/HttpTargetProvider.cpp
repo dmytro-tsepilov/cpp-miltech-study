@@ -101,5 +101,5 @@ int HttpTargetProvider::downloadFile(const std::string& fullPath, std::string &r
         LOG("[" << typeid(*this).name() << "] Failed to download targets from " << apiURL_ << fullPath << ": Error: " << (res ? res->status : 0));
     }
 
-    return res->status;
+    return res ? res->status : -1;
 }

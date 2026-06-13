@@ -52,5 +52,9 @@ bool JsonTargetProvider::load()
 }
 
 Target *JsonTargetProvider::getTarget(int index) {
+    if (index < 0 || index >= targetCount) {
+        LOG("JsonTargetProvider::getTarget() - index " << index << " out of range [0, " << targetCount << ")");
+        return nullptr;
+    }
     return targets[index].data();
 }

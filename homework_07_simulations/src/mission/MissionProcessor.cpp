@@ -367,6 +367,10 @@ Coord MissionProcessor::targetInterpolation(const int &targetId, const double &t
     double frac = (time - idx * arrayTimeStep) / arrayTimeStep;
 
     Target *curT = targets_->getTarget(targetId);
+    if (!curT) {
+        LOG("targetInterpolation: getTarget(" << targetId << ") returned nullptr");
+        return {0, 0};
+    }
 
     return {
         curT[idx].x + (curT[next].x - curT[idx].x) * frac,

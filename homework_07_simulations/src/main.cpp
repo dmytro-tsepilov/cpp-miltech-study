@@ -34,21 +34,46 @@ int main(int argc, char** argv)
     std::unique_ptr<IConfigLoader> cfgLoader;
     std::unique_ptr<ITargetProvider> targetProvider;
     auto solver = createBallisticSolver(SolverType::ANALYTICAL);
+    if (solver == nullptr) {
+        LOG("Failed to create ballistic solver");
+        return 1;
+    }
+
     if (remote) {
         targetProvider = createTargetProvider(SourceType::HTTP, homeWork, testNumber);
+        if (targetProvider == nullptr) {
+            LOG("Failed to create HTTP target provider");
+            return 1;
+        }
         // Cast to HttpTargetProvider to access setTestName (not in base interface)
         // if (auto httpProvider = dynamic_cast<HttpTargetProvider*>(targetProvider.get())) {
         //     httpProvider->setTestName("test10_extreme");
         // }
 
         cfgLoader = createConfigLoader(ConfigType::HTTP, homeWork, testNumber);
+        if (cfgLoader == nullptr) {
+            LOG("Failed to create HTTP config loader");
+            return 1;
+        }
     }
     else {
         cfgLoader = createConfigLoader(ConfigType::JSON, dataFolder.c_str());
+        if (cfgLoader == nullptr) {
+            LOG("Failed to create JSON config loader");
+            return 1;
+        }
         targetProvider = createTargetProvider(SourceType::JSON, dataFolder.c_str());
+        if (targetProvider == nullptr) {
+            LOG("Failed to create JSON target provider");
+            return 1;
+        }
     }
 
     auto resultWriter = createResultWriter(DestType::JSON);
+    if (resultWriter == nullptr) {
+        LOG("Failed to create result writer");
+        return 1;
+    }
 
     auto mission = std::make_unique<MissionProcessor>(std::move(solver), std::move(targetProvider));
     mission->init(std::move(cfgLoader), std::move(resultWriter));
