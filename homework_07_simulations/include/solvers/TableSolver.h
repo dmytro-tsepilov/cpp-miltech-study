@@ -2,11 +2,13 @@
 
 #include <string>
 #include <vector>
-// #include "common/macros.h"
+#include "common/macros.h"
 #include "interfaces/IBallisticSolver.h"
 
 class TableSolver : public IBallisticSolver {
 private:
+    std::string filePath_;      // Path to ballistic_table.txt
+
     // 5 осей — кожна зі своїм набором вузлів (нерівномірний крок)
     std::vector<float> axisZ0;  // висота
     std::vector<float> axisV0;  // швидкість
@@ -29,7 +31,6 @@ private:
         float frac;  // коефіцієнт [0..1]
     };
 
-    bool load(const std::string &path);
     Result lerp(const Result& a, const Result& b, float t) const;
     Interp findInterp(float val, const std::vector<float>& axis) const;
     Result lookup(float Z0, float V0, float m, float d,  float l) const;
@@ -37,6 +38,11 @@ private:
     size_t index(int iz, int iv, int im, int id, int il) const;
 
 public:
+    TableSolver(const std::string &path = "") {
+        filePath_ = path;
+        load(path);
+    }
     double calculateHorizontalDistance(const float &attackSpeed, const float &ammoDrag, const float &ammoMass, const float &ammoLift, const double &time) override;
     double calculateTimeToTarget(const float &attackSpeed, const float &ammoDrag, const float &ammoMass, const float &ammoLift, const float &zd) override;
+    bool load(const std::string &path);
 };

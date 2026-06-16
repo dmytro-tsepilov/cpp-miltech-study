@@ -19,7 +19,10 @@ const TableSolver::Result& TableSolver::at(int iz, int iv, int im, int id, int i
 // Завантаження з текстового файлу
 bool TableSolver::load(const std::string &path) {
     std::ifstream f(path);
-    if (!f.is_open()) return false;
+    if (!f.is_open()) {
+        LOG("Error opening ammo types file: " << path);
+        return false;
+    }
 
     int nZ, nV, nM, nD, nL;
     f >> nZ >> nV >> nM >> nD >> nL;
