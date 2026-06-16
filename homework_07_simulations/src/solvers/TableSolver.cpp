@@ -111,12 +111,12 @@ TableSolver::Result TableSolver::lookup(float Z0, float V0, float m, float d, fl
 double TableSolver::calculateHorizontalDistance(const float &attackSpeed, const float &ammoDrag, const float &ammoMass, const float &ammoLift, const double &time)
 {
     // Використовуємо таблицю для обчислення горизонтальної дистанції
-    Result res = lookup(0.0f, attackSpeed, ammoMass, ammoDrag, ammoLift);
-    return res.hDist;
+    //Result res = lookup(0.0f, attackSpeed, ammoMass, ammoDrag, ammoLift);
+    return res_.hDist;
 }
 double TableSolver::calculateTimeToTarget(const float &attackSpeed, const float &ammoDrag, const float &ammoMass, const float &ammoLift, const float &zd)
 {
     // Використовуємо таблицю для обчислення часу польоту
-    Result res = lookup(zd, attackSpeed, ammoMass, ammoDrag, ammoLift);
-    return res.t;
+    res_ = lookup(zd, attackSpeed, ammoMass, ammoDrag, ammoLift);
+    return res_.t;
 }

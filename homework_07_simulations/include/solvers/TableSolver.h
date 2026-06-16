@@ -31,6 +31,9 @@ private:
         float frac;  // коефіцієнт [0..1]
     };
 
+    // Temp debug
+    Result res_;
+
     Result lerp(const Result& a, const Result& b, float t) const;
     Interp findInterp(float val, const std::vector<float>& axis) const;
     Result lookup(float Z0, float V0, float m, float d,  float l) const;

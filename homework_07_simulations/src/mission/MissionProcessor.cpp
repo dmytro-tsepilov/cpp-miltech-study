@@ -1,6 +1,7 @@
 #include <vector>
 #include <unordered_map>
 #include <cstring>
+#include <algorithm>
 #include "common/macros.h"
 #include "config/DroneConfig.h"
 #include "mission/MissionProcessor.h"

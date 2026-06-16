@@ -1,10 +1,12 @@
 #pragma once
 #include <vector>
 #include <unordered_map>
-#include "result/ResultWriter.h"
-#include "providers/TargetLoader.h"
-#include "solvers/AnalyticalSolver.h"
-#include "config/ConfigLoader.h"
+#include <memory>
+#include "common/SimStep.h"
+#include "interfaces/IResultWriter.h"
+#include "interfaces/ITargetProvider.h"
+#include "interfaces/IBallisticSolver.h"
+#include "interfaces/IConfigLoader.h"
 
 struct SimStep;
 struct DroneConfig;
