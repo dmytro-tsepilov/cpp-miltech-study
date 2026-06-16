@@ -10,14 +10,28 @@ enum class DestType {
     DATABASE
 };
 
-inline std::unique_ptr<IResultWriter> createResultWriter(DestType type, const char* param = nullptr, const char* param2 = nullptr) {
+inline std::unique_ptr<IResultWriter> createResultWriter(DestType type,
+        const std::optional<std::string>& param = std::nullopt,
+        const std::optional<std::string>& param2 = std::nullopt) {
     switch (type) {
         case DestType::JSON:
-            return std::make_unique<JsonResultWriter>(param ? param : "", param2 ? param2 : "simulation.json");
+        {
+            auto folderPath = param.has_value() ? param.value() : std::string("");
+            auto filename = param2.has_value() ? param2.value() : std::string("targets.json");
+            return std::make_unique<JsonResultWriter>(folderPath, filename);
+        }
         case DestType::API:
-            return std::make_unique<ApiResultWriter>(param ? param : "", param2 ? param2 : "");
+        {
+            auto apiUrl = param.has_value() ? param.value() : std::string("");
+            auto authToken = param2.has_value() ? param2.value() : std::string("");
+            return std::make_unique<ApiResultWriter>(apiUrl, authToken);
+        }
         case DestType::DATABASE:
-            return std::make_unique<DatabaseResultWriter>(param ? param : "", param2 ? param2 : "simulation_results");
+        {
+            auto connectionString = param.has_value() ? param.value() : std::string("");
+            auto tableName = param2.has_value() ? param2.value() : std::string("");
+            return std::make_unique<DatabaseResultWriter>(connectionString, tableName);
+        }
         default:
             return nullptr;
     }

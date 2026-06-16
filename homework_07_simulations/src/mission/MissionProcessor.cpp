@@ -157,7 +157,7 @@ SimStep MissionProcessor::step()
     // Print progress every 100 steps
     if (currentStep_ % 10 == 0)
     {
-        LOG("Step " << currentStep_ << ": pos=" << simStep_.pos << " state=" << (int)simStep_.state
+        LOG("Step " << currentStep_ << ": pos=" << simStep_.pos << " state=" << getCurrentStateName()
                     << " target=" << simStep_.targetIdx << " speed=" << currentSpeed_ << " dir=" << simStep_.direction);
     }
 
@@ -237,100 +237,31 @@ SimStep MissionProcessor::step()
     double angleDiff = desiredDir - simStep_.direction;
     angleDiff = normalizeAngle(angleDiff);
 
-    DEBUG("Step " << currentStep_ << ": angleDiff=" << angleDiff << " maxTurn=" << (droneConfig_.angularSpeed * droneConfig_.simTimeStep) << " state=" << (int)simStep_.state);
+    DEBUG("Step " << currentStep_ << ": angleDiff=" << angleDiff << " maxTurn=" << (droneConfig_.angularSpeed * droneConfig_.simTimeStep) << " state=" << getCurrentStateName());
 
-    // State machine for drone movement
-    switch (simStep_.state)
-    {
-        case DroneState::STOPPED:
-            // Check if need to turn or accelerate
-            if (std::abs(angleDiff) > droneConfig_.turnThreshold)
-            {
-                // Need to turn first
-                simStep_.state = DroneState::TURNING;
-                // Use max to ensure at least 1 step, but avoid overshoot by not adding +1
-                remainingTurningSteps_ = (int)std::max(1, (int)std::ceil(std::abs(angleDiff) / (droneConfig_.angularSpeed * droneConfig_.simTimeStep)));
-            }
-            else
-            {
-                simStep_.direction = applyLimitedTurn(simStep_, maxTurnPerStep_, desiredDir);
-                // Can start accelerating directly
-                simStep_.state = DroneState::ACCELERATING;
-            }
-            break;
+    // --- Update DroneContext with desired direction ---
+    ctx_.desiredDir = desiredDir;
+    ctx_.targetPos = desiredPos;
+    ctx_.pos = simStep_.pos;
+    ctx_.direction = simStep_.direction;
+    ctx_.currentSpeed = currentSpeed_;
+    ctx_.cfg = &droneConfig_;
+    ctx_.acceleration = acceleration_;
+    ctx_.maxTurnPerStep = maxTurnPerStep_;
 
-        case DroneState::ACCELERATING:
-            // Only decelerate if actually moving — prevents TURNING→ACCEL→DECEL→TURNING oscillation at zero speed
-            if (std::abs(angleDiff) > droneConfig_.turnThreshold * 2 && currentSpeed_ > droneConfig_.attackSpeed * 0.1f)
-            {
-                simStep_.state = DECELERATING;
-            }
-            else
-            {
-                simStep_.direction = applyLimitedTurn(simStep_, maxTurnPerStep_, desiredDir);
-                // Accelerate to attack speed
-                currentSpeed_ = std::min(droneConfig_.attackSpeed, currentSpeed_ + acceleration_ * droneConfig_.simTimeStep);
-                if (currentSpeed_ >= droneConfig_.attackSpeed - 0.01)
-                {
-                    simStep_.state = MOVING;
-                }
-            }
-            break;
-
-        case DECELERATING:
-            // Decelerate
-            currentSpeed_ = std::max(0.0f, currentSpeed_ - acceleration_ * droneConfig_.simTimeStep);
-            if (currentSpeed_ < 0.01)
-            {
-                currentSpeed_ = 0.0f;
-                // If already roughly aligned, skip turning and start accelerating
-                if (std::abs(angleDiff) > droneConfig_.turnThreshold)
-                {
-                    simStep_.state = TURNING;
-                    // Use max to ensure at least 1 step, but avoid overshoot by not adding +1
-                    remainingTurningSteps_ = (int)std::max(1, (int)std::ceil(std::abs(angleDiff) / (droneConfig_.angularSpeed * droneConfig_.simTimeStep)));
-                }
-                else
-                {
-                    simStep_.direction = applyLimitedTurn(simStep_, maxTurnPerStep_, desiredDir);
-                    simStep_.state = ACCELERATING;
-                }
-            }
-            break;
-
-        case DroneState::TURNING:
-            {
-                // Rotate towards target
-                simStep_.direction = applyLimitedTurn(simStep_, maxTurnPerStep_, desiredDir);
-
-                // Recalculate angle difference after rotation
-                double newAngleDiff = desiredDir - simStep_.direction;
-                newAngleDiff = normalizeAngle(newAngleDiff);
-
-                DEBUG("  TURNING: angleDiff=" << angleDiff << " newAngleDiff=" << newAngleDiff << " remaining=" << remainingTurningSteps_);
-
-                remainingTurningSteps_--;
-                if (remainingTurningSteps_ <= 0 || std::abs(newAngleDiff) < 0.01)
-                {
-                    simStep_.state = ACCELERATING;
-                }
-            }
-            break;
-
-        case DroneState::MOVING:
-            DEBUG("  MOVING: angleDiff=" << angleDiff << " threshold=" << (droneConfig_.turnThreshold * 2));
-            // Check if need to turn
-            if (std::abs(angleDiff) > droneConfig_.turnThreshold * 2)
-            {
-                simStep_.state = DroneState::DECELERATING;
-            }
-            else
-            {
-                simStep_.direction = applyLimitedTurn(simStep_, maxTurnPerStep_, desiredDir);
-                currentSpeed_ = droneConfig_.attackSpeed;
-            }
-            break;
+    // Execute current state via State pattern
+    auto nextState = currentState_->execute(ctx_);
+    if (nextState) {
+        currentState_ = std::move(nextState);
     }
+
+    // Sync DroneContext back to simStep_
+    simStep_.pos = ctx_.pos;
+    simStep_.direction = ctx_.direction;
+    currentSpeed_ = ctx_.currentSpeed;
+
+    // Get state ID from current state object
+    simStep_.state = currentState_->stateId();
 
     simStep_.direction = normalizeAngle(simStep_.direction);
 
@@ -418,17 +349,17 @@ int MissionProcessor::detectBestTarget(SimStep &simStep, const double &currentTi
         {
             switch (simStep.state)
             {
-                case STOPPED:
+                case 0: // STOPPED
                     timeToStop = 0;
                     break;
-                case ACCELERATING:
-                case DECELERATING:
+                case 1: // ACCELERATING
+                case 2: // DECELERATING
                     timeToStop = currentSpeed / acceleration_;
                     break;
-                case MOVING:
+                case 4: // MOVING
                     timeToStop = droneConfig_.attackSpeed / acceleration_;
                     break;
-                case TURNING:
+                case 3: // TURNING
                     timeToStop = remainingTurningSteps * droneConfig_.simTimeStep;
                     break;
             }
@@ -454,7 +385,7 @@ void MissionProcessor::reset()
     // Initial drone state parasmeters
     simStep_.pos = droneConfig_.startPos;
     simStep_.direction = droneConfig_.initialDir;
-    simStep_.state = STOPPED;
+    simStep_.state = 0; // STOPPED
     simStep_.targetIdx = 0;
     simStep_.dropPoint = droneConfig_.startPos;
     simStep_.aimPoint = droneConfig_.startPos;
@@ -468,4 +399,16 @@ void MissionProcessor::reset()
 
     // Pre-allocate vector for SimStep
     simSteps_.resize(MAX_STEPS);
+
+    // Initialize DroneContext
+    ctx_.pos = droneConfig_.startPos;
+    ctx_.direction = droneConfig_.initialDir;
+    ctx_.currentSpeed = 0.0f;
+    ctx_.startPos = droneConfig_.startPos;
+    ctx_.cfg = &droneConfig_;
+    ctx_.acceleration = acceleration_;
+    ctx_.maxTurnPerStep = static_cast<float>(maxTurnPerStep_);
+
+    // Start with StateStopped
+    currentState_ = std::make_unique<StateStopped>();
 }
