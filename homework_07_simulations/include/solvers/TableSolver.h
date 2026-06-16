@@ -17,9 +17,9 @@ private:
     std::vector<float> axisL;   // підйомна сила
  
     // Результат в кожному вузлі сітки
-    struct Result {
-        double t;      // час польоту
-        double hDist;  // горизонтальна дистанція
+    struct Result : BallisticResult { 
+        // double t;      // час польоту
+        // double hDist;  // горизонтальна дистанція
     };
  
     // Плоский масив розміром |Z0| * |V0| * |M| * |D| * |L|
@@ -30,9 +30,6 @@ private:
         int lo;      // нижній індекс в осі
         float frac;  // коефіцієнт [0..1]
     };
-
-    // Temp debug
-    Result res_;
 
     Result lerp(const Result& a, const Result& b, float t) const;
     Interp findInterp(float val, const std::vector<float>& axis) const;
@@ -45,7 +42,6 @@ public:
         filePath_ = path;
         load(path);
     }
-    double calculateHorizontalDistance(const float &attackSpeed, const float &ammoDrag, const float &ammoMass, const float &ammoLift, const double &time) override;
-    double calculateTimeToTarget(const float &attackSpeed, const float &ammoDrag, const float &ammoMass, const float &ammoLift, const float &zd) override;
+    BallisticResult calcluateTimeAndDistance(const float &attackSpeed, const float &ammoDrag, const float &ammoMass, const float &ammoLift, const float &zd) override;
     bool load(const std::string &path);
 };

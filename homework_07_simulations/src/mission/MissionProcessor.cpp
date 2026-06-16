@@ -68,8 +68,10 @@ void MissionProcessor::initDroneConstants()
 
     acceleration_ = (droneConfig_.attackSpeed * droneConfig_.attackSpeed) / (2.0f * droneConfig_.accelPath);
 
-    ballisticTof_ = solver_->calculateTimeToTarget(droneConfig_.attackSpeed, ammo_.drag, ammo_.mass, ammo_.lift, droneConfig_.altitude);
-    hDistBomb_ = solver_->calculateHorizontalDistance(droneConfig_.attackSpeed, ammo_.drag, ammo_.mass, ammo_.lift, ballisticTof_);
+    BallisticResult result = solver_->calcluateTimeAndDistance(droneConfig_.attackSpeed, ammo_.drag, ammo_.mass, ammo_.lift, droneConfig_.altitude);
+
+    ballisticTof_ = result.t;
+    hDistBomb_ = result.hDist;
 }
 
 // Old implementation: not used anymore, but can be reference for target interpolation

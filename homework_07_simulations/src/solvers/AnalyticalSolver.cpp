@@ -62,3 +62,11 @@ double AnalyticalSolver::calculateTimeToTarget(const float &attackSpeed, const f
 
     return t;
 }
+
+BallisticResult AnalyticalSolver::calcluateTimeAndDistance(const float &attackSpeed, const float &ammoDrag, const float &ammoMass, const float &ammoLift, const float &zd)
+{
+    double timeToTarget = calculateTimeToTarget(attackSpeed, ammoDrag, ammoMass, ammoLift, zd);
+    double horizontalDistance = calculateHorizontalDistance(attackSpeed, ammoDrag, ammoMass, ammoLift, timeToTarget);
+
+    return {timeToTarget, horizontalDistance};
+}

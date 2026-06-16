@@ -108,15 +108,7 @@ TableSolver::Result TableSolver::lookup(float Z0, float V0, float m, float d, fl
     return lerp(s[0], s[1], iz.frac);
 }
 
-double TableSolver::calculateHorizontalDistance(const float &attackSpeed, const float &ammoDrag, const float &ammoMass, const float &ammoLift, const double &time)
+BallisticResult TableSolver::calcluateTimeAndDistance(const float &attackSpeed, const float &ammoDrag, const float &ammoMass, const float &ammoLift, const float &zd)
 {
-    // Використовуємо таблицю для обчислення горизонтальної дистанції
-    //Result res = lookup(0.0f, attackSpeed, ammoMass, ammoDrag, ammoLift);
-    return res_.hDist;
-}
-double TableSolver::calculateTimeToTarget(const float &attackSpeed, const float &ammoDrag, const float &ammoMass, const float &ammoLift, const float &zd)
-{
-    // Використовуємо таблицю для обчислення часу польоту
-    res_ = lookup(zd, attackSpeed, ammoMass, ammoDrag, ammoLift);
-    return res_.t;
+    return lookup(zd, attackSpeed, ammoMass, ammoDrag, ammoLift);
 }
