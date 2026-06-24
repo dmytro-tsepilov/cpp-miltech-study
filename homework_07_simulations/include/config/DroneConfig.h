@@ -75,8 +75,9 @@ struct Coord
 };
 
 struct Target {
-    Coord pos;       // поточна позиція цілі
-    Coord velocity;  // поточна швидкість цілі
+	Coord pos;      	// поточна позиція цілі
+	Coord velocity; 	// поточна швидкість цілі
+	Coord acceleration{0, 0}; // поточне прискорення цілі (для маневрених цілей)
 };
 
 struct DroneConfig {

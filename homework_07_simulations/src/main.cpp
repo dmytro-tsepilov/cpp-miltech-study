@@ -29,7 +29,7 @@ int main(int argc, char** argv)
             return 1;
         }
         remote = true;
-        testNumber = argv[2]; 
+        testNumber = argv[2];
     }
 
     std::string dataFolder = argv[1];
