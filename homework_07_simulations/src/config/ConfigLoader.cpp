@@ -53,6 +53,9 @@ bool FileConfigLoader::loadConfigFromFile(const std::string &filename)
     dConf.hitRadius = data["simulation"]["hitRadius"];
     dConf.angularSpeed = data["drone"]["angularSpeed"];
     dConf.turnThreshold = data["drone"]["turnThreshold"];
+    dConf.physicsTimeStep = data["simulation"].value("physicsTimeStep", 0.01f);
+    dConf.timeScale = data["simulation"].value("timeScale", 1.0f);
+    dConf.targetTimeStep = data["simulation"].value("targetTimeStep", 0.05f);
 
     inputFile.close();
     return true;
