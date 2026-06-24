@@ -228,7 +228,11 @@ SimStep MissionProcessor::step()
 
         double aDiffMult = round(std::abs(aDiff * 10));
         double angStepMult = (droneConfig_.angularSpeed * droneConfig_.simTimeStep) * 10;
-        if (aDiffMult < angStepMult && inBombingTime)
+
+        // Drop bomb when distToPred ≈ hDistBomb, otherwise bomb will fall short of hitRadius.
+        double dropMargin = droneConfig_.attackSpeed * droneConfig_.simTimeStep * 0.5;
+        bool atDropDistance = distToPred <= hDistBomb_ + dropMargin;
+        if (aDiffMult < angStepMult && inBombingTime && atDropDistance)
         {
             LOG(std::fixed
                         << "Reached fire point X at step " << currentStep_
