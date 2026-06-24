@@ -124,10 +124,11 @@ bool MissionProcessor::leadTarget(Coord pos, const int tgtIdx, const double &cur
     (void)arrayTimeStep;
 
     // Знімок цілі: поточна позиція + швидкість. Прогноз майбутньої позиції
-    // через лінійну екстраполяцію pos + velocity * dtAhead.
+    // через квадратичну екстраполяцію pos + velocity * dt + 0.5 * acceleration * dt^2,
+    // що враховує маневр (криволінійний рух) цілі.
     Target tgt = targets_->getTarget(tgtIdx);
 
-    predict = tgt.pos + tgt.velocity * (float)ballisticTof_;
+    predict = tgt.pos + tgt.velocity * (float)ballisticTof_ + tgt.acceleration * (float)(0.5 * ballisticTof_ * ballisticTof_);
     firePos = predict;
 
     // Iterative refinement (6 iterations)
@@ -151,7 +152,11 @@ bool MissionProcessor::leadTarget(Coord pos, const int tgtIdx, const double &cur
         double distToFire = firePos.distanceTo(pos);
         double tImpact = distToFire / std::max(attackSpeed, 0.1f) + ballisticTof_;
 
-        predict = tgt.pos + tgt.velocity * (float)tImpact;
+        // Квадратичний (по прискоренню) член справедливий лише на короткому
+        // горизонті; обмежуємо його балістичним часом польоту, щоб під час
+        // далекого підльоту прогноз для маневреної цілі не "вибухав".
+        double tAcc = std::min(tImpact, (double)ballisticTof_);
+        predict = tgt.pos + tgt.velocity * (float)tImpact + tgt.acceleration * (float)(0.5 * tAcc * tAcc);
     }
 
     return true;

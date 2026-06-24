@@ -50,6 +50,7 @@ bool ThreadSafeTargetProvider::load()
     for (int i = 0; i < targetCount_; i++) {
         current_[i].pos = trajectories_[i].empty() ? Coord{0, 0} : trajectories_[i][0];
         current_[i].velocity = {0, 0};
+        current_[i].acceleration = {0, 0};
     }
 
     inputFile.close();
@@ -64,13 +65,19 @@ void ThreadSafeTargetProvider::updateCurrent(int nodeIdx)
 
     int idx = ((nodeIdx % timeSteps_) + timeSteps_) % timeSteps_;
     int next = (idx + 1) % timeSteps_;
+    int prev = ((idx - 1) % timeSteps_ + timeSteps_) % timeSteps_;
 
     std::lock_guard<std::mutex> lock(mutex_);
     for (int i = 0; i < targetCount_; i++) {
         Coord pos = trajectories_[i][idx];
         Coord velocity = (trajectories_[i][next] - trajectories_[i][idx]) / arrayTimeStep_;
+
+        // Target acceleration (second central difference) — allows quadratic
+        // prediction for maneuvering/curved targets instead of linear.
+        Coord acceleration = (trajectories_[i][next] - trajectories_[i][idx] * 2.0f + trajectories_[i][prev]) / (arrayTimeStep_ * arrayTimeStep_);
         current_[i].pos = pos;
         current_[i].velocity = velocity;
+        current_[i].acceleration = acceleration;
     }
 }
 

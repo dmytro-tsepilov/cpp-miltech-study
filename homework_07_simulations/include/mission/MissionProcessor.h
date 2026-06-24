@@ -106,6 +106,6 @@ private:
                   const float &attackSpeed, const float &arrayTimeStep,
                   Coord &firePos, Coord &predict);
     void initDroneConstants();
-    int detectBestTarget(SimStep &simStep, const double &currentTime, const float &currentSpeed, 
+    int detectBestTarget(SimStep &simStep, const double &currentTime, const float &currentSpeed,
                    const int &remainingTurningSteps, int &bestTargetId, Coord &bestPredict);
 };
