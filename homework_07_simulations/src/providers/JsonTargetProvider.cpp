@@ -39,7 +39,7 @@ bool JsonTargetProvider::load()
     targetCount = (int)data["targetCount"];
     timeSteps = (int)data["timeSteps"];
 
-    targets.resize(targetCount, std::vector<Target>(timeSteps));
+    targets.resize(targetCount, std::vector<Coord>(timeSteps));
     for (int i = 0; i < targetCount; i++) {
         for (int j = 0; j < timeSteps; j++) {
             targets[i][j].x = data["targets"][i]["positions"][j]["x"];
@@ -51,10 +51,10 @@ bool JsonTargetProvider::load()
     return true;
 }
 
-Target *JsonTargetProvider::getTarget(int index) {
+Target JsonTargetProvider::getTarget(int index) {
     if (index < 0 || index >= targetCount) {
         LOG("JsonTargetProvider::getTarget() - index " << index << " out of range [0, " << targetCount << ")");
-        return nullptr;
+        return Target{};
     }
-    return targets[index].data();
+    return Target{ targets[index][0], {0, 0} };
 }
