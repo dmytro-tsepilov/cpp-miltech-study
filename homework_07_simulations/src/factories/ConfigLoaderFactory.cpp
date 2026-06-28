@@ -2,6 +2,7 @@
 
 #include "config/FileConfigLoader.h"
 #include "config/HttpConfigLoader.h"
+#include "common/macros.h"
 
 #include <memory>
 #include <string>
