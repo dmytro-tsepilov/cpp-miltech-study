@@ -18,8 +18,11 @@ int HttpTargetProvider::getTimeSteps()
     return this->timeSteps;
 }
 
-Target *HttpTargetProvider::getTarget(int index) {
-    return &targets[index][0];
+Target HttpTargetProvider::getTarget(int index) {
+    if (index < 0 || index >= targetCount) {
+        return Target{};
+    }
+    return Target{ targets[index][0], {0, 0} };
 }
 
 std::string HttpTargetProvider::getBaseUrl() {
@@ -78,7 +81,7 @@ bool HttpTargetProvider::parseTargets(const std::string &rawResponse)
     targetCount = (int)data["targets"]["targetCount"];
     timeSteps = (int)data["targets"]["timeSteps"];
 
-    targets.resize(targetCount, std::vector<Target>(timeSteps));
+    targets.resize(targetCount, std::vector<Coord>(timeSteps));
     for (int i = 0; i < targetCount; i++) {
         for (int j = 0; j < timeSteps; j++) {
             targets[i][j].x = data["targets"]["targets"][i]["positions"][j]["x"];

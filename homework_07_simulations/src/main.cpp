@@ -1,10 +1,13 @@
 #include <string>
+#include <thread>
+#include <chrono>
 
 #include "common/macros.h"
 #include "factories/ConfigLoaderFactory.h"
 #include "factories/SolverFactory.h"
 #include "factories/TargetProviderFactory.h"
 #include "factories/ResultWriterFactory.h"
+#include "mission/DronePhysics.h"
 #include "mission/MissionProcessor.h"
 
 int main(int argc, char** argv)
@@ -26,7 +29,7 @@ int main(int argc, char** argv)
             return 1;
         }
         remote = true;
-        testNumber = argv[2]; 
+        testNumber = argv[2];
     }
 
     std::string dataFolder = argv[1];
@@ -84,12 +87,40 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    auto mission = std::make_unique<MissionProcessor>(std::move(solver), std::move(targetProvider));
-    mission->init(std::move(cfgLoader), std::move(resultWriter));
+    auto physics = std::make_unique<DronePhysics>();
+    DronePhysics* physicsPtr = physics.get();
+    ITargetProvider* providerPtr = targetProvider.get();
 
-    while (mission->hasNext()) {
-        mission->step();
+    auto mission = std::make_unique<MissionProcessor>(std::move(solver), std::move(targetProvider));
+    if (!mission->init(std::move(cfgLoader), std::move(resultWriter), physicsPtr)) {
+        LOG("Failed to initialize mission");
+        return 1;
     }
+    MissionProcessor* missionPtr = mission.get();
+
+    // Three separate threads: target provider, drone physics, mission processor
+    std::thread providerThread(&ITargetProvider::run, providerPtr);
+    std::thread physicsThread(&DronePhysics::run, physicsPtr);
+    std::thread missionThread(&MissionProcessor::run, missionPtr);
+
+    // Wait until all threads are ready to start
+    while (!providerPtr->isThreadReady() || !physicsPtr->isThreadReady() || !missionPtr->isThreadReady()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    // Synchronized start — targets do not move until the rest of the system is ready
+    providerPtr->start();
+    physicsPtr->start();
+    missionPtr->start();
+
+    // Mission is the only thread we wait for to finish
+    missionThread.join();
+
+    // Stop physics and target provider using stop flags
+    physicsPtr->stop();
+    providerPtr->stop();
+    providerThread.join();
+    physicsThread.join();
 
     mission->exportResults();
 

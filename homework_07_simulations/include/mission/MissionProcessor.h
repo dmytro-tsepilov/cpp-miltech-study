@@ -2,6 +2,7 @@
 #include <vector>
 #include <unordered_map>
 #include <memory>
+#include <atomic>
 #include "common/SimStep.h"
 #include "interfaces/IResultWriter.h"
 #include "interfaces/ITargetProvider.h"
@@ -11,6 +12,7 @@
 
 struct SimStep;
 struct DroneConfig;
+class DronePhysics;
 
 const int MAX_STEPS = 10000;
 
@@ -46,6 +48,13 @@ private:
 
     bool      hasNext_;              // Наявність обчислення наступних кроків
 
+    DronePhysics* physics_ = nullptr;        // фізика дрона (не володіє)
+
+    // Багатопоточність
+    std::atomic<bool> threadReady_{false};
+    std::atomic<bool> started_{false};
+    std::atomic<bool> stop_{false};
+
  public:
     // Конструктор — приймає solver і targets через інтерфейси
     MissionProcessor(std::unique_ptr<IBallisticSolver> s, std::unique_ptr<ITargetProvider> t) : solver_(std::move(s)), targets_(std::move(t)) {};
@@ -54,13 +63,19 @@ private:
     ~MissionProcessor() = default;
 
     // Ініціалізація: завантажити конфіг через IConfigLoader, підготувати дані
-    bool init(std::unique_ptr<IConfigLoader> loader, std::unique_ptr<IResultWriter> writer);
+    bool init(std::unique_ptr<IConfigLoader> loader, std::unique_ptr<IResultWriter> writer, DronePhysics* physics);
 
     // Перевірити, чи є ще необроблені цілі
     bool hasNext();
 
     // Обробити наступну ціль: взяти дані з targets, обчислити через solver, повернути DropPoint
     SimStep step();
+
+    // Тіло потоку місії
+    void run();
+    void start();
+    void stop();
+    bool isThreadReady() const;
 
     // Почати ітерацію спочатку
     void reset();
@@ -85,14 +100,12 @@ private:
     }
 
  private:
-    Coord targetInterpolation(const int &targetId, const double &time, const float &arrayTimeStep);
-    Coord extrapTarget(int targetId, double currentTime, double dtAhead, float dt);
     double normalizeAngle(double angle);
     double applyLimitedTurn(const SimStep &simStep, const double &maxTurnPerStep, const double &desiredDir);
     bool leadTarget(Coord pos, const int tgtIdx, const double &currentTime,
                   const float &attackSpeed, const float &arrayTimeStep,
                   Coord &firePos, Coord &predict);
     void initDroneConstants();
-    int detectBestTarget(SimStep &simStep, const double &currentTime, const float &currentSpeed, 
+    int detectBestTarget(SimStep &simStep, const double &currentTime, const float &currentSpeed,
                    const int &remainingTurningSteps, int &bestTargetId, Coord &bestPredict);
 };

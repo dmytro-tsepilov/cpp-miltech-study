@@ -2,14 +2,18 @@
 #include <unordered_map>
 #include <cstring>
 #include <algorithm>
+#include <thread>
+#include <chrono>
 #include "common/macros.h"
 #include "config/DroneConfig.h"
+#include "mission/DronePhysics.h"
 #include "mission/MissionProcessor.h"
 
-bool MissionProcessor::init(std::unique_ptr<IConfigLoader> loader, std::unique_ptr<IResultWriter> writer)
+bool MissionProcessor::init(std::unique_ptr<IConfigLoader> loader, std::unique_ptr<IResultWriter> writer, DronePhysics* physics)
 {
     configLoader_ = std::move(loader);
     resultWriter_ = std::move(writer);
+    physics_ = physics;
 
     //  ------- Initialize target coordinates -------
     if (!targets_->load()) {
@@ -56,6 +60,15 @@ bool MissionProcessor::init(std::unique_ptr<IConfigLoader> loader, std::unique_p
 
     initDroneConstants();
 
+    // Налаштувати провайдер цілей (період оновлення = arrayTimeStep)
+    targets_->setTimings(droneConfig_.arrayTimeStep, droneConfig_.timeScale);
+
+    // Налаштувати фізику дрона початковим станом
+    if (physics_) {
+        physics_->init(droneConfig_.startPos, droneConfig_.initialDir,
+                       droneConfig_.physicsTimeStep, droneConfig_.timeScale);
+    }
+
     reset();
 
     return true;
@@ -76,17 +89,17 @@ void MissionProcessor::initDroneConstants()
 
 // Old implementation: not used anymore, but can be reference for target interpolation
 // Extrapolate target position at time t + dtAhead
-Coord MissionProcessor::extrapTarget(int targetId, double currentTime, double dtAhead, float dt)
-{
-    int idx = (int)floor(currentTime / dt) % 60;
-    int next = (idx + 1) % 60;
-    Target *curT = targets_->getTarget(targetId);
+// Coord MissionProcessor::extrapTarget(int targetId, double currentTime, double dtAhead, float dt)
+// {
+//     int idx = (int)floor(currentTime / dt) % 60;
+//     int next = (idx + 1) % 60;
+//     Target *curT = targets_->getTarget(targetId);
 
-    Coord vPos = (curT[next] - curT[idx]) / dt;
+//     Coord vPos = (curT[next] - curT[idx]) / dt;
 
-    Coord curPos = targetInterpolation(targetId, currentTime, dt);
-    return curPos + vPos * dtAhead;
-}
+//     Coord curPos = targetInterpolation(targetId, currentTime, dt);
+//     return curPos + vPos * dtAhead;
+// }
 
 double MissionProcessor::applyLimitedTurn(const SimStep &simStep, const double &maxTurnPerStep, const double &desiredDir)
 {
@@ -107,8 +120,15 @@ bool MissionProcessor::leadTarget(Coord pos, const int tgtIdx, const double &cur
                   const float &attackSpeed, const float &arrayTimeStep,
                   Coord &firePos, Coord &predict)
 {
-    //predict = extrapTarget(tgtIdx, currentTime, ballisticTof, arrayTimeStep);
-    predict = targetInterpolation(tgtIdx, currentTime + ballisticTof_, arrayTimeStep);
+    (void)currentTime;
+    (void)arrayTimeStep;
+
+    // Знімок цілі: поточна позиція + швидкість. Прогноз майбутньої позиції
+    // через квадратичну екстраполяцію pos + velocity * dt + 0.5 * acceleration * dt^2,
+    // що враховує маневр (криволінійний рух) цілі.
+    Target tgt = targets_->getTarget(tgtIdx);
+
+    predict = tgt.pos + tgt.velocity * (float)ballisticTof_ + tgt.acceleration * (float)(0.5 * ballisticTof_ * ballisticTof_);
     firePos = predict;
 
     // Iterative refinement (6 iterations)
@@ -132,8 +152,11 @@ bool MissionProcessor::leadTarget(Coord pos, const int tgtIdx, const double &cur
         double distToFire = firePos.distanceTo(pos);
         double tImpact = distToFire / std::max(attackSpeed, 0.1f) + ballisticTof_;
 
-        //predict = extrapTarget(tgtIdx, currentTime, tImpact, arrayTimeStep);
-        predict = targetInterpolation(tgtIdx, currentTime + tImpact, arrayTimeStep);
+        // Квадратичний (по прискоренню) член справедливий лише на короткому
+        // горизонті; обмежуємо його балістичним часом польоту, щоб під час
+        // далекого підльоту прогноз для маневреної цілі не "вибухав".
+        double tAcc = std::min(tImpact, (double)ballisticTof_);
+        predict = tgt.pos + tgt.velocity * (float)tImpact + tgt.acceleration * (float)(0.5 * tAcc * tAcc);
     }
 
     return true;
@@ -147,6 +170,14 @@ double MissionProcessor::normalizeAngle(double angle) {
 
 SimStep MissionProcessor::step()
 {
+    // Request telemetry from physics: MissionProcessor no longer stores and integrates the drone's state - it only reads it.
+    DroneTelemetry tel = physics_->getTelemetry();
+    simStep_.pos = tel.pos;
+    simStep_.direction = tel.direction;
+    currentSpeed_ = tel.speed;
+    currentTime_ = tel.timeSecSinceStart;
+    simStep_.timeSecSinceStart = tel.timeSecSinceStart;
+
     // Calculate aimPoint - where the bomb will fall if dropped now
     simStep_.aimPoint = simStep_.pos + Coord{std::cos(simStep_.direction),
                                             std::sin(simStep_.direction)} * (hDistBomb_);
@@ -197,7 +228,11 @@ SimStep MissionProcessor::step()
 
         double aDiffMult = round(std::abs(aDiff * 10));
         double angStepMult = (droneConfig_.angularSpeed * droneConfig_.simTimeStep) * 10;
-        if (aDiffMult < angStepMult && inBombingTime)
+
+        // Drop bomb when distToPred ≈ hDistBomb, otherwise bomb will fall short of hitRadius.
+        double dropMargin = droneConfig_.attackSpeed * droneConfig_.simTimeStep * 0.5;
+        bool atDropDistance = distToPred <= hDistBomb_ + dropMargin;
+        if (aDiffMult < angStepMult && inBombingTime && atDropDistance)
         {
             LOG(std::fixed
                         << "Reached fire point X at step " << currentStep_
@@ -265,11 +300,13 @@ SimStep MissionProcessor::step()
 
     simStep_.direction = normalizeAngle(simStep_.direction);
 
-    // Move drone in current direction
-    simStep_.pos.x += cos(simStep_.direction) * currentSpeed_ * droneConfig_.simTimeStep;
-    simStep_.pos.y += sin(simStep_.direction) * currentSpeed_ * droneConfig_.simTimeStep;
+    // Send command to physics: it integrates position in its own thread.
+    DroneCommand cmd;
+    cmd.direction = static_cast<float>(simStep_.direction);
+    cmd.speed = currentSpeed_;
+    cmd.state = simStep_.state;
+    physics_->setCommand(cmd);
 
-    currentTime_ += droneConfig_.simTimeStep;
     simStep_.targetIdx = bestTargetId;
     currentStep_++;
 
@@ -294,22 +331,34 @@ bool MissionProcessor::exportResults()
     return true;
 }
 
-Coord MissionProcessor::targetInterpolation(const int &targetId, const double &time, const float &arrayTimeStep)
+void MissionProcessor::run()
 {
-    int idx = (int)floor(time / arrayTimeStep) % timeSteps_;
-    int next = (idx + 1) % timeSteps_;
-    double frac = (time - idx * arrayTimeStep) / arrayTimeStep;
+    threadReady_ = true;
 
-    Target *curT = targets_->getTarget(targetId);
-    if (!curT) {
-        LOG("targetInterpolation: getTarget(" << targetId << ") returned nullptr");
-        return {0, 0};
+    while (!started_ && !stop_) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
-    return {
-        curT[idx].x + (curT[next].x - curT[idx].x) * frac,
-        curT[idx].y + (curT[next].y - curT[idx].y) * frac
-    };
+    while (hasNext() && !stop_) {
+        step();
+        std::this_thread::sleep_for(
+            std::chrono::duration<float>(droneConfig_.simTimeStep / droneConfig_.timeScale));
+    }
+}
+
+void MissionProcessor::start()
+{
+    started_ = true;
+}
+
+void MissionProcessor::stop()
+{
+    stop_ = true;
+}
+
+bool MissionProcessor::isThreadReady() const
+{
+    return threadReady_;
 }
 
 int MissionProcessor::detectBestTarget(SimStep &simStep, const double &currentTime, const float &currentSpeed,
