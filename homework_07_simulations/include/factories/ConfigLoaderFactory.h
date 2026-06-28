@@ -4,7 +4,8 @@
 #include <string>
 
 #include "interfaces/IConfigLoader.h"
-#include "config/ConfigLoader.h"
+#include "config/HttpConfigLoader.h"
+#include "config/FileConfigLoader.h"
 
 enum class ConfigType {
     JSON,
