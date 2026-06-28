@@ -14,7 +14,7 @@ std::unique_ptr<ITargetProvider> createTargetProvider(SourceType type,
         case SourceType::JSON: {
             auto folderPath = param.has_value() ? param.value() : std::string("");
             auto filename = param2.has_value() ? param2.value() : std::string("targets.json");
-            return std::make_unique<JsonTargetProvider>(folderPath, filename);
+            return std::make_unique<ThreadSafeTargetProvider>(folderPath, filename);
         }
         case SourceType::SERIAL:
             if (!param.has_value() || param->empty()) {
