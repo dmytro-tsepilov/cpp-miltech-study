@@ -17,7 +17,7 @@ inline std::unique_ptr<IResultWriter> createResultWriter(DestType type,
         case DestType::JSON:
         {
             auto folderPath = param.has_value() ? param.value() : std::string("");
-            auto filename = param2.has_value() ? param2.value() : std::string("targets.json");
+            auto filename = param2.has_value() ? param2.value() : std::string("simulation.json");
             return std::make_unique<JsonResultWriter>(folderPath, filename);
         }
         case DestType::API:
