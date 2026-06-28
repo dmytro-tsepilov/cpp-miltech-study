@@ -4,7 +4,7 @@
 
 struct AmmoType
 {
-    char name[32];
+    std::string name;
 	float mass = 0; 	// маса (кг)
 	float drag = 0; 	// коефіцієнт опору
 	float lift = 0; 	// коефіцієнт підйому
@@ -84,7 +84,7 @@ struct DroneConfig {
 	float initialDir;   	// початковий напрямок (рад)
 	float attackSpeed;  	// швидкість атаки (м/с)
 	float accelPath;    	// шлях розгону (м)
-	char  ammoName[32]; 	// обрані боєприпаси
+	std::string ammoName; 	// обрані боєприпаси
 	float arrayTimeStep;	// крок часу масиву цілей
 	float simTimeStep;  	// крок симуляції
 	float hitRadius;    	// радіус влучення

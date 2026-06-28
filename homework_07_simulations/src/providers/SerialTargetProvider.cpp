@@ -1,10 +1,10 @@
 #include "common/macros.h"
-#include "target/TargetLoader.h"
+#include "providers/TargetLoader.h"
 
 // ============ SerialTargetProvider Implementation ============
 
 SerialTargetProvider::SerialTargetProvider(const std::string &port)
-    : portName(port), targetCount(0), timeSteps(0), targets(nullptr)
+    : portName(port), targetCount(0), timeSteps(0)
 {
 }
 
@@ -27,8 +27,8 @@ int SerialTargetProvider::getTimeSteps()
 
 Target *SerialTargetProvider::getTarget(int index)
 {
-    if (targets && index >= 0 && index < targetCount) {
-        return targets[index];
+    if (index >= 0 && index < targetCount) {
+        return &targets[index][0];
     }
     return nullptr;
 }

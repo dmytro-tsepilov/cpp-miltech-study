@@ -1,8 +1,7 @@
 #include <fstream>
 #include <filesystem>
 #include "common/macros.h"
-
-#include "drone/ConfigLoader.h"
+#include "config/ConfigLoader.h"
 
 
 using json = nlohmann::json;
@@ -21,9 +20,8 @@ DroneConfig FileConfigLoader::getConfig()
     return this->dConf;
 }
 
-AmmoType **FileConfigLoader::getAmmoParams(int &ammoCount)
+const std::unordered_map<std::string, AmmoType>& FileConfigLoader::getAmmoParams()
 {
-    ammoCount = ammoCount_;
     return ammoTypes_;
 }
 
@@ -49,7 +47,7 @@ bool FileConfigLoader::loadConfigFromFile(const std::string &filename)
     dConf.initialDir = data["drone"]["initialDirection"];
     dConf.attackSpeed = data["drone"]["attackSpeed"];
     dConf.accelPath = data["drone"]["accelerationPath"];
-    std::strncpy(dConf.ammoName, data["ammo"].get<std::string>().c_str(), 32);
+    dConf.ammoName = data["ammo"].get<std::string>();
     dConf.arrayTimeStep = data["targetArrayTimeStep"];
     dConf.simTimeStep = data["simulation"]["timeStep"];
     dConf.hitRadius = data["simulation"]["hitRadius"];
@@ -75,15 +73,18 @@ bool FileConfigLoader::loadAmmoTypesFromFile(const std::string &filename)
 
     json data = json::parse(inputFile);
 
-    ammoCount_ = data.size();
-
-    ammoTypes_ = new AmmoType*[ammoCount_];
-    for (int i = 0 ; i < ammoCount_; i++) {
-        ammoTypes_[i] = new AmmoType;
-        std::strncpy(ammoTypes_[i]->name, data[i]["name"].get<std::string>().c_str(), 31);
-        ammoTypes_[i]->mass = data[i]["mass"];
-        ammoTypes_[i]->drag = data[i]["drag"];
-        ammoTypes_[i]->lift = data[i]["lift"];
+    ammoTypes_.clear();
+    for (const auto& item : data) {
+        AmmoType ammo;
+        std::string rawName = item["name"].get<std::string>();
+        ammo.name = rawName;
+        std::string lowerName = rawName;
+        std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(),
+                       [](unsigned char c){ return std::tolower(c); });
+        ammo.mass = item["mass"];
+        ammo.drag = item["drag"];
+        ammo.lift = item["lift"];
+        ammoTypes_[lowerName] = ammo;
     }
 
     inputFile.close();

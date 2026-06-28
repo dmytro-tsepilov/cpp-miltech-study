@@ -1,10 +1,8 @@
 #include <fstream>
 #include <filesystem>
-#include <string>
-#include <cstring>
 
 #include "common/macros.h"
-#include "target/TargetLoader.h"
+#include "providers/TargetLoader.h"
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -41,9 +39,8 @@ bool JsonTargetProvider::load()
     targetCount = (int)data["targetCount"];
     timeSteps = (int)data["timeSteps"];
 
-    targets = new Target*[targetCount];
+    targets.resize(targetCount, std::vector<Target>(timeSteps));
     for (int i = 0; i < targetCount; i++) {
-        targets[i] = new Target[timeSteps];
         for (int j = 0; j < timeSteps; j++) {
             targets[i][j].x = data["targets"][i]["positions"][j]["x"];
             targets[i][j].y = data["targets"][i]["positions"][j]["y"];
@@ -55,5 +52,9 @@ bool JsonTargetProvider::load()
 }
 
 Target *JsonTargetProvider::getTarget(int index) {
-    return targets[index];
+    if (index < 0 || index >= targetCount) {
+        LOG("JsonTargetProvider::getTarget() - index " << index << " out of range [0, " << targetCount << ")");
+        return nullptr;
+    }
+    return targets[index].data();
 }

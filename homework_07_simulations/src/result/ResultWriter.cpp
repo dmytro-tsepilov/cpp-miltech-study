@@ -9,7 +9,7 @@ using json = nlohmann::json;
 
 // ============ JsonResultWriter Implementation ============
 
-bool JsonResultWriter::write(const SimStep* steps, const int &stepCount)
+bool JsonResultWriter::write(const std::vector<SimStep>& steps)
 {
     std::ofstream outFile(folderPath + filename);
     if (!outFile.is_open())
@@ -18,29 +18,29 @@ bool JsonResultWriter::write(const SimStep* steps, const int &stepCount)
         return false;
     }
 
-    LOG("Writing " << stepCount << " steps to " << folderPath + filename << " (JSON format)");
+    LOG("Writing " << steps.size() << " steps to " << folderPath + filename << " (JSON format)");
 
     json out;
-    out["totalSteps"] = stepCount;
+    out["totalSteps"] = steps.size();
     out["steps"] = json::array();
 
-    for (int i = 0; i < stepCount; i++)
+    std::for_each(steps.begin(), steps.end(), [&out](const SimStep& s)
     {
         json step;
-        step["position"] = {{"x", steps[i].pos.x}, {"y", steps[i].pos.y}};
-        step["direction"] = steps[i].direction;
-        step["state"] = steps[i].state;
-        step["targetIndex"] = steps[i].targetIdx;
-        step["dropPoint"] = {{"x", steps[i].dropPoint.x}, {"y", steps[i].dropPoint.y}};
-        step["aimPoint"] = {{"x", steps[i].aimPoint.x}, {"y", steps[i].aimPoint.y}};
-        step["predictedTarget"] = {{"x", steps[i].predictedTarget.x}, {"y", steps[i].predictedTarget.y}};
+        step["position"] = {{"x", s.pos.x}, {"y", s.pos.y}};
+        step["direction"] = s.direction;
+        step["state"] = s.state;
+        step["targetIndex"] = s.targetIdx;
+        step["dropPoint"] = {{"x", s.dropPoint.x}, {"y", s.dropPoint.y}};
+        step["aimPoint"] = {{"x", s.aimPoint.x}, {"y", s.aimPoint.y}};
+        step["predictedTarget"] = {{"x", s.predictedTarget.x}, {"y", s.predictedTarget.y}};
         out["steps"].push_back(step);
-    }
+    });
 
     outFile << out.dump(2);  // 2 = indent for readability
     outFile.close();
 
-    LOG("JSON simulation completed: " << stepCount << " steps written to " << folderPath + filename);
+    LOG("JSON simulation completed: " << steps.size() << " steps written to " << folderPath + filename);
 
     return true;
 }
@@ -59,7 +59,7 @@ void JsonResultWriter::setFilename(const std::string &filename)
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
-bool ApiResultWriter::write(const SimStep* steps, const int &stepCount)
+bool ApiResultWriter::write(const std::vector<SimStep>& steps)
 {
     // TODO: Implement API submission logic
     // TODO: Handle HTTP POST request with authentication
@@ -85,7 +85,7 @@ void ApiResultWriter::setAuthToken(const std::string &token)
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
-bool DatabaseResultWriter::write(const SimStep* steps, const int &stepCount)
+bool DatabaseResultWriter::write(const std::vector<SimStep>& steps)
 {
     // TODO: Implement database insertion logic
     // TODO: Handle connection management

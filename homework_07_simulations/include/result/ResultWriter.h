@@ -25,7 +25,7 @@ public:
         this->folderPath = folderPath;
     }
 
-    bool write(const SimStep* steps, const int &stepCount) override;
+    bool write(const std::vector<SimStep>& steps) override;
     void setFolderPath(const std::string folderPath = "");
     void setFilename(const std::string &filename);
 };
@@ -43,7 +43,7 @@ public:
         this->authToken = token;
     }
 
-    bool write(const SimStep* steps, const int &stepCount) override;
+    bool write(const std::vector<SimStep>& steps) override;
     void setApiUrl(const std::string &url);
     void setAuthToken(const std::string &token);
 };
@@ -61,28 +61,7 @@ public:
         this->tableName = tableName;
     }
 
-    bool write(const SimStep* steps, const int &stepCount) override;
+    bool write(const std::vector<SimStep>& steps) override;
     void setConnectionString(const std::string &connectionString);
     void setTableName(const std::string &tableName);
 };
-
-// ============ Factory Function ============
-
-enum class DestType {
-    JSON,
-    API,
-    DATABASE
-};
-
-inline IResultWriter* createResultWriter(DestType type, const char* param = nullptr, const char* param2 = nullptr) {
-    switch (type) {
-        case DestType::JSON:
-            return new JsonResultWriter(param ? param : "", param2 ? param2 : "simulation.json");
-        case DestType::API:
-            return new ApiResultWriter(param ? param : "", param2 ? param2 : "");
-        case DestType::DATABASE:
-            return new DatabaseResultWriter(param ? param : "", param2 ? param2 : "simulation_results");
-        default:
-            return nullptr;
-    }
-}

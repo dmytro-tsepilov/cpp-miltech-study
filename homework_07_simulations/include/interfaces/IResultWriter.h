@@ -1,9 +1,10 @@
-#include "common/SimStep.h"
+struct SimStep;
+#include <vector>
 
 // ============ IResultWriter Interface ============
 
 class IResultWriter {
 public:
     virtual ~IResultWriter() = default;
-    virtual bool write(const SimStep* steps, const int &stepCount) = 0;
+    virtual bool write(const std::vector<SimStep>& steps) = 0;
 };

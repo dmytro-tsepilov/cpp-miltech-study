@@ -1,31 +1,40 @@
+#include <vector>
+#include <unordered_map>
+#include <cstring>
 #include "common/macros.h"
+#include "config/DroneConfig.h"
 #include "mission/MissionProcessor.h"
 
-bool MissionProcessor::init(IConfigLoader* loader, IResultWriter* writer)
+bool MissionProcessor::init(std::unique_ptr<IConfigLoader> loader, std::unique_ptr<IResultWriter> writer)
 {
-    configLoader_ = loader;
-    resultWriter_ = writer;
+    configLoader_ = std::move(loader);
+    resultWriter_ = std::move(writer);
 
     //  ------- Initialize target coordinates -------
-    targets_->load();
+    if (!targets_->load()) {
+        LOG("Failed to load targets");
+        return false;
+    }
     targetCount_ = targets_->getTargetCount();
-    //int timeSteps = targets_->getTimeSteps();
+    timeSteps_ = targets_->getTimeSteps();
 
     //  ------- Initialize drone configuration -------
-    configLoader_->load();
+    if (!configLoader_->load()) {
+        LOG("Failed to load drone config");
+        return false;
+    }
     droneConfig_ = configLoader_->getConfig();
 
-    //  ------- Load ammo types and config from file   -------    
-    int ammoCount = 0;
-    bombTypes_ = configLoader_->getAmmoParams(ammoCount);
+    //  ------- Load ammo types and config from file   -------
+    const std::unordered_map<std::string, AmmoType>& ammoTypes = configLoader_->getAmmoParams();
+    bombTypes_ = &ammoTypes;
 
-    // ------- Detect Ammo Type -------
-    for (int i = 0; i < ammoCount; ++i)
-    {
-        if (!strcasecmp(droneConfig_.ammoName, bombTypes_[i]->name)) {
-            ammo_ = *bombTypes_[i];
-            break;
-        }
+    // ------- Detect Ammo Type by name key -------
+    std::string searchKey = droneConfig_.ammoName;
+    std::transform(searchKey.begin(), searchKey.end(), searchKey.begin(), ::tolower);
+    auto it = ammoTypes.find(searchKey);
+    if (it != ammoTypes.end()) {
+        ammo_ = it->second;
     }
     if (ammo_.mass == 0)
     {
@@ -62,6 +71,7 @@ void MissionProcessor::initDroneConstants()
     hDistBomb_ = solver_->calculateHorizontalDistance(droneConfig_.attackSpeed, ammo_.drag, ammo_.mass, ammo_.lift, ballisticTof_);
 }
 
+// Old implementation: not used anymore, but can be reference for target interpolation
 // Extrapolate target position at time t + dtAhead
 Coord MissionProcessor::extrapTarget(int targetId, double currentTime, double dtAhead, float dt)
 {
@@ -79,14 +89,12 @@ double MissionProcessor::applyLimitedTurn(const SimStep &simStep, const double &
 {
     double diff = desiredDir - simStep.direction;
     float direction = simStep.direction;
-    while (diff > M_PI) diff -= 2 * M_PI;
-    while (diff < -M_PI) diff += 2 * M_PI;
+    diff = normalizeAngle(diff);
 
     double turn = std::clamp(diff, -maxTurnPerStep, maxTurnPerStep);
     direction += turn;
 
-    while (direction > M_PI) direction -= 2 * M_PI;
-    while (direction < -M_PI) direction += 2 * M_PI;
+    direction = normalizeAngle(direction);
 
     return direction;
 }
@@ -126,6 +134,12 @@ bool MissionProcessor::leadTarget(Coord pos, const int tgtIdx, const double &cur
     }
 
     return true;
+}
+
+double MissionProcessor::normalizeAngle(double angle) {
+    angle = std::fmod(angle + M_PI, 2 * M_PI);
+    if (angle < 0) angle += 2 * M_PI;
+    return angle - M_PI;
 }
 
 SimStep MissionProcessor::step()
@@ -173,8 +187,7 @@ SimStep MissionProcessor::step()
         // Fire when oriented toward predicted target (attack direction)
         double atkDir = atan2(bestPredict.y - simStep_.pos.y, bestPredict.x - simStep_.pos.x);
         double aDiff = atkDir - simStep_.direction;
-        while (aDiff >  M_PI) aDiff -= 2 * M_PI;
-        while (aDiff < -M_PI) aDiff += 2 * M_PI;
+        aDiff = normalizeAngle(aDiff);
 
         // Incomplete implementation when dron stay at place and waiting some time for drop bomb
         bool inBombingTime = true; //(minTotalTime - ballisticTof_) < 0.2f;
@@ -219,8 +232,7 @@ SimStep MissionProcessor::step()
 
     // Normalize angle difference
     double angleDiff = desiredDir - simStep_.direction;
-    while (angleDiff > M_PI) angleDiff -= 2 * M_PI;
-    while (angleDiff < -M_PI) angleDiff += 2 * M_PI;
+    angleDiff = normalizeAngle(angleDiff);
 
     DEBUG("Step " << currentStep_ << ": angleDiff=" << angleDiff << " maxTurn=" << (droneConfig_.angularSpeed * droneConfig_.simTimeStep) << " state=" << (int)simStep_.state);
 
@@ -290,8 +302,7 @@ SimStep MissionProcessor::step()
 
                 // Recalculate angle difference after rotation
                 double newAngleDiff = desiredDir - simStep_.direction;
-                while (newAngleDiff > M_PI) newAngleDiff -= 2 * M_PI;
-                while (newAngleDiff < -M_PI) newAngleDiff += 2 * M_PI;
+                newAngleDiff = normalizeAngle(newAngleDiff);
 
                 DEBUG("  TURNING: angleDiff=" << angleDiff << " newAngleDiff=" << newAngleDiff << " remaining=" << remainingTurningSteps_);
 
@@ -318,8 +329,7 @@ SimStep MissionProcessor::step()
             break;
     }
 
-    while (simStep_.direction > M_PI) simStep_.direction -= 2 * M_PI;
-    while (simStep_.direction < -M_PI) simStep_.direction += 2 * M_PI;
+    simStep_.direction = normalizeAngle(simStep_.direction);
 
     // Move drone in current direction
     simStep_.pos.x += cos(simStep_.direction) * currentSpeed_ * droneConfig_.simTimeStep;
@@ -343,23 +353,24 @@ bool MissionProcessor::hasNext()
 
 bool MissionProcessor::exportResults()
 {
-    // Save to JSON format
-    resultWriter_->write(simSteps_, (currentStep_ + 1));
-
-    // Free SimStep memory
-    delete[] simSteps_;
-    simSteps_ = nullptr;
+    // Resize vector to actual step count and save
+    simSteps_.resize(currentStep_ + 1);
+    resultWriter_->write(simSteps_);
 
     return true;
 }
 
 Coord MissionProcessor::targetInterpolation(const int &targetId, const double &time, const float &arrayTimeStep)
 {
-    int idx = (int)floor(time / arrayTimeStep) % 60;
-    int next = (idx + 1) % 60;
+    int idx = (int)floor(time / arrayTimeStep) % timeSteps_;
+    int next = (idx + 1) % timeSteps_;
     double frac = (time - idx * arrayTimeStep) / arrayTimeStep;
 
     Target *curT = targets_->getTarget(targetId);
+    if (!curT) {
+        LOG("targetInterpolation: getTarget(" << targetId << ") returned nullptr");
+        return {0, 0};
+    }
 
     return {
         curT[idx].x + (curT[next].x - curT[idx].x) * frac,
@@ -379,8 +390,8 @@ int MissionProcessor::detectBestTarget(SimStep &simStep, const double &currentTi
         Coord predict = {0.0, 0.0};
 
         bool hasSolution = leadTarget(simStep.pos, tgtId, currentTime,
-                                        droneConfig_.attackSpeed, droneConfig_.arrayTimeStep,
-                                            firePos, predict);
+                                         droneConfig_.attackSpeed, droneConfig_.arrayTimeStep,
+                                             firePos, predict);
         if (!hasSolution)
         {
             continue;
@@ -452,10 +463,6 @@ void MissionProcessor::reset()
     currentSpeed_ = 0;
     remainingTurningSteps_ = 0;
 
-    if (simSteps_) {
-        delete[] simSteps_;
-    }
-
-    // Allocate dynamic array for SimStep upfront
-    simSteps_ = new SimStep[MAX_STEPS];
+    // Pre-allocate vector for SimStep
+    simSteps_.resize(MAX_STEPS);
 }

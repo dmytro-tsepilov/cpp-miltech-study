@@ -1,6 +1,6 @@
 #pragma once
 
-#include "drone/DroneConfig.h"
+#include "config/DroneConfig.h"
 
 struct DropPoint {
     Coord position;    // точка скидання (fire point)

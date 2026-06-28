@@ -1,5 +1,6 @@
-#include "drone/DroneConfig.h"
+#pragma once
 
+struct Target;
 // ============ ITargetProvider Interface ============
 
 class ITargetProvider {
