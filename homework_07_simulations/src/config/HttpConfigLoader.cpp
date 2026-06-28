@@ -4,7 +4,7 @@
 #include <httplib.h>
 
 #include "common/macros.h"
-#include "config/ConfigLoader.h"
+#include "config/HttpConfigLoader.h"
 
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 

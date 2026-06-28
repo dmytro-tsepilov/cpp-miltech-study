@@ -16,7 +16,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    std::string homeWork = "hw3";
+    std::string homeWork = "hw9";
     std::string testNumber = "5";
     bool remote = false;
 
@@ -33,7 +33,16 @@ int main(int argc, char** argv)
 
     std::unique_ptr<IConfigLoader> cfgLoader;
     std::unique_ptr<ITargetProvider> targetProvider;
-    auto solver = createBallisticSolver(SolverType::ANALYTICAL);
+    std::unique_ptr<IBallisticSolver> solver;
+
+    SolverType solverType = SolverType::TABLE;
+
+    if (solverType == SolverType::TABLE) {
+        solver = createBallisticSolver(solverType, "homework_07_simulations/data/ballistic_table.txt");
+    } else {
+        solver = createBallisticSolver(solverType);
+    }
+
     if (solver == nullptr) {
         LOG("Failed to create ballistic solver");
         return 1;

@@ -1,5 +1,7 @@
-struct SimStep;
+#pragma once
 #include <vector>
+
+struct SimStep;
 
 // ============ IResultWriter Interface ============
 

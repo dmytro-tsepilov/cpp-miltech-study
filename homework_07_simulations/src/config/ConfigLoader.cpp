@@ -1,7 +1,7 @@
 #include <fstream>
 #include <filesystem>
 #include "common/macros.h"
-#include "config/ConfigLoader.h"
+#include "config/FileConfigLoader.h"
 
 
 using json = nlohmann::json;
