@@ -3,6 +3,14 @@
 Усі помітні зміни в цьому репо фіксуються тут.
 Формат - [Keep a Changelog](https://keepachangelog.com/uk/1.1.0/), дати в ISO 8601.
 
+## 2026-06-26
+
+### Added
+
+- Block 5 / Lesson 5.2 / Homework 12: додано стартовий C2-сервiс для НРК,
+  ArduRover SITL compose stack, QGC-маршрут бiля Лимана та `edge/docker-compose.yml`
+  з готовим `auto_stub` для Guided-сценарiю.
+
 ## 2026-05-17
 
 ### Added
