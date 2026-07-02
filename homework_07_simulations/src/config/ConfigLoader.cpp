@@ -36,7 +36,7 @@ bool FileConfigLoader::loadConfigFromFile(const std::string &filename)
     std::ifstream inputFile(fullPath);
     if (!inputFile.is_open())
     {
-        LOG("Error opening ammo types file: " << fullPath);
+        LOG("Error opening drone config file: " << fullPath);
         return false;
     }
 

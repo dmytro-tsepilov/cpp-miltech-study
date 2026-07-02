@@ -20,7 +20,7 @@ const TableSolver::Result& TableSolver::at(int iz, int iv, int im, int id, int i
 bool TableSolver::load(const std::string &path) {
     std::ifstream f(path);
     if (!f.is_open()) {
-        LOG("Error opening ammo types file: " << path);
+        LOG("Error opening ballistic_table file: " << path);
         return false;
     }
 
