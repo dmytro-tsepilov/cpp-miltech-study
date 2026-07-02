@@ -10,29 +10,62 @@
 #include "mission/DronePhysics.h"
 #include "mission/MissionProcessor.h"
 
+// Helper function to parse command-line arguments.
+// Supports both --key=value and --key value formats.
+// Returns the value string if found, empty string otherwise.
+std::string parseArgValue(int argc, char** argv, const std::string& key)
+{
+    for (int i = 1; i < argc; ++i) {
+        // Check for --key=value format
+        std::string arg = argv[i];
+        if (arg.substr(0, key.size() + 2) == key + "=") {
+            return arg.substr(key.size() + 3); // Skip "--key="
+        }
+        // Check for --key value format
+        if (arg == key && i + 1 < argc) {
+            return argv[i + 1];
+        }
+    }
+    return "";
+}
+
 int main(int argc, char** argv)
 {
     // The executable expects folder path with simulation files
     if (argc < 2) {
         LOG("usage: <folder> - drone_simulations path to folder with simulation files (ammo.json, config.json, targets.json)\n");
         LOG("usage: --remote TEST_NUMBER - use input data from remote server\n");
+        LOG("usage: --btable BALLISTIC_TABLE_PATH - use input data from ballistic table file\n");
         return 1;
     }
 
     std::string homeWork = "hw9";
     std::string testNumber = "5";
     bool remote = false;
+    std::string ballisticTablePath;
 
-    if (std::string(argv[1]) == "--remote") {
-        if (argc != 3) {
-            LOG("usage: --remote TEST_NUMBER - use input data from remote server\n");
-            return 1;
-        }
+    // Parse --remote flag (supports --remote=test or --remote test)
+    std::string remoteVal = parseArgValue(argc, argv, "--remote");
+    if (!remoteVal.empty()) {
         remote = true;
-        testNumber = argv[2];
+        testNumber = remoteVal;
     }
 
-    std::string dataFolder = argv[1];
+    // Parse --btable flag (supports --btable=path or --btable /path)
+    ballisticTablePath = parseArgValue(argc, argv, "--btable");
+    if (ballisticTablePath.empty()) {
+        ballisticTablePath = "homework_07_simulations/data/ballistic_table.txt"; // Default path
+    }
+
+    // Find the first non-flag argument as dataFolder
+    std::string dataFolder;
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg.substr(0, 2) != "--") {
+            dataFolder = arg;
+            break;
+        }
+    }
 
     std::unique_ptr<IConfigLoader> cfgLoader;
     std::unique_ptr<ITargetProvider> targetProvider;
@@ -41,7 +74,7 @@ int main(int argc, char** argv)
     SolverType solverType = SolverType::TABLE;
 
     if (solverType == SolverType::TABLE) {
-        solver = createBallisticSolver(solverType, "homework_07_simulations/data/ballistic_table.txt");
+        solver = createBallisticSolver(solverType, ballisticTablePath);
     } else {
         solver = createBallisticSolver(solverType);
     }
@@ -57,10 +90,6 @@ int main(int argc, char** argv)
             LOG("Failed to create HTTP target provider");
             return 1;
         }
-        // Cast to HttpTargetProvider to access setTestName (not in base interface)
-        // if (auto httpProvider = dynamic_cast<HttpTargetProvider*>(targetProvider.get())) {
-        //     httpProvider->setTestName("test10_extreme");
-        // }
 
         cfgLoader = createConfigLoader(ConfigType::HTTP, homeWork, testNumber);
         if (cfgLoader == nullptr) {
