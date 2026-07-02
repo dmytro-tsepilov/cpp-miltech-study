@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
 
-# Окремий CMake-проєкт для домашньої роботи 04. Його можна збирати як
-# через root CMakeLists.txt, так і напряму з цієї директорії.
 project(drone_simulations CXX)
 
 include(FetchContent)
@@ -27,7 +25,7 @@ if(ENABLE_HTTP)
 FetchContent_Declare(
     httplib
     GIT_REPOSITORY https://github.com/yhirose/cpp-httplib
-    GIT_TAG v0.47.0
+    GIT_TAG v0.49.0
 )
 
 set(CPPHTTPLIB_BUILD_TESTS OFF CACHE BOOL "" FORCE)
