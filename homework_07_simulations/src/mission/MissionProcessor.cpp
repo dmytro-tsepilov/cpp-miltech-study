@@ -87,20 +87,6 @@ void MissionProcessor::initDroneConstants()
     hDistBomb_ = result.hDist;
 }
 
-// Old implementation: not used anymore, but can be reference for target interpolation
-// Extrapolate target position at time t + dtAhead
-// Coord MissionProcessor::extrapTarget(int targetId, double currentTime, double dtAhead, float dt)
-// {
-//     int idx = (int)floor(currentTime / dt) % 60;
-//     int next = (idx + 1) % 60;
-//     Target *curT = targets_->getTarget(targetId);
-
-//     Coord vPos = (curT[next] - curT[idx]) / dt;
-
-//     Coord curPos = targetInterpolation(targetId, currentTime, dt);
-//     return curPos + vPos * dtAhead;
-// }
-
 double MissionProcessor::applyLimitedTurn(const SimStep &simStep, const double &maxTurnPerStep, const double &desiredDir)
 {
     double diff = desiredDir - simStep.direction;
