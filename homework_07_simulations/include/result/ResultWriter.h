@@ -1,14 +1,7 @@
 #pragma once
 
 #include <string>
-// Вимикаємо попередження про тавтологічні порівняння перед інклудом json.hpp
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wtautological-overlap-compare"
-
 #include <nlohmann/json.hpp>
-// Повертаємо попередження назад для решти коду
-#pragma GCC diagnostic pop
-
 #include "common/SimStep.h"
 #include "interfaces/IResultWriter.h"
 
