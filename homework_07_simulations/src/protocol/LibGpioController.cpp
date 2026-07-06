@@ -14,8 +14,9 @@ private:
     int dropLineNum_ = -1;
     std::string chipName_;
     gpiod_chip* chip_ = nullptr;
-    gpiod_line* startLine_ = nullptr;
-    gpiod_line* dropLine_ = nullptr;
+    // In libgpiod v2.x, gpiod_line is an opaque struct type (non-const for set_value)
+    struct gpiod_line* startLine_ = nullptr;
+    struct gpiod_line* dropLine_ = nullptr;
 
 public:
     LibGpioController() = default;
@@ -30,12 +31,14 @@ public:
         startLineNum_ = startLine;
         dropLineNum_ = dropLine;
 
+        // Open GPIO chip by name (v2.x API)
         chip_ = gpiod_chip_open_by_name(chipName_.c_str());
         if (!chip_) {
             std::cerr << "[LibGpio] Failed to open GPIO chip: " << chipName_ << std::endl;
             return false;
         }
 
+        // Get GPIO lines by number (v2.x API)
         startLine_ = gpiod_chip_get_line(chip_, startLineNum_);
         if (!startLine_) {
             std::cerr << "[LibGpio] Failed to get START line: " << startLineNum_ << std::endl;
@@ -50,13 +53,15 @@ public:
             return false;
         }
 
-        // Configure START and DROP lines as outputs, set high (ready signal)
-        // gpiod_line_request_output returns 0 on success, or negative error code on failure.
+        // Request START line as output, initial value 0
+        // gpiod_line_request_output returns 0 on success, negative errno on failure (v2.x API)
         if (gpiod_line_request_output(startLine_, "drone", 0) < 0) {
             std::cerr << "[LibGpio] Failed to request START line as output" << std::endl;
             gpiod_chip_close(chip_);
             return false;
         }
+
+        // Request DROP line as output, initial value 0
         if (gpiod_line_request_output(dropLine_, "drone", 0) < 0) {
             std::cerr << "[LibGpio] Failed to request DROP line as output" << std::endl;
             gpiod_chip_close(chip_);
@@ -64,7 +69,12 @@ public:
         }
 
         // Set START high immediately (ready signal to checker)
-        gpiod_line_set_value(startLine_, 1);
+        int ret = gpiod_line_set_value(startLine_, 1);
+        if (ret < 0) {
+            std::cerr << "[LibGpio] Failed to set START line high" << std::endl;
+            gpiod_chip_close(chip_);
+            return false;
+        }
 
         ready_ = true;
         std::cout << "[LibGpio] Initialized: chip=" << chipName_
