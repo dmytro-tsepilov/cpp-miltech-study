@@ -20,6 +20,9 @@ public:
     LibGpioController() = default;
     ~LibGpioController() override {
         if (request_) {
+            // Перед звільненням опустити обидві лінії, щоб не лишати їх асертованими.
+            gpiod_line_request_set_value(request_, startLineNum_, GPIOD_LINE_VALUE_INACTIVE);
+            gpiod_line_request_set_value(request_, dropLineNum_, GPIOD_LINE_VALUE_INACTIVE);
             gpiod_line_request_release(request_);
         }
         if (chip_) {
@@ -57,8 +60,12 @@ public:
             return false;
         }
 
-        // Set output value (must be enum gpiod_line_value, not int)
-        if (gpiod_line_settings_set_output_value(settings, GPIOD_LINE_VALUE_ACTIVE) < 0) {
+        // Set initial output value LOW for BOTH lines. This same settings object
+        // is applied to START and DROP together, so it MUST default to INACTIVE —
+        // otherwise DROP would be driven HIGH at request time and the checker would
+        // register a bogus drop pulse immediately on startup. START is raised HIGH
+        // explicitly below, after the lines are requested.
+        if (gpiod_line_settings_set_output_value(settings, GPIOD_LINE_VALUE_INACTIVE) < 0) {
             std::cerr << "[LibGpio] Failed to set output value" << std::endl;
             gpiod_line_settings_free(settings);
             gpiod_chip_close(chip_);

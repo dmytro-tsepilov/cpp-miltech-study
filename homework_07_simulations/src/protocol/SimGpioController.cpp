@@ -51,7 +51,13 @@ private:
 
 public:
     SimGpioController() = default;
-    ~SimGpioController() override = default;
+    ~SimGpioController() override {
+        // Не лишати лінії активними після виходу.
+        if (ready_) {
+            writeValue(dropLine_, 0);
+            writeValue(startLine_, 0);
+        }
+    }
 
     bool init(const std::string& chipName, int startLine, int dropLine) override {
         chipName_ = chipName;
@@ -64,6 +70,12 @@ public:
         mkdir(gpioDir_.c_str(), 0755);
 
         ready_ = true;
+
+        // Базовий відомий стан: обидві лінії LOW (інакше DROP може
+        // лишитись сталим HIGH від попереднього запуску).
+        writeValue(startLine_, 0);
+        writeValue(dropLine_, 0);
+
         std::cout << "[SimGpio] Initialized: chip=" << chipName
                   << " startLine=" << startLine
                   << " dropLine=" << dropLine << std::endl;

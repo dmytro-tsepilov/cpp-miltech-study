@@ -10,11 +10,11 @@
 #include "mission/MissionProcessor.h"
 #include "providers/FixedTimeProvider.h"
 
-bool MissionProcessor::init(std::unique_ptr<IConfigLoader> loader, std::unique_ptr<IResultWriter> writer, DronePhysics* physics)
+bool MissionProcessor::init(std::unique_ptr<IConfigLoader> loader, std::unique_ptr<IResultWriter> writer, IDroneStateSource* stateSource)
 {
     configLoader_ = std::move(loader);
     resultWriter_ = std::move(writer);
-    physics_ = physics;
+    stateSource_ = stateSource;
 
     //  ------- Initialize target coordinates -------
     if (!targets_->load()) {
@@ -70,8 +70,8 @@ bool MissionProcessor::init(std::unique_ptr<IConfigLoader> loader, std::unique_p
     targets_->setTimings(droneConfig_.arrayTimeStep, droneConfig_.timeScale);
 
     // Initialize drone physics with initial position, direction, and time provider.
-    if (physics_) {
-        physics_->init(droneConfig_.startPos, droneConfig_.initialDir,
+    if (stateSource_) {
+        stateSource_->init(droneConfig_.startPos, droneConfig_.initialDir,
                       timeProvider_ ? std::move(timeProvider_) : nullptr,
                       droneConfig_.simTimeStep, droneConfig_.physicsTimeStep);
     }
@@ -164,7 +164,7 @@ double MissionProcessor::normalizeAngle(double angle) {
 SimStep MissionProcessor::step()
 {
     // Request telemetry from physics: MissionProcessor no longer stores and integrates the drone's state - it only reads it.
-    DroneTelemetry tel = physics_->getTelemetry();
+    DroneTelemetry tel = stateSource_->getTelemetry();
     simStep_.pos = tel.pos;
     simStep_.direction = tel.direction;
     currentSpeed_ = tel.speed;
@@ -242,6 +242,7 @@ SimStep MissionProcessor::step()
                         << " dist=" << distToFirePoint
                         << " time=" << currentTime_);
             hasNext_ = false;
+            fireReached_ = true;
             return simStep_;
         }
     }
@@ -254,6 +255,7 @@ SimStep MissionProcessor::step()
                     << " dist=" << distToFirePoint
                     << " time=" << currentTime_);
         hasNext_ = false;
+        fireReached_ = true;
         return simStep_;
     }
 
@@ -310,7 +312,7 @@ SimStep MissionProcessor::step()
     cmd.direction = static_cast<float>(simStep_.direction);
     cmd.speed = currentSpeed_;
     cmd.state = simStep_.state;
-    physics_->stepCommand(cmd);
+    stateSource_->stepCommand(cmd);
 
     simStep_.targetIdx = bestTargetId;
     currentStep_++;
@@ -462,6 +464,7 @@ void MissionProcessor::reset()
     simStep_.predictedTarget = droneConfig_.startPos;
 
     hasNext_ = true;
+    fireReached_ = false;
     currentStep_ = 0;
     currentTime_ = 0;
     currentSpeed_ = 0;

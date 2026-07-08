@@ -24,6 +24,12 @@ void UartConfigProvider::convertDroneCfg(const dlink::DroneCfg& cfg)
     droneConfig_.turnThreshold = cfg.turnThreshold;
     droneConfig_.timeScale = cfg.timeScale;
 
+    // Крок симуляції з config чекера — важливий для нормування turnRate/accel.
+    if (cfg.timeStep > 0.0f) {
+        droneConfig_.simTimeStep = cfg.timeStep;
+        droneConfig_.physicsTimeStep = cfg.timeStep;
+    }
+
     // Fields not available from PKT_CONFIG — set defaults
     if (droneConfig_.startPos.x == 0 && droneConfig_.startPos.y == 0) {
         droneConfig_.startPos = {0, 0};
@@ -63,12 +69,14 @@ void UartConfigProvider::convertAmmoCfg(const dlink::AmmoCfg& ammo)
     a.drag = ammo.drag;
     a.lift = ammo.lift;
 
-    
+    // hitRadius приходить саме з AMMO (а не з CONFIG).
+    droneConfig_.hitRadius = ammo.hitRadius;
+
     // Store with lowercase key (same as FileConfigLoader)
     std::string lowerName(a.name);
     std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(),
     [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
-    
+
     ammoTypes_[lowerName] = a;
     droneConfig_.ammoName = lowerName;
 
@@ -94,6 +102,14 @@ bool UartConfigProvider::load()
     while (!loadComplete_.load()) {
         if (configReceived_.load() && ammoReceived_.load()) {
             loadComplete_ = true;
+            // Початкова позиція/курс/висота — з реальної телеметрії чекера,
+            // а не з дефолтів (PKT_CONFIG їх не містить).
+            const auto& tel = provider->getTelemetry();
+            droneConfig_.startPos = {tel.x, tel.y};
+            droneConfig_.initialDir = tel.dir;
+            if (tel.z > 0.0f) {
+                droneConfig_.altitude = tel.z;
+            }
             LOG("UartConfigProvider::load() — both CONFIG and AMMO received");
             return true;
         }
@@ -143,7 +159,7 @@ void UartConfigProvider::onAmmoReceived(const dlink::AmmoCfg& ammo)
 void UartConfigProvider::onConfigPacket(const uint8_t* payload, uint8_t len)
 {
     if (len != sizeof(dlink::DroneCfg)) return;
-    
+
     if (s_activeInstance) {
         dlink::DroneCfg cfg;
         std::memcpy(&cfg, payload, len);
@@ -154,7 +170,7 @@ void UartConfigProvider::onConfigPacket(const uint8_t* payload, uint8_t len)
 void UartConfigProvider::onAmmoPacket(const uint8_t* payload, uint8_t len)
 {
     if (len != sizeof(dlink::AmmoCfg)) return;
-    
+
     if (s_activeInstance) {
         dlink::AmmoCfg ammo;
         std::memcpy(&ammo, payload, len);

@@ -1,35 +1,28 @@
 #pragma once
-// IMissionCommandSource — generates CONTROL commands from mission logic
+// IMissionCommandSource — модуль керування дроном.
+// Перетворює рішення місії (бажаний курс/швидкість) на нормовані команди
+// UART CONTROL (accel, turnRate) з урахуванням поточної телеметрії чекера.
 
 #ifndef I_MISSION_COMMAND_SOURCE_H
 #define I_MISSION_COMMAND_SOURCE_H
 
-#include <atomic>
-#include "protocol/drone_link.h"
+#include "mission/IDroneStateSource.h"
 
 class IMissionCommandSource {
 public:
     virtual ~IMissionCommandSource() = default;
 
-    // Generate CONTROL command from current telemetry and target data.
-    // accel: normalized acceleration along heading [-1..1]
-    // turnRate: normalized turn rate [-1..1]
-    virtual void generateCommand(const dlink::Telemetry& tel,
-                                 const dlink::TargetPos& target,
-                                 float& accel,
-                                 float& turnRate) = 0;
-
-    // Check if bomb should be dropped
-    virtual bool shouldDrop() const = 0;
-
-    // Reset drop flag after pulse sent
-    virtual void resetDrop() = 0;
-
-    // Initialize with mission parameters
-    virtual void init(float attackSpeed, float maxTurnRate) = 0;
-
-    // Check if command source is ready
-    virtual bool isReady() const = 0;
+    // Перетворити команду місії на нормовані accel/turnRate у діапазоні [-1..1].
+    //   cmd            — бажаний курс/швидкість, які вирішила місія;
+    //   tel            — поточний стан дрона (від чекера);
+    //   maxTurnPerStep — макс. поворот за крок місії (рад), для нормування turnRate;
+    //   accelPerStep   — макс. зміна швидкості за крок місії (м/с), для нормування accel.
+    virtual void computeControl(const DroneCommand& cmd,
+                                const DroneTelemetry& tel,
+                                double maxTurnPerStep,
+                                float accelPerStep,
+                                float& accel,
+                                float& turnRate) = 0;
 };
 
 #endif // I_MISSION_COMMAND_SOURCE_H

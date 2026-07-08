@@ -11,6 +11,7 @@
 #include "factories/TargetProviderFactory.h"
 #include "factories/ResultWriterFactory.h"
 #include "mission/DronePhysics.h"
+#include "mission/UartDroneState.h"
 #include "mission/MissionProcessor.h"
 
 // HW22: UART + GPIO includes
@@ -23,6 +24,7 @@
 // UART-based providers for config and targets
 #include "config/UartConfigProvider.h"
 #include "providers/UartTargetProvider.h"
+#include "providers/FixedTimeProvider.h"
 
 // Forward declarations for factory functions
 std::unique_ptr<IUartLink> createUartLink();
@@ -98,7 +100,7 @@ int main(int argc, char** argv)
     std::string gpioChipName = parseArgValue(argc, argv, "--gpiochip");
     std::string startLineStr = parseArgValue(argc, argv, "--start-line");
     std::string dropLineStr = parseArgValue(argc, argv, "--drop-line");
-    
+
     // Parse --hw flag: supports bare "--hw" or "--hw=value"
     bool hwMode = false;
     for (int i = 1; i < argc; ++i) {
@@ -138,10 +140,14 @@ int main(int argc, char** argv)
         gpioChipName = defaultGpioChip;
     }
 
+    // HW22 UART mode is selected when a UART device is passed (or --hw is used);
+    // otherwise fall back to the legacy file/HTTP simulation below.
+    bool uartMode = !parseArgValue(argc, argv, "--uart").empty() || hwMode;
+
     // ==========================================
-    // HW22: UART + GPIO mode (default)
+    // HW22: UART + GPIO mode
     // ==========================================
-    {
+    if (uartMode) {
         LOG("=== HW22 UART + GPIO Mode ===");
         LOG("Mode: " << (hwMode ? "HARDWARE" : "SIMULATION"));
         LOG("UART device: " << uartDevice);
@@ -227,13 +233,9 @@ int main(int argc, char** argv)
         std::unique_ptr<ITargetProvider> targetProvider;
         std::unique_ptr<IBallisticSolver> solver;
 
-        SolverType solverType = SolverType::TABLE;
-
-        if (solverType == SolverType::TABLE) {
-            solver = createBallisticSolver(solverType, ballisticTablePath);
-        } else {
-            solver = createBallisticSolver(solverType);
-        }
+        // UART-режим: аналітичний солвер — не потребує зовнішнього файлу
+        // таблиці, якого немає на платі (deploy.sh синхронізує лише src/ та include/).
+        solver = createBallisticSolver(SolverType::ANALYTICAL);
 
         if (solver == nullptr) {
             LOG("Failed to create ballistic solver");
@@ -257,103 +259,98 @@ int main(int argc, char** argv)
             return 1;
         }
 
-        auto physics = std::make_unique<DronePhysics>();
-        DronePhysics* physicsPtr = physics.get();
+        // UART-режим: стан дрона надходить від чекера, тож замість локальної
+        // фізики використовуємо UartDroneState (місія наводиться по телеметрії).
+        auto droneState = std::make_unique<UartDroneState>();
+        UartDroneState* dronePtr = droneState.get();
 
         auto mission = std::make_unique<MissionProcessor>(std::move(solver), std::move(targetProvider));
-        if (!mission->init(std::move(cfgLoader), std::move(resultWriter), physicsPtr)) {
+        if (!mission->init(std::move(cfgLoader), std::move(resultWriter), dronePtr)) {
             LOG("Failed to initialize mission");
             telProvider->stop();
-            physics.reset();
+            droneState.reset();
             uart->close();
             return 1;
         }
-        // Note: missionPtr not needed — we use smart pointer directly
 
         LOG("Mission ready");
 
-        // 5. Create mission command source for CONTROL generation
+        // 5. Create drone control module (converts mission decision -> UART CONTROL).
         auto cmdSource = createMissionCommandSource();
-        cmdSource->init(ammoCfg.hitRadius > 0 ? 50.0f : 30.0f, 1.5f); // Will be updated from config
 
-        // Get actual drone config for proper parameters
-        if (cfgLoader->load()) {
-            auto droneConfig = cfgLoader->getConfig();
-            cmdSource->init(droneConfig.attackSpeed, droneConfig.angularSpeed);
-            LOG("Mission command source initialized: attackSpeed=" << droneConfig.attackSpeed
-                                                                    << " angularSpeed=" << droneConfig.angularSpeed);
-        }
+        // Control-normalization scales computed by the mission from the checker config.
+        const double maxTurnPerStep = mission->getMaxTurnPerStep();
+        const float  accelPerStep   = mission->getAccelPerStep();
+        LOG("Control module ready: maxTurnPerStep=" << maxTurnPerStep
+                                                    << " accelPerStep=" << accelPerStep);
 
-        // 6. Initialize physics with start position from config
-        if (cfgLoader->load()) {
-            auto droneConfig = cfgLoader->getConfig();
-            physics->init(droneConfig.startPos, droneConfig.initialDir,
-                         droneConfig.physicsTimeStep, droneConfig.timeScale);
-            LOG("Physics initialized: startPos=" << droneConfig.startPos.x << "," << droneConfig.startPos.y
-                                                  << " initialDir=" << droneConfig.initialDir);
-        }
-
-        // 7. Main control loop
+        // 6. Main control loop
         LOG("=== Starting main control loop ===");
 
         int step = 0;
         const int maxSteps = 10000;
 
         while (step < maxSteps) {
-            // Get latest telemetry from UART
-            const auto& tel = telProvider->getTelemetry();
-            const auto& target = telProvider->getTarget();
-
             if (!telProvider->isSimulationRunning()) {
                 LOG("Simulation not yet running (waiting for START)...");
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 continue;
             }
 
-            // Check if mission is complete
-            if (!mission->hasNext()) {
-                LOG("Mission complete at step " << step);
+            // Feed checker telemetry into the mission's drone-state source.
+            const auto& t = telProvider->getTelemetry();
+            DroneTelemetry dt;
+            dt.pos = {t.x, t.y};
+            dt.direction = t.dir;
+            dt.speed = t.speed;
+            dt.state = t.state;
+            dt.timeSecSinceStart = t.t_ms / 1000.0f;
+            dronePtr->setTelemetry(dt);
+
+            // Run one guidance step: mission computes desired heading/speed + drop decision.
+            mission->step();
+
+            // Drop decision comes from the mission (ballistic fire point reached).
+            if (mission->shouldDrop()) {
+                LOG("*** DROP PULSE TRIGGERED at step " << step << " ***");
+                uart->sendControl(0.0f, 0.0f);
+                gpio->pulseDrop(180);  // 80ms pulse
                 break;
             }
 
-            // Update mission processor with current telemetry
-            // (MissionProcessor reads from physics internally)
+            // No valid firing solution / mission ended without a drop.
+            if (!mission->hasNext()) {
+                LOG("Mission ended without drop at step " << step);
+                break;
+            }
 
-            // Generate CONTROL command from mission logic
+            // Convert the mission decision into a normalized CONTROL command.
+            DroneCommand cmd = dronePtr->getLastCommand();
             float accel = 0.0f;
             float turnRate = 0.0f;
-            cmdSource->generateCommand(tel, target, accel, turnRate);
+            cmdSource->computeControl(cmd, dt, maxTurnPerStep, accelPerStep, accel, turnRate);
 
-            // Send CONTROL via UART
             if (!uart->sendControl(accel, turnRate)) {
                 LOG("Failed to send CONTROL command at step " << step);
             }
 
-            // Check if should drop bomb
-            if (cmdSource->shouldDrop()) {
-                LOG("*** DROP PULSE TRIGGERED at step " << step << " ***");
-                gpio->pulseDrop(80);  // 80ms pulse
-                cmdSource->resetDrop();
-            }
-
-            // Sleep for simulation timestep (scaled by timeScale)
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
             if (step % 100 == 0) {
-                LOG("Step " << step << ": tel_pos=(" << tel.x << "," << tel.y
-                           << ") speed=" << tel.speed << " dir=" << tel.dir
-                           << " target=(" << target.x << "," << target.y
+                LOG("Step " << step << ": tel_pos=(" << t.x << "," << t.y
+                           << ") speed=" << t.speed << " dir=" << t.dir
                            << ") cmd=[accel=" << accel << " turn=" << turnRate << "]");
             }
 
+            // Pace the loop at the mission time step.
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
             step++;
         }
 
-        // 8. Export results
+        // 7. Export results
         mission->exportResults();
         LOG("Results exported.");
 
-        // 9. Cleanup
+        // 8. Cleanup
+        gpio->setStart(false);   // сказати чекеру «завершено» і не лишати START у HIGH
         telProvider->stop();
         uart->close();
 

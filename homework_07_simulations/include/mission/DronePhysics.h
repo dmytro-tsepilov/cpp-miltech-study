@@ -5,28 +5,14 @@
 #include <memory>
 #include <condition_variable>
 #include "config/DroneConfig.h"
+#include "mission/IDroneStateSource.h"
 
 class ITimeProvider;
-
-struct DroneCommand {
-    float  direction = 0.0f; // напрямок руху (рад)
-    float  speed = 0.0f;     // поточна швидкість (м/с)
-    int8_t state = 0;        // режим дрона (для телеметрії/логів)
-};
-
-// Телеметрія дрона: знімок поточного стану фізики під м'ютексом.
-struct DroneTelemetry {
-    Coord  pos{};                    // поточна позиція
-    float  speed = 0.0f;             // поточна швидкість
-    float  direction = 0.0f;         // поточний напрямок (рад)
-    int8_t state = 0;                // поточний режим
-    float  timeSecSinceStart = 0.0f; // час останнього оновлення фізики
-};
 
 // Фізика дрона у власному потоці
 // Використовує ITimeProvider для детермінованого інтегрування фізики
 // з фіксованими кроками, що усуває спайки прискорення через jitter OS.
-class DronePhysics {
+class DronePhysics : public IDroneStateSource {
 private:
     Coord  pos_{};
     float  direction_ = 0.0f;
@@ -55,7 +41,7 @@ private:
 public:
     void init(const Coord &startPos, float initialDir,
               std::unique_ptr<ITimeProvider> timeProvider,
-              float simTimeStep, float physicsTimeStep);
+              float simTimeStep, float physicsTimeStep) override;
 
     // Передати команду (записується під м'ютексом).
     void setCommand(const DroneCommand &cmd);
@@ -63,10 +49,10 @@ public:
     // Синхронно проінтегрувати РІВНО один крок місії (simTimeStep_) фіксованими
     // під-кроками physicsTimeStep_ і дочекатися завершення. Робить кількість
     // під-кроків детермінованою — усуває спайки прискорення від sleep jitter.
-    void stepCommand(const DroneCommand &cmd);
+    void stepCommand(const DroneCommand &cmd) override;
 
     // Зняти телеметрію (копія під м'ютексом).
-    DroneTelemetry getTelemetry() const;
+    DroneTelemetry getTelemetry() const override;
 
     void run();
     void start();
