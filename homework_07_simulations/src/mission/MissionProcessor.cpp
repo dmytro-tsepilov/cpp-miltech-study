@@ -8,6 +8,7 @@
 #include "config/DroneConfig.h"
 #include "mission/DronePhysics.h"
 #include "mission/MissionProcessor.h"
+#include "providers/FixedTimeProvider.h"
 
 bool MissionProcessor::init(std::unique_ptr<IConfigLoader> loader, std::unique_ptr<IResultWriter> writer, DronePhysics* physics)
 {
@@ -29,6 +30,11 @@ bool MissionProcessor::init(std::unique_ptr<IConfigLoader> loader, std::unique_p
         return false;
     }
     droneConfig_ = configLoader_->getConfig();
+
+    //  ------- Initialize FixedTimeProvider -------
+    // TimeProvider is initialized with physicsTimeStep and timeScale from droneConfig.
+    timeProvider_ = std::make_unique<FixedTimeProvider>();
+    timeProvider_->init(droneConfig_.physicsTimeStep, droneConfig_.timeScale);
 
     //  ------- Load ammo types and config from file   -------
     const std::unordered_map<std::string, AmmoType>& ammoTypes = configLoader_->getAmmoParams();
@@ -60,13 +66,14 @@ bool MissionProcessor::init(std::unique_ptr<IConfigLoader> loader, std::unique_p
 
     initDroneConstants();
 
-    // Налаштувати провайдер цілей (період оновлення = arrayTimeStep)
+    // Set target provider timings (update period = arrayTimeStep)
     targets_->setTimings(droneConfig_.arrayTimeStep, droneConfig_.timeScale);
 
-    // Налаштувати фізику дрона початковим станом
+    // Initialize drone physics with initial position, direction, and time provider.
     if (physics_) {
         physics_->init(droneConfig_.startPos, droneConfig_.initialDir,
-                       droneConfig_.physicsTimeStep, droneConfig_.timeScale);
+                      timeProvider_ ? std::move(timeProvider_) : nullptr,
+                      droneConfig_.simTimeStep, droneConfig_.physicsTimeStep);
     }
 
     reset();
@@ -161,8 +168,16 @@ SimStep MissionProcessor::step()
     simStep_.pos = tel.pos;
     simStep_.direction = tel.direction;
     currentSpeed_ = tel.speed;
-    currentTime_ = tel.timeSecSinceStart;
-    simStep_.timeSecSinceStart = tel.timeSecSinceStart;
+
+    // Use logical time with simTimeStep instead of physical time (which has jitter due to sleep_for on Linux).
+    // This ensures stable Δt for acceleration validation.
+    if (currentStep_ == 0) {
+        currentTime_ = 0.0;
+        simStep_.timeSecSinceStart = 0.0;
+    } else {
+        currentTime_ += droneConfig_.simTimeStep;
+        simStep_.timeSecSinceStart = static_cast<float>(currentTime_);
+    }
 
     // Calculate aimPoint - where the bomb will fall if dropped now
     simStep_.aimPoint = simStep_.pos + Coord{std::cos(simStep_.direction),
@@ -287,11 +302,15 @@ SimStep MissionProcessor::step()
     simStep_.direction = normalizeAngle(simStep_.direction);
 
     // Send command to physics: it integrates position in its own thread.
+    // stepCommand integrates EXACTLY one mission step (simTimeStep) with fixed
+    // physicsTimeStep sub-steps and blocks until completion — so the movement
+    // per step is deterministic, and the derived acceleration does not exceed the physical limit.
+
     DroneCommand cmd;
     cmd.direction = static_cast<float>(simStep_.direction);
     cmd.speed = currentSpeed_;
     cmd.state = simStep_.state;
-    physics_->setCommand(cmd);
+    physics_->stepCommand(cmd);
 
     simStep_.targetIdx = bestTargetId;
     currentStep_++;
@@ -325,10 +344,26 @@ void MissionProcessor::run()
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
+    if (timeProvider_) {
+        timeProvider_->start();
+    }
+
     while (hasNext() && !stop_) {
         step();
-        std::this_thread::sleep_for(
-            std::chrono::duration<float>(droneConfig_.simTimeStep / droneConfig_.timeScale));
+
+        // TimeProvider implements a fixed time step with timeScale, ensuring deterministic simulation timing.
+        if (timeProvider_) {
+            auto sleepDur = timeProvider_->getSleepDuration();
+            std::this_thread::sleep_for(sleepDur);
+        } else {
+            // Fallback without TimeProvider: sleep for simTimeStep / timeScale to maintain consistent simulation timing.
+            std::this_thread::sleep_for(
+                std::chrono::duration<float>(droneConfig_.simTimeStep / droneConfig_.timeScale));
+        }
+    }
+
+    if (timeProvider_) {
+        timeProvider_->stop();
     }
 }
 

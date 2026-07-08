@@ -9,10 +9,10 @@
 #include "interfaces/IBallisticSolver.h"
 #include "interfaces/IConfigLoader.h"
 #include "mission/DroneState.h"
+#include "interfaces/ITimeProvider.h"
 
-struct SimStep;
-struct DroneConfig;
 class DronePhysics;
+class ITimeProvider;
 
 const int MAX_STEPS = 10000;
 
@@ -49,6 +49,9 @@ private:
     bool      hasNext_;              // Наявність обчислення наступних кроків
 
     DronePhysics* physics_ = nullptr;        // фізика дрона (не володіє)
+    
+    // TimeProvider для контролю частоти ітерацій місії
+    std::unique_ptr<ITimeProvider> timeProvider_;
 
     // Багатопоточність
     std::atomic<bool> threadReady_{false};
