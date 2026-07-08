@@ -49,15 +49,16 @@ public:
             return false;
         }
 
-        // Set direction to output with initial value 0 for both lines
-        if (gpiod_line_settings_set_direction(settings, GPIOD_LINE_REQUEST_LINE_DIRECTION_OUTPUT) < 0) {
+        // Set direction to output (use correct enum constant)
+        if (gpiod_line_settings_set_direction(settings, GPIOD_LINE_DIRECTION_OUTPUT) < 0) {
             std::cerr << "[LibGpio] Failed to set line direction" << std::endl;
             gpiod_line_settings_free(settings);
             gpiod_chip_close(chip_);
             return false;
         }
 
-        if (gpiod_line_settings_set_output_value(settings, 0) < 0) {
+        // Set output value (must be enum gpiod_line_value, not int)
+        if (gpiod_line_settings_set_output_value(settings, GPIOD_LINE_VALUE_ACTIVE) < 0) {
             std::cerr << "[LibGpio] Failed to set output value" << std::endl;
             gpiod_line_settings_free(settings);
             gpiod_chip_close(chip_);
@@ -73,8 +74,9 @@ public:
             return false;
         }
 
+        // Note: gpiod_line_config_add_line_settings takes (config, offsets, count, settings)
         unsigned int lines[] = { (unsigned int)startLineNum_, (unsigned int)dropLineNum_ };
-        if (gpiod_line_config_add_line_settings(lcfg, settings, 2, lines) < 0) {
+        if (gpiod_line_config_add_line_settings(lcfg, lines, 2, settings) < 0) {
             std::cerr << "[LibGpio] Failed to add line settings to config" << std::endl;
             gpiod_line_config_free(lcfg);
             gpiod_line_settings_free(settings);
@@ -82,10 +84,23 @@ public:
             return false;
         }
 
+        // Create request config with consumer name
+        struct gpiod_request_config* req_cfg = gpiod_request_config_new();
+        if (!req_cfg) {
+            std::cerr << "[LibGpio] Failed to create request config" << std::endl;
+            gpiod_line_config_free(lcfg);
+            gpiod_line_settings_free(settings);
+            gpiod_chip_close(chip_);
+            return false;
+        }
+
+        gpiod_request_config_set_consumer(req_cfg, "drone");
+
         // Request the lines from the chip
-        request_ = gpiod_chip_request_lines(chip_, "drone", lcfg);
+        request_ = gpiod_chip_request_lines(chip_, req_cfg, lcfg);
         if (!request_) {
             std::cerr << "[LibGpio] Failed to request GPIO lines" << std::endl;
+            gpiod_request_config_free(req_cfg);
             gpiod_line_config_free(lcfg);
             gpiod_line_settings_free(settings);
             gpiod_chip_close(chip_);
@@ -93,16 +108,18 @@ public:
         }
 
         // Set START line high immediately (ready signal to checker)
-        if (gpiod_line_request_set_value(request_, startLineNum_, 1) < 0) {
+        if (gpiod_line_request_set_value(request_, startLineNum_, GPIOD_LINE_VALUE_ACTIVE) < 0) {
             std::cerr << "[LibGpio] Failed to set START line high" << std::endl;
             gpiod_line_request_release(request_);
+            gpiod_request_config_free(req_cfg);
             gpiod_line_config_free(lcfg);
             gpiod_line_settings_free(settings);
             gpiod_chip_close(chip_);
             return false;
         }
 
-        // Free config and settings (no longer needed after request)
+        // Free config objects (no longer needed after request)
+        gpiod_request_config_free(req_cfg);
         gpiod_line_config_free(lcfg);
         gpiod_line_settings_free(settings);
 
@@ -115,14 +132,15 @@ public:
 
     void setStart(bool high) override {
         if (!ready_ || !request_) return;
-        gpiod_line_request_set_value(request_, startLineNum_, high ? 1 : 0);
+        gpiod_line_request_set_value(request_, startLineNum_,
+                                     high ? GPIOD_LINE_VALUE_ACTIVE : GPIOD_LINE_VALUE_INACTIVE);
     }
 
     void pulseDrop(int durationMs = 80) override {
         if (!ready_ || !request_) return;
-        gpiod_line_request_set_value(request_, dropLineNum_, 1);
+        gpiod_line_request_set_value(request_, dropLineNum_, GPIOD_LINE_VALUE_ACTIVE);
         std::this_thread::sleep_for(std::chrono::milliseconds(durationMs));
-        gpiod_line_request_set_value(request_, dropLineNum_, 0);
+        gpiod_line_request_set_value(request_, dropLineNum_, GPIOD_LINE_VALUE_INACTIVE);
     }
 
     bool isReady() const override { return ready_; }

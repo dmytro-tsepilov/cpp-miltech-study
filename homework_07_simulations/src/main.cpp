@@ -20,6 +20,10 @@
 #include "protocol/IUartTelemetryProvider.h"
 #include "protocol/IMissionCommandSource.h"
 
+// UART-based providers for config and targets
+#include "config/UartConfigProvider.h"
+#include "providers/UartTargetProvider.h"
+
 // Forward declarations for factory functions
 std::unique_ptr<IUartLink> createUartLink();
 std::unique_ptr<IDroneGpioController> createSimGpioController();
@@ -117,8 +121,6 @@ int main(int argc, char** argv)
 
     if (hwMode) {
         // Hardware defaults (Raspberry Pi)
-        startLine = 27;
-        dropLine = 22;
         defaultUart = "/dev/ttyAMA1";
         defaultGpioChip = "gpiochip0";
     }
@@ -157,10 +159,6 @@ int main(int argc, char** argv)
             return 1;
         }
 
-        // Set START high immediately (ready signal to checker)
-        gpio->setStart(true);
-        LOG("START line set HIGH — waiting for checker to start simulation");
-
         // 2. Open UART link
         auto uart = createUartLink();
         if (!uart->open(uartDevice)) {
@@ -169,10 +167,33 @@ int main(int argc, char** argv)
         }
         LOG("UART opened: " << uartDevice);
 
-        // 3. Create and start telemetry provider (background thread)
+        // Set START high immediately (ready signal to checker)
+        gpio->setStart(true);
+        LOG("START line set HIGH — waiting for checker to start simulation");
+        //gpio->setStart(false); // Set low after signaling ready
+
+        // 3. Create and wire UART-based providers BEFORE starting telemetry
         auto telProvider = createUartTelemetryProvider();
         telProvider->setUartLink(uart.get());
         telProvider->setGpioController(gpio.get());
+
+        // Wire global pointers FIRST (needed by callback static instances)
+        UartConfigProvider::setGlobalUartTelemetryProvider(telProvider.get());
+        UartTargetProvider::setGlobalUartTelemetryProvider(telProvider.get());
+
+        // Register callbacks BEFORE starting the thread so no packets are missed
+        UartConfigProvider::registerCallbacks();
+        UartTargetProvider::registerCallbacks();
+
+        // Create UART-backed config and target providers EARLY
+        // and set instance pointers BEFORE starting telemetry thread.
+        // This ensures packets arriving immediately after thread start
+        // are dispatched to the correct instances.
+        auto uartCfg = std::make_unique<UartConfigProvider>();
+        UartConfigProvider::setInstance(uartCfg.get());
+
+        auto uartTgt = std::make_unique<UartTargetProvider>();
+        UartTargetProvider::setInstance(uartTgt.get());
 
         if (!telProvider->start()) {
             LOG("Failed to start telemetry provider");
@@ -201,7 +222,7 @@ int main(int argc, char** argv)
         LOG("AMMO received: name=" << ammoCfg.name << " mass=" << ammoCfg.mass
                                    << " drag=" << ammoCfg.drag << " lift=" << ammoCfg.lift);
 
-        // 4. Create traditional simulation components for ballistic calculations
+        // 4. Create UART-based config and target providers
         std::unique_ptr<IConfigLoader> cfgLoader;
         std::unique_ptr<ITargetProvider> targetProvider;
         std::unique_ptr<IBallisticSolver> solver;
@@ -221,23 +242,10 @@ int main(int argc, char** argv)
             return 1;
         }
 
-        // Use local config loader for ballistic parameters
-        cfgLoader = createConfigLoader(ConfigType::JSON, dataFolder.c_str());
-        if (cfgLoader == nullptr) {
-            LOG("Failed to create JSON config loader");
-            telProvider->stop();
-            uart->close();
-            return 1;
-        }
-
-        targetProvider = createTargetProvider(SourceType::JSON, dataFolder.c_str());
-        if (targetProvider == nullptr) {
-            LOG("Failed to create JSON target provider");
-            telProvider->stop();
-            cfgLoader.reset();
-            uart->close();
-            return 1;
-        }
+        // cfgLoader and targetProvider are already created above (before telemetry thread start).
+        // Wrap them in smart pointers for ownership transfer to mission init.
+        cfgLoader = std::unique_ptr<IConfigLoader>(uartCfg.release());
+        targetProvider = std::unique_ptr<ITargetProvider>(uartTgt.release());
 
         auto resultWriter = createResultWriter(DestType::JSON);
         if (resultWriter == nullptr) {
@@ -261,6 +269,8 @@ int main(int argc, char** argv)
             return 1;
         }
         // Note: missionPtr not needed — we use smart pointer directly
+
+        LOG("Mission ready");
 
         // 5. Create mission command source for CONTROL generation
         auto cmdSource = createMissionCommandSource();

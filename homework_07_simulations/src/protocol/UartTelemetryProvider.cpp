@@ -7,6 +7,7 @@
 #include <atomic>
 #include <iostream>
 #include <cstring>
+#include <vector>
 
 class UartTelemetryProvider : public IUartTelemetryProvider {
 private:
@@ -24,6 +25,35 @@ private:
     dlink::AmmoCfg lastAmmo_{};
 
     dlink::Parser parser_;
+
+    // Subscriber callbacks for specific packet types
+    using PacketCallback = void(*)(const uint8_t*, uint8_t);
+    struct CallbackEntry {
+        dlink::PacketType type;
+        PacketCallback callback;
+    };
+    std::vector<CallbackEntry> callbacks_;
+
+    // Global callbacks registered by UART-based providers
+    static std::vector<CallbackEntry> g_globalCallbacks;
+
+    void dispatchCallbacks(dlink::PacketType type, const uint8_t* payload, uint8_t len) {
+        // First dispatch global callbacks (from UART-based providers)
+        for (auto& cb : g_globalCallbacks) {
+            if (cb.type == type && cb.callback) {
+                cb.callback(payload, len);
+            }
+        }
+        // Then dispatch instance-specific callbacks
+        for (auto& cb : callbacks_) {
+            if (cb.type == type && cb.callback) {
+                cb.callback(payload, len);
+            }
+        }
+    }
+
+    // Use same type as interface for override compatibility
+    using GlobalPacketCallback = PacketCallback;
 
     void runLoop() {
         uint8_t payloadBuf[260];
@@ -49,6 +79,7 @@ private:
             // Read available bytes from UART
             uint8_t buf[256];
             int n = uart_->readBytes(buf, static_cast<int>(sizeof(buf)));
+            //std::cout << "[TelProv] bytes read: " << n << std::endl;
 
             if (n > 0) {
                 for (int i = 0; i < n; ++i) {
@@ -75,6 +106,8 @@ private:
                                 if (lenByte == sizeof(dlink::TargetPos)) {
                                     std::lock_guard<std::mutex> lock(mutex_);
                                     std::memcpy(&lastTarget_, payloadBuf, lenByte);
+                                    // Dispatch to subscribers
+                                    dispatchCallbacks(pktType, payloadBuf, lenByte);
                                     std::cout << "[TelProv] TARGET[" << static_cast<int>(lastTarget_.id)
                                               << "]: pos=(" << lastTarget_.x << "," << lastTarget_.y << ")"
                                               << std::endl;
@@ -85,6 +118,8 @@ private:
                                 if (lenByte == sizeof(dlink::AmmoCfg)) {
                                     std::lock_guard<std::mutex> lock(mutex_);
                                     std::memcpy(&lastAmmo_, payloadBuf, lenByte);
+                                    // Dispatch to subscribers
+                                    dispatchCallbacks(pktType, payloadBuf, lenByte);
                                     std::cout << "[TelProv] AMMO: name=" << lastAmmo_.name
                                               << " mass=" << lastAmmo_.mass
                                               << " drag=" << lastAmmo_.drag
@@ -100,6 +135,8 @@ private:
                                 if (lenByte == sizeof(dlink::DroneCfg)) {
                                     dlink::DroneCfg cfg;
                                     std::memcpy(&cfg, payloadBuf, lenByte);
+                                    // Dispatch to subscribers
+                                    dispatchCallbacks(pktType, payloadBuf, lenByte);
                                     std::cout << "[TelProv] CONFIG: attackSpeed=" << cfg.attackSpeed
                                               << " accelPath=" << cfg.accelerationPath
                                               << " angularSpeed=" << cfg.angularSpeed
@@ -185,9 +222,34 @@ public:
     }
 
     bool isSimulationRunning() const override { return simRunning_; }
+
+    void registerCallback(dlink::PacketType type, PacketCallback cb) {
+        callbacks_.emplace_back(type, cb);
+    }
+
+    // Static implementation for interface's global callback registration
+    static void registerGlobalCallback(dlink::PacketType type, PacketCallback cb) {
+        g_globalCallbacks.emplace_back(type, cb);
+    }
+
+    // Get reference to global callbacks (for external registration)
+    static std::vector<CallbackEntry>& getGlobalCallbacks() {
+        return g_globalCallbacks;
+    }
 };
+
+// Define static member (use inner type CallbackEntry)
+std::vector<UartTelemetryProvider::CallbackEntry> UartTelemetryProvider::g_globalCallbacks;
+
+// Global callback registration helper (exposed for UART-based providers)
+using GlobalPacketCallback = void(*)(const uint8_t*, uint8_t);
+void uart_telemetry_register_global_callback(dlink::PacketType type, GlobalPacketCallback cb) {
+    auto& gc = UartTelemetryProvider::getGlobalCallbacks();
+    gc.emplace_back(type, cb);
+}
 
 // Factory function
 std::unique_ptr<IUartTelemetryProvider> createUartTelemetryProvider() {
     return std::make_unique<UartTelemetryProvider>();
 }
+

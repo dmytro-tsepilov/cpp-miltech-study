@@ -40,6 +40,17 @@ public:
 
     // Check if checker has started simulation (START line was seen HIGH)
     virtual bool isSimulationRunning() const = 0;
+
+    // ---- Subscriber registration for packet dispatch ----
+    // Register a callback to be invoked when a specific packet type arrives.
+    // The callback receives the raw payload pointer and length.
+    using PacketCallback = void(*)(const uint8_t* payload, uint8_t len);
+    virtual void registerCallback(dlink::PacketType type, PacketCallback cb) = 0;
+
+    // ---- Static global callback registration (for UART-based providers) ----
+    // These static methods allow UartConfigProvider and UartTargetProvider
+    // to register callbacks that will be invoked by ANY UartTelemetryProvider instance.
+    static void registerGlobalCallback(dlink::PacketType type, PacketCallback cb);
 };
 
 #endif // I_UART_TELEMETRY_PROVIDER_H
