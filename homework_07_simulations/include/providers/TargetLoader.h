@@ -68,6 +68,7 @@ public:
 
 // ============ HttpTargetProvider ============
 
+#if ENABLE_HTTP
 class HttpTargetProvider : public ITargetProvider {
 private:
     int targetCount;
@@ -98,4 +99,5 @@ public:
     int getTimeSteps() override;
     Target *getTarget(int index) override;
 };
+#endif // ENABLE_HTTP
 

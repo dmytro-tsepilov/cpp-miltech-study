@@ -1,24 +1,18 @@
 #pragma once
 #include <vector>
 #include <unordered_map>
-#include "result/ResultWriter.h"
-#include "providers/TargetLoader.h"
-#include "solvers/BallisticSolver.h"
-#include "config/ConfigLoader.h"
+#include <memory>
+#include "common/SimStep.h"
+#include "interfaces/IResultWriter.h"
+#include "interfaces/ITargetProvider.h"
+#include "interfaces/IBallisticSolver.h"
+#include "interfaces/IConfigLoader.h"
+#include "mission/DroneState.h"
 
 struct SimStep;
 struct DroneConfig;
 
 const int MAX_STEPS = 10000;
-
-enum DroneState : int8_t
-{
-    STOPPED      = 0,
-    ACCELERATING = 1,
-    DECELERATING = 2,
-    TURNING      = 3,
-    MOVING       = 4,
-};
 
 class MissionProcessor {
 private:
@@ -33,6 +27,10 @@ private:
     double    ballisticTof_;         // time of flight (попередньо обчислений)
     double    hDistBomb_;            // horizontal distance (попередньо обчислений)
     double    maxTurnPerStep_;       // максимальний поворот за крок (попередньо обчислений)
+
+    // State machine
+    std::unique_ptr<IDroneState> currentState_;
+    DroneContext ctx_;               // спільні дані для станів
 
     // Внутрішній стан симуляції
     std::vector<SimStep> simSteps_;  // вектор для зберігання кроків симуляції
@@ -80,6 +78,11 @@ private:
     int getTargetCount() const { return targets_->getTargetCount(); };
 
     bool exportResults();
+
+    // Отримати назву поточного стану (для логів)
+    const std::string getCurrentStateName() const {
+        return currentState_ ? currentState_->name() : "none";
+    }
 
  private:
     Coord targetInterpolation(const int &targetId, const double &time, const float &arrayTimeStep);
