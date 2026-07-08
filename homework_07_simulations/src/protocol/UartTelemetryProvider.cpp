@@ -24,6 +24,11 @@ private:
     dlink::TargetPos lastTarget_{};
     dlink::AmmoCfg lastAmmo_{};
 
+    // Lock-free copy of the latest telemetry timestamp (sim ms). Updated together
+    // with lastTel_ on the RX thread; readable from packet callbacks without the
+    // mutex, so a TARGET callback can stamp its sample without re-locking mutex_.
+    std::atomic<uint32_t> lastTelMs_{0};
+
     dlink::Parser parser_;
 
     // Subscriber callbacks for specific packet types
@@ -91,6 +96,7 @@ private:
                                 if (lenByte == sizeof(dlink::Telemetry)) {
                                     std::lock_guard<std::mutex> lock(mutex_);
                                     std::memcpy(&lastTel_, payloadBuf, lenByte);
+                                    lastTelMs_ = lastTel_.t_ms;
                                     ready_ = true;
                                     std::cout << "[TelProv] TELEMETRY: t=" << lastTel_.t_ms
                                               << " pos=(" << lastTel_.x << "," << lastTel_.y
@@ -209,6 +215,10 @@ public:
     const dlink::Telemetry& getTelemetry() const override {
         std::lock_guard<std::mutex> lock(mutex_);
         return lastTel_;
+    }
+
+    uint32_t getTelemetryTimeMs() const override {
+        return lastTelMs_.load();
     }
 
     const dlink::TargetPos& getTarget() const override {

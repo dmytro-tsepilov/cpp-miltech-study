@@ -4,6 +4,7 @@
 #include <mutex>
 #include <atomic>
 #include <string>
+#include <chrono>
 
 #include "interfaces/ITargetProvider.h"
 #include "config/DroneConfig.h"
@@ -12,11 +13,26 @@
 #include "common/macros.h"
 
 // UartTargetProvider — implements ITargetProvider by reading TARGET packets
-// from IUartTelemetryProvider. Since UART sends individual target positions
-// (not full trajectories), this provider returns the current position snapshot
-// for each target index.
+// from IUartTelemetryProvider. UART sends individual target positions (not full
+// trajectories), so this provider CAUSALLY estimates each target's velocity and
+// acceleration from consecutive TARGET packets (backward finite differences),
+// restoring the lead-targeting that the file-based provider gets from trajectory
+// look-ahead — without peeking into the future.
 class UartTargetProvider : public ITargetProvider {
 private:
+    // Per-target causal state: last position/velocity + timestamp for differencing.
+    // The timestamp is the checker's SIMULATION time (from TELEMETRY t_ms), not
+    // wall-clock — this makes the velocity/acceleration estimate exact and free of
+    // scheduler jitter and timeScale scaling.
+    struct TargetTrack {
+        Coord  pos{0, 0};
+        Coord  velocity{0, 0};
+        Coord  acceleration{0, 0};
+        bool   hasPos = false;
+        bool   hasVel = false;
+        double lastSimSec = 0.0;   // sim time of the last sample, seconds
+    };
+
     // Global pointer set once by main.cpp after creating the telemetry provider
     static IUartTelemetryProvider* g_uartTel;
 
@@ -32,9 +48,9 @@ private:
     int targetCount_{0};
     int timeSteps_{1};  // UART provides real-time positions, not pre-recorded trajectories
 
-    // Current positions (updated from PKT_TARGET packets)
+    // Per-target tracks (updated from PKT_TARGET packets)
     mutable std::mutex mutex_;
-    std::vector<dlink::TargetPos> currentTargets_;
+    std::vector<TargetTrack> tracks_;
 
     float arrayTimeStep_{1.0f};
     float timeScale_{1.0f};

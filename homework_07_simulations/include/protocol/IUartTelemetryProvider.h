@@ -32,6 +32,11 @@ public:
     // Get last parsed telemetry snapshot
     virtual const dlink::Telemetry& getTelemetry() const = 0;
 
+    // Lock-free accessor for the latest telemetry timestamp (sim ms).
+    // Safe to call from inside a packet callback: it does NOT take the
+    // telemetry mutex, so it cannot self-deadlock the RX thread.
+    virtual uint32_t getTelemetryTimeMs() const = 0;
+
     // Get last parsed target position
     virtual const dlink::TargetPos& getTarget() const = 0;
 

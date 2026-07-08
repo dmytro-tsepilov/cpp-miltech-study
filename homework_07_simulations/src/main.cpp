@@ -289,6 +289,8 @@ int main(int argc, char** argv)
 
         int step = 0;
         const int maxSteps = 10000;
+        uint32_t lastTelemetryMs = 0;
+        bool firstFrame = true;
 
         while (step < maxSteps) {
             if (!telProvider->isSimulationRunning()) {
@@ -299,6 +301,20 @@ int main(int argc, char** argv)
 
             // Feed checker telemetry into the mission's drone-state source.
             const auto& t = telProvider->getTelemetry();
+
+            // Process each checker telemetry frame EXACTLY ONCE. The checker updates
+            // telemetry at its own tick (~timeStep); polling faster only re-runs the
+            // guidance on identical (stale) data, which advances the mission's logical
+            // clock and turn state-machine far faster than the real drone and desyncs
+            // the drop timing. Gate on the telemetry timestamp so the mission steps in
+            // lock-step with the checker (one CONTROL command per telemetry frame).
+            if (!firstFrame && t.t_ms == lastTelemetryMs) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(2));
+                continue;
+            }
+            lastTelemetryMs = t.t_ms;
+            firstFrame = false;
+
             DroneTelemetry dt;
             dt.pos = {t.x, t.y};
             dt.direction = t.dir;
@@ -340,8 +356,8 @@ int main(int argc, char** argv)
                            << ") cmd=[accel=" << accel << " turn=" << turnRate << "]");
             }
 
-            // Pace the loop at the mission time step.
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            // Small poll delay; the loop paces itself on new telemetry frames above.
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
             step++;
         }
 
