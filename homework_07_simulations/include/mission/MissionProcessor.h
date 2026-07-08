@@ -13,6 +13,7 @@
 #include "interfaces/ITimeProvider.h"
 
 class ITimeProvider;
+class IStepDriver;
 
 const int MAX_STEPS = 10000;
 
@@ -51,6 +52,10 @@ private:
 
     IDroneStateSource* stateSource_ = nullptr; // джерело стану дрона (не володіє)
 
+    // Опційний драйвер кроку (UART/GPIO): задає пейсинг і I/O навколо step().
+    // Якщо nullptr — run() пейситься через TimeProvider (файловий/HTTP режим).
+    IStepDriver* driver_ = nullptr; // не володіє
+
     // TimeProvider для контролю частоти ітерацій місії
     std::unique_ptr<ITimeProvider> timeProvider_;
 
@@ -80,6 +85,9 @@ private:
     void start();
     void stop();
     bool isThreadReady() const;
+
+    // Встановити драйвер кроку (UART/GPIO). Не передає володіння.
+    void setStepDriver(IStepDriver* driver) { driver_ = driver; }
 
     // Почати ітерацію спочатку
     void reset();

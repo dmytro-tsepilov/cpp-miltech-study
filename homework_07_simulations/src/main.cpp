@@ -13,6 +13,7 @@
 #include "mission/DronePhysics.h"
 #include "mission/UartDroneState.h"
 #include "mission/MissionProcessor.h"
+#include "mission/UartStepDriver.h"
 
 // HW22: UART + GPIO includes
 #include "protocol/drone_link.h"
@@ -284,82 +285,25 @@ int main(int argc, char** argv)
         LOG("Control module ready: maxTurnPerStep=" << maxTurnPerStep
                                                     << " accelPerStep=" << accelPerStep);
 
-        // 6. Main control loop
-        LOG("=== Starting main control loop ===");
+        // 6. Wire the StepDriver and run the mission in its OWN thread (like the
+        //    file/HTTP mode). The driver owns the UART/GPIO pacing and I/O around
+        //    each guidance step, so MissionProcessor::run() stays I/O-agnostic:
+        //      waitNextTick() — блокує до нового кадру телеметрії чекера;
+        //      beforeStep()   — подає телеметрію в UartDroneState;
+        //      afterStep()    — шле CONTROL по UART;
+        //      onDrop()       — імпульс DROP на GPIO.
+        auto stepDriver = std::make_unique<UartStepDriver>(
+            uart.get(), gpio.get(), cmdSource.get(), telProvider.get(), dronePtr,
+            maxTurnPerStep, accelPerStep);
+        mission->setStepDriver(stepDriver.get());
 
-        int step = 0;
-        const int maxSteps = 10000;
-        uint32_t lastTelemetryMs = 0;
-        bool firstFrame = true;
+        LOG("=== Starting mission thread ===");
+        std::thread missionThread(&MissionProcessor::run, mission.get());
 
-        while (step < maxSteps) {
-            if (!telProvider->isSimulationRunning()) {
-                LOG("Simulation not yet running (waiting for START)...");
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                continue;
-            }
-
-            // Feed checker telemetry into the mission's drone-state source.
-            const auto& t = telProvider->getTelemetry();
-
-            // Process each checker telemetry frame EXACTLY ONCE. The checker updates
-            // telemetry at its own tick (~timeStep); polling faster only re-runs the
-            // guidance on identical (stale) data, which advances the mission's logical
-            // clock and turn state-machine far faster than the real drone and desyncs
-            // the drop timing. Gate on the telemetry timestamp so the mission steps in
-            // lock-step with the checker (one CONTROL command per telemetry frame).
-            if (!firstFrame && t.t_ms == lastTelemetryMs) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(2));
-                continue;
-            }
-            lastTelemetryMs = t.t_ms;
-            firstFrame = false;
-
-            DroneTelemetry dt;
-            dt.pos = {t.x, t.y};
-            dt.direction = t.dir;
-            dt.speed = t.speed;
-            dt.state = t.state;
-            dt.timeSecSinceStart = t.t_ms / 1000.0f;
-            dronePtr->setTelemetry(dt);
-
-            // Run one guidance step: mission computes desired heading/speed + drop decision.
-            mission->step();
-
-            // Drop decision comes from the mission (ballistic fire point reached).
-            if (mission->shouldDrop()) {
-                LOG("*** DROP PULSE TRIGGERED at step " << step << " ***");
-                uart->sendControl(0.0f, 0.0f);
-                gpio->pulseDrop(180);  // 80ms pulse
-                break;
-            }
-
-            // No valid firing solution / mission ended without a drop.
-            if (!mission->hasNext()) {
-                LOG("Mission ended without drop at step " << step);
-                break;
-            }
-
-            // Convert the mission decision into a normalized CONTROL command.
-            DroneCommand cmd = dronePtr->getLastCommand();
-            float accel = 0.0f;
-            float turnRate = 0.0f;
-            cmdSource->computeControl(cmd, dt, maxTurnPerStep, accelPerStep, accel, turnRate);
-
-            if (!uart->sendControl(accel, turnRate)) {
-                LOG("Failed to send CONTROL command at step " << step);
-            }
-
-            if (step % 100 == 0) {
-                LOG("Step " << step << ": tel_pos=(" << t.x << "," << t.y
-                           << ") speed=" << t.speed << " dir=" << t.dir
-                           << ") cmd=[accel=" << accel << " turn=" << turnRate << "]");
-            }
-
-            // Small poll delay; the loop paces itself on new telemetry frames above.
-            std::this_thread::sleep_for(std::chrono::milliseconds(2));
-            step++;
-        }
+        // Release run() from its wait-for-start spin. The mission ends on its own
+        // (drop / no next target / max steps), then we join.
+        mission->start();
+        missionThread.join();
 
         // 7. Export results
         mission->exportResults();

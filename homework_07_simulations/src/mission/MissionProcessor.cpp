@@ -8,6 +8,7 @@
 #include "config/DroneConfig.h"
 #include "mission/DronePhysics.h"
 #include "mission/MissionProcessor.h"
+#include "mission/IStepDriver.h"
 #include "providers/FixedTimeProvider.h"
 
 bool MissionProcessor::init(std::unique_ptr<IConfigLoader> loader, std::unique_ptr<IResultWriter> writer, IDroneStateSource* stateSource)
@@ -351,10 +352,26 @@ void MissionProcessor::run()
     }
 
     while (hasNext() && !stop_) {
+        // UART-режим: драйвер задає пейсинг по кадрах телеметрії чекера і
+        // подає свіжу телеметрію в джерело стану перед кроком наведення.
+        if (driver_) {
+            if (!driver_->waitNextTick()) {
+                break;
+            }
+            driver_->beforeStep();
+        }
+
         step();
 
-        // TimeProvider implements a fixed time step with timeScale, ensuring deterministic simulation timing.
-        if (timeProvider_) {
+        if (driver_) {
+            // Скид має пріоритет: спрацював — шлемо DROP і завершуємо місію.
+            if (shouldDrop()) {
+                driver_->onDrop();
+                break;
+            }
+            driver_->afterStep();
+        } else if (timeProvider_) {
+            // TimeProvider implements a fixed time step with timeScale, ensuring deterministic simulation timing.
             auto sleepDur = timeProvider_->getSleepDuration();
             std::this_thread::sleep_for(sleepDur);
         } else {
