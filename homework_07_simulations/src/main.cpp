@@ -96,6 +96,20 @@ int main(int argc, char** argv)
         }
     }
 
+    SolverType solverType = SolverType::TABLE;
+
+    std::unique_ptr<IBallisticSolver> solver;
+    if (solverType == SolverType::TABLE) {
+        solver = createBallisticSolver(solverType, ballisticTablePath);
+    } else {
+        solver = createBallisticSolver(solverType);
+    }
+
+    if (solver == nullptr) {
+        LOG("Failed to create ballistic solver");
+        return 1;
+    }
+
     // HW22: Parse UART and GPIO arguments
     std::string uartDevice = parseArgValue(argc, argv, "--uart");
     std::string gpioChipName = parseArgValue(argc, argv, "--gpiochip");
@@ -232,18 +246,6 @@ int main(int argc, char** argv)
         // 4. Create UART-based config and target providers
         std::unique_ptr<IConfigLoader> cfgLoader;
         std::unique_ptr<ITargetProvider> targetProvider;
-        std::unique_ptr<IBallisticSolver> solver;
-
-        // UART-режим: аналітичний солвер — не потребує зовнішнього файлу
-        // таблиці, якого немає на платі (deploy.sh синхронізує лише src/ та include/).
-        solver = createBallisticSolver(SolverType::ANALYTICAL);
-
-        if (solver == nullptr) {
-            LOG("Failed to create ballistic solver");
-            telProvider->stop();
-            uart->close();
-            return 1;
-        }
 
         // cfgLoader and targetProvider are already created above (before telemetry thread start).
         // Wrap them in smart pointers for ownership transfer to mission init.
@@ -323,20 +325,6 @@ int main(int argc, char** argv)
     // ==========================================
     std::unique_ptr<IConfigLoader> cfgLoader;
     std::unique_ptr<ITargetProvider> targetProvider;
-    std::unique_ptr<IBallisticSolver> solver;
-
-    SolverType solverType = SolverType::TABLE;
-
-    if (solverType == SolverType::TABLE) {
-        solver = createBallisticSolver(solverType, ballisticTablePath);
-    } else {
-        solver = createBallisticSolver(solverType);
-    }
-
-    if (solver == nullptr) {
-        LOG("Failed to create ballistic solver");
-        return 1;
-    }
 
     if (remote) {
         targetProvider = createTargetProvider(SourceType::HTTP, homeWork, testNumber);
