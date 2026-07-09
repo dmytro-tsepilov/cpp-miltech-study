@@ -2,6 +2,7 @@
 
 #include "config/FileConfigLoader.h"
 #include "config/HttpConfigLoader.h"
+#include "config/UartConfigProvider.h"
 #include "common/macros.h"
 
 #include <memory>
@@ -11,6 +12,8 @@ std::unique_ptr<IConfigLoader> createConfigLoader(ConfigType type, const std::st
     switch (type) {
         case ConfigType::JSON:
             return std::make_unique<FileConfigLoader>(param, param2);
+        case ConfigType::SERIAL:
+            return std::make_unique<UartConfigProvider>();
         case ConfigType::HTTP:
 #if ENABLE_HTTP
         {

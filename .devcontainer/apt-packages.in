@@ -6,6 +6,7 @@ sudo
 tzdata
 ssh
 git
+rsync
 
 # C++ toolchain і language server для редактора.
 gcc
@@ -32,3 +33,6 @@ cmake
 clang-format
 cmake-format
 ninja-build
+
+# Protocol libraries
+gpiod libgpiod-dev

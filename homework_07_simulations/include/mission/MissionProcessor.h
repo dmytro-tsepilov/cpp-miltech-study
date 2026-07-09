@@ -9,10 +9,11 @@
 #include "interfaces/IBallisticSolver.h"
 #include "interfaces/IConfigLoader.h"
 #include "mission/DroneState.h"
+#include "mission/IDroneStateSource.h"
 #include "interfaces/ITimeProvider.h"
 
-class DronePhysics;
 class ITimeProvider;
+class IStepDriver;
 
 const int MAX_STEPS = 10000;
 
@@ -47,9 +48,14 @@ private:
     int       timeSteps_;            // кількість часових кроків у даних цілей
 
     bool      hasNext_;              // Наявність обчислення наступних кроків
+    bool      fireReached_ = false;  // Досягнуто точки скиду (сигнал DROP)
 
-    DronePhysics* physics_ = nullptr;        // фізика дрона (не володіє)
-    
+    IDroneStateSource* stateSource_ = nullptr; // джерело стану дрона (не володіє)
+
+    // Опційний драйвер кроку (UART/GPIO): задає пейсинг і I/O навколо step().
+    // Якщо nullptr — run() пейситься через TimeProvider (файловий/HTTP режим).
+    IStepDriver* driver_ = nullptr; // не володіє
+
     // TimeProvider для контролю частоти ітерацій місії
     std::unique_ptr<ITimeProvider> timeProvider_;
 
@@ -66,7 +72,7 @@ private:
     ~MissionProcessor() = default;
 
     // Ініціалізація: завантажити конфіг через IConfigLoader, підготувати дані
-    bool init(std::unique_ptr<IConfigLoader> loader, std::unique_ptr<IResultWriter> writer, DronePhysics* physics);
+    bool init(std::unique_ptr<IConfigLoader> loader, std::unique_ptr<IResultWriter> writer, IDroneStateSource* stateSource);
 
     // Перевірити, чи є ще необроблені цілі
     bool hasNext();
@@ -79,6 +85,9 @@ private:
     void start();
     void stop();
     bool isThreadReady() const;
+
+    // Встановити драйвер кроку (UART/GPIO). Не передає володіння.
+    void setStepDriver(IStepDriver* driver) { driver_ = driver; }
 
     // Почати ітерацію спочатку
     void reset();
@@ -96,6 +105,16 @@ private:
     int getTargetCount() const { return targets_->getTargetCount(); };
 
     bool exportResults();
+
+    // ---- UART-режим: сигнал скиду і масштаби для модуля керування ----
+    // true, коли місія вирішила, що дрон у точці скиду й зорієнтований на ціль.
+    bool shouldDrop() const { return fireReached_; }
+
+    // Максимальний поворот за крок місії (рад) — для нормування turnRate.
+    double getMaxTurnPerStep() const { return maxTurnPerStep_; }
+
+    // Максимальна зміна швидкості за крок місії (м/с) — для нормування accel.
+    float getAccelPerStep() const { return acceleration_ * droneConfig_.simTimeStep; }
 
     // Отримати назву поточного стану (для логів)
     const std::string getCurrentStateName() const {
