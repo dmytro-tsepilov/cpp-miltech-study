@@ -3,6 +3,27 @@
 Усі помітні зміни в цьому репо фіксуються тут.
 Формат - [Keep a Changelog](https://keepachangelog.com/uk/1.1.0/), дати в ISO 8601.
 
+## 2026-07-17
+
+### Removed
+
+- Block 5 / Homework 13: прибрано `homework_13/README.md` з student-facing
+  repo. Текст постановки ДЗ надається окремим docx-файлом.
+
+## 2026-07-10
+
+### Added
+
+- Block 5 / Lesson 5.6 / Homework 14: додано стартову ROS 2 задачу
+  `homework_14` про автономне дослідження системи траншей і бліндажів.
+  Package `underground_world` надає typed `.msg`/`.srv` контракти,
+  `underground_world_node`, scenario YAML, launch-файл і базові contract tests.
+  Рішення реалізує C++ алгоритм дослідження, payload service, статуси і здає
+  rosbag як evidence проходження.
+- Block 5 / Lesson 5.6: додано demo `demos/lesson_5_6/01_msg_array`, яке
+  показує роботу з масивом у `.msg`: `CellObservationLite[] cells`,
+  заповнення масиву через `push_back` і обхід через range-for.
+
 ## 2026-07-03
 
 ### Added
