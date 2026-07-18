@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
 
-# Окремий CMake-проєкт для домашньої роботи 04. Його можна збирати як
-# через root CMakeLists.txt, так і напряму з цієї директорії.
 project(drone_simulations CXX)
 
 include(FetchContent)
@@ -27,7 +25,7 @@ if(ENABLE_HTTP)
 FetchContent_Declare(
     httplib
     GIT_REPOSITORY https://github.com/yhirose/cpp-httplib
-    GIT_TAG v0.47.0
+    GIT_TAG v0.49.0
 )
 
 set(CPPHTTPLIB_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -51,7 +49,9 @@ endif()
 
 add_executable(drone_simulations ${SIMULATION_RESOURCES})
 
-target_link_libraries(drone_simulations PRIVATE nlohmann_json::nlohmann_json)
+find_package(Threads REQUIRED)
+
+target_link_libraries(drone_simulations PRIVATE nlohmann_json::nlohmann_json Threads::Threads)
 if(ENABLE_HTTP)
 target_link_libraries(drone_simulations PRIVATE httplib::httplib)
 endif()
@@ -66,3 +66,11 @@ endif()
 
 # Базові compiler warnings допомагають побачити підозрілі місця до runtime.
 target_compile_options(drone_simulations PRIVATE -Wall -Wextra -pedantic)
+
+# Опція для ThreadSanitizer: cmake --preset debug -DENABLE_TSAN=ON
+# Для виявлення гонок даних між потоками.
+option(ENABLE_TSAN "Build with ThreadSanitizer to detect data races" OFF)
+if(ENABLE_TSAN)
+    target_compile_options(drone_simulations PRIVATE -fsanitize=thread -g)
+    target_link_options(drone_simulations PRIVATE -fsanitize=thread)
+endif()

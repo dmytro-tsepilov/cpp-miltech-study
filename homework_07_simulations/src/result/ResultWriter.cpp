@@ -34,6 +34,7 @@ bool JsonResultWriter::write(const std::vector<SimStep>& steps)
         step["dropPoint"] = {{"x", s.dropPoint.x}, {"y", s.dropPoint.y}};
         step["aimPoint"] = {{"x", s.aimPoint.x}, {"y", s.aimPoint.y}};
         step["predictedTarget"] = {{"x", s.predictedTarget.x}, {"y", s.predictedTarget.y}};
+        step["timeSecSinceStart"] = s.timeSecSinceStart;
         out["steps"].push_back(step);
     });
 
