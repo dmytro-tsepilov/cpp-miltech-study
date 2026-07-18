@@ -25,10 +25,10 @@ int SerialTargetProvider::getTimeSteps()
     return this->timeSteps;
 }
 
-Target *SerialTargetProvider::getTarget(int index)
+Target SerialTargetProvider::getTarget(int index)
 {
     if (index >= 0 && index < targetCount) {
-        return &targets[index][0];
+        return Target{ targets[index][0], {0, 0} };
     }
-    return nullptr;
+    return Target{};
 }
