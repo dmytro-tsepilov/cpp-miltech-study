@@ -49,8 +49,11 @@
   // ulimit core=-1 дозволяє процесам у контейнері створювати core dump.
   // Сам шлях/формат core-файла все одно визначає host kernel через
   // /proc/sys/kernel/core_pattern; у WSL це налаштовується окремо на host.
+  // shm-size=2g дає достатній shared memory budget для iceoryx demo 5.5
+  // з fixed-size payload до 100 MB.
   "runArgs": [
     "--network=host",
+    "--shm-size=2g",
     "--cap-add=SYS_PTRACE",
     "--security-opt=seccomp=unconfined",
     "--ulimit=core=-1",

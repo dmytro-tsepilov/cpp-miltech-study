@@ -13,6 +13,7 @@
 #include "underground_world/msg/robot_metrics.hpp"
 #include "underground_world/msg/robot_result.hpp"
 #include "underground_world/scenario_loader.hpp"
+#include "underground_world/state_qos.hpp"
 #include "underground_world/world_model.hpp"
 
 namespace {
@@ -91,17 +92,17 @@ public:
     , move_commit_period_(read_move_commit_period())
     , world_(underground_world::load_scenario(scenario_path_))
   {
-    const auto qos = rclcpp::QoS{10};
+    const auto state_qos = underground_world::make_state_qos();
+    const auto event_qos = rclcpp::QoS{10};
 
-    scan_pub_ = create_publisher<LocalScan>(kScanTopic, qos);
-    metrics_pub_ = create_publisher<RobotMetrics>(kMetricsTopic, qos);
-    result_pub_ = create_publisher<RobotResult>(kResultTopic, qos);
+    scan_pub_ = create_publisher<LocalScan>(kScanTopic, state_qos);
+    metrics_pub_ = create_publisher<RobotMetrics>(kMetricsTopic, state_qos);
+    result_pub_ = create_publisher<RobotResult>(kResultTopic, state_qos);
 
-    move_sub_ = create_subscription<MoveCommand>(
-      kMoveTopic, qos, [this](const MoveCommand::SharedPtr msg) { on_move(*msg); });
+    move_sub_ = create_subscription<MoveCommand>(kMoveTopic, event_qos, [this](const MoveCommand::SharedPtr msg) { on_move(*msg); });
 
-    enemy_down_sub_ = create_subscription<EnemyDown>(
-      kEnemyDownTopic, qos, [this](const EnemyDown::SharedPtr msg) { on_enemy_down(*msg); });
+    enemy_down_sub_ =
+      create_subscription<EnemyDown>(kEnemyDownTopic, event_qos, [this](const EnemyDown::SharedPtr msg) { on_enemy_down(*msg); });
 
     move_commit_timer_ = create_wall_timer(move_commit_period_, [this]() { commit_next_move(); });
     initial_publish_timer_ = create_wall_timer(std::chrono::milliseconds{250}, [this]() {

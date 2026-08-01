@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CycloneDDS xmlns="https://cdds.io/config">
+  <Domain id="any">
+    <General>
+      <!-- Та сама discovery-конфігурація, що й у no-shm baseline. -->
+      <AllowMulticast>true</AllowMulticast>
+      <EnableMulticastLoopback>true</EnableMulticastLoopback>
+      <Interfaces>
+        <NetworkInterface autodetermine="true"/>
+      </Interfaces>
+    </General>
+
+    <Discovery>
+      <!-- auto index дозволяє запускати кілька subscribers поруч. -->
+      <ParticipantIndex>auto</ParticipantIndex>
+      <MaxAutoParticipantIndex>120</MaxAutoParticipantIndex>
+      <Peers>
+        <Peer Address="127.0.0.1"/>
+      </Peers>
+    </Discovery>
+
+    <SharedMemory>
+      <!-- iceoryx path: локальні topic-и, сумісні зі SharedMemory, йдуть через shared memory. -->
+      <Enable>true</Enable>
+      <LogLevel>info</LogLevel>
+    </SharedMemory>
+  </Domain>
+</CycloneDDS>

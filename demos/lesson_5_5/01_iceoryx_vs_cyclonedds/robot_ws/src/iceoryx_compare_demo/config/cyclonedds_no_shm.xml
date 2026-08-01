@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CycloneDDS xmlns="https://cdds.io/config">
+  <Domain id="any">
+    <General>
+      <!-- Локальний вимір має бачити всі процеси у devcontainer. -->
+      <AllowMulticast>true</AllowMulticast>
+      <EnableMulticastLoopback>true</EnableMulticastLoopback>
+      <NetworkInterfaceAddress>127.0.0.1</NetworkInterfaceAddress>
+    </General>
+
+    <Discovery>
+      <!-- auto index дозволяє запускати кілька subscribers поруч. -->
+      <ParticipantIndex>auto</ParticipantIndex>
+      <MaxAutoParticipantIndex>120</MaxAutoParticipantIndex>
+      <Peers>
+        <Peer Address="127.0.0.1"/>
+      </Peers>
+    </Discovery>
+
+    <SharedMemory>
+      <!-- Baseline: той самий ROS 2 code, але без iceoryx data plane. -->
+      <Enable>false</Enable>
+    </SharedMemory>
+  </Domain>
+</CycloneDDS>
