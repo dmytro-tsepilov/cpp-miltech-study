@@ -1,6 +1,7 @@
 #include "factories/ResultWriterFactory.h"
 
 #include "result/ResultWriter.h"
+#include "common/macros.h"
 
 #if ENABLE_HTTP
 #include "result/HttpResultWriter.h"
@@ -44,6 +45,7 @@ std::unique_ptr<IResultWriter> createResultWriter(DestType type,
             (void)type;
             (void)param;
             (void)param2;
+            (void)param3;
             LOG("HTTP ResultWriter requested but ENABLE_HTTP is disabled");
             return nullptr;
 #endif
