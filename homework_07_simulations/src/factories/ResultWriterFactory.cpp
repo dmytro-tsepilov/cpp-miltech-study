@@ -2,6 +2,7 @@
 
 #include "result/ResultWriter.h"
 #include "common/macros.h"
+#include "result/SocketResultWriter.h"
 
 #if ENABLE_HTTP
 #include "result/HttpResultWriter.h"
@@ -49,6 +50,13 @@ std::unique_ptr<IResultWriter> createResultWriter(DestType type,
             LOG("HTTP ResultWriter requested but ENABLE_HTTP is disabled");
             return nullptr;
 #endif
+        }
+        case DestType::SOCKET:
+        {
+            auto studentId = param.has_value()  ? param.value() : std::string("");
+            auto testId = param2.has_value()  ? param2.value() : std::string("");
+            auto baseUrl = param3.has_value() ? param3.value() : std::string("http://cppmiltech.com.ua");
+            return std::make_unique<SocketResultWriter>(studentId, testId, baseUrl);
         }
         default:
             return nullptr;

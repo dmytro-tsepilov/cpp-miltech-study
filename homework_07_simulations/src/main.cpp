@@ -76,6 +76,7 @@ int main(int argc, char** argv)
         LOG("   --remote - use input data from remote server\n");
         LOG("   --testNumber TEST_NUMBER - specify the test number\n");
         LOG("   --remoteResults - save results on remote server\n");
+        LOG("   --httpSocket - save results on remote server using raw tcp socket\n");
         LOG("   --btable BALLISTIC_TABLE_PATH - use input data from ballistic table file\n");
         LOG("\nHW22 UART + GPIO options:\n");
         LOG("  --uart DEVICE        - UART device path (e.g., /tmp/ttyA)\n");
@@ -97,6 +98,7 @@ int main(int argc, char** argv)
     }
 
     bool remoteResults = hasFlag(argc, argv, "--remoteResults");
+    bool httpSocket = hasFlag(argc, argv, "--httpSocket");
 
     // Parse --testNumber flag (supports --testNumber=123 or --testNumber 123)
     std::string testNumberVal = parseArgValue(argc, argv, "--testNumber");
@@ -111,6 +113,11 @@ int main(int argc, char** argv)
 
     if (remoteResults == true && testNumber.empty()) {
         LOG("Error: --remoteResults requires --testNumber to be specified");
+        return 1;
+    }
+
+    if (httpSocket == true && testNumber.empty()) {
+        LOG("Error: --httpSocket requires --testNumber to be specified");
         return 1;
     }
 
@@ -390,7 +397,11 @@ int main(int argc, char** argv)
     std::string studentId = "2041";
 
     if (remoteResults) {
-        resultWriter = createResultWriter(DestType::HTTP, studentId, testNumber);
+        if (httpSocket) {
+            resultWriter = createResultWriter(DestType::SOCKET, studentId, testNumber);
+        } else {
+            resultWriter = createResultWriter(DestType::HTTP, studentId, testNumber);
+        }
     }
     else {
         resultWriter = createResultWriter(DestType::JSON);

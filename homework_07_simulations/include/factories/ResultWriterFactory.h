@@ -8,7 +8,8 @@ enum class DestType {
     JSON,
     API,
     DATABASE,
-    HTTP
+    HTTP,
+    SOCKET
 };
 
 class IResultWriter;
