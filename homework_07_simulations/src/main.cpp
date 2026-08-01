@@ -57,7 +57,8 @@ int main(int argc, char** argv)
     // The executable expects folder path with simulation files
     if (argc < 2) {
         LOG("usage: <folder> - drone_simulations path to folder with simulation files (ammo.json, config.json, targets.json)\n");
-        LOG("usage: --remote TEST_NUMBER - use input data from remote server\n");
+        LOG("usage: --remote - use input data from remote server\n");
+        LOG("usage: --testNumber TEST_NUMBER - specify the test number\n");
         LOG("usage: --btable BALLISTIC_TABLE_PATH - use input data from ballistic table file\n");
         LOG("\nHW22 UART + GPIO options:\n");
         LOG("  --uart DEVICE        - UART device path (e.g., /tmp/ttyA)\n");
@@ -77,7 +78,12 @@ int main(int argc, char** argv)
     std::string remoteVal = parseArgValue(argc, argv, "--remote");
     if (!remoteVal.empty()) {
         remote = true;
-        testNumber = remoteVal;
+    }
+
+    // Parse --testNumber flag (supports --testNumber=123 or --testNumber 123)
+    std::string testNumberVal = parseArgValue(argc, argv, "--testNumber");
+    if (!testNumberVal.empty()) {
+        testNumber = testNumberVal;
     }
 
     // Parse --btable flag (supports --btable=path or --btable /path)
@@ -352,7 +358,9 @@ int main(int argc, char** argv)
         }
     }
 
-    auto resultWriter = createResultWriter(DestType::JSON);
+    std::string studentId = "2041";
+
+    auto resultWriter = createResultWriter(DestType::HTTP, studentId, testNumber);
     if (resultWriter == nullptr) {
         LOG("Failed to create result writer");
         return 1;
