@@ -26,6 +26,9 @@ gdbserver
 gdb-multiarch
 valgrind
 
+# Візуальний моніторинг CPU, RAM і процесів під час ROS 2 demo 5.5.
+btop
+
 # Інструменти збірки і форматери, які використовуються в лекціях та CI.
 make
 cmake
@@ -37,8 +40,15 @@ colcon
 # ROS 2 інструменти для демо блоку 5: colcon workspace, ament_auto і graph GUI.
 python3-colcon-common-extensions
 ros-jazzy-ament-cmake-auto
+ros-jazzy-rosidl-default-generators
 ros-jazzy-rqt-graph
 
 # CycloneDDS використовується як default RMW для стабільнішого discovery
 # у devcontainer.
 ros-jazzy-rmw-cyclonedds-cpp
+
+# ROS Jazzy iceoryx потрібен для demo 5.5: RouDi daemon, SharedMemory transport
+# і сумісний introspection client. Ubuntu package `iceoryx` не додається, бо
+# його build version може не збігатися з ROS Jazzy RouDi.
+ros-jazzy-iceoryx-posh
+ros-jazzy-iceoryx-introspection
