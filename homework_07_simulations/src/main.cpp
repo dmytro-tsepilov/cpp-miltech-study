@@ -1,6 +1,9 @@
 #include <string>
 #include <thread>
 #include <chrono>
+#include <memory>
+#include <iostream>
+#include <cmath>
 
 #include "common/macros.h"
 #include "factories/ConfigLoaderFactory.h"
@@ -8,7 +11,27 @@
 #include "factories/TargetProviderFactory.h"
 #include "factories/ResultWriterFactory.h"
 #include "mission/DronePhysics.h"
+#include "mission/UartDroneState.h"
 #include "mission/MissionProcessor.h"
+#include "mission/UartStepDriver.h"
+
+// HW22: UART + GPIO includes
+#include "protocol/drone_link.h"
+#include "protocol/IDroneGpioController.h"
+#include "protocol/IUartLink.h"
+#include "protocol/IUartTelemetryProvider.h"
+#include "protocol/IMissionCommandSource.h"
+
+// UART-based providers for config and targets
+#include "config/UartConfigProvider.h"
+#include "providers/UartTargetProvider.h"
+#include "providers/FixedTimeProvider.h"
+
+// Forward declarations for factory functions
+std::unique_ptr<IUartLink> createUartLink();
+std::unique_ptr<IDroneGpioController> createSimGpioController();
+std::unique_ptr<IUartTelemetryProvider> createUartTelemetryProvider();
+std::unique_ptr<IMissionCommandSource> createMissionCommandSource();
 
 // Helper function to parse command-line arguments.
 // Supports both --key=value and --key value formats.
@@ -36,6 +59,12 @@ int main(int argc, char** argv)
         LOG("usage: <folder> - drone_simulations path to folder with simulation files (ammo.json, config.json, targets.json)\n");
         LOG("usage: --remote TEST_NUMBER - use input data from remote server\n");
         LOG("usage: --btable BALLISTIC_TABLE_PATH - use input data from ballistic table file\n");
+        LOG("\nHW22 UART + GPIO options:\n");
+        LOG("  --uart DEVICE        - UART device path (e.g., /tmp/ttyA)\n");
+        LOG("  --gpiochip NAME      - GPIO chip name (e.g., gpiochip1 for sim, gpiochip0 for real Pi)\n");
+        LOG("  --start-line N       - GPIO line number for START signal\n");
+        LOG("  --drop-line N        - GPIO line number for DROP signal\n");
+        LOG("  --hw                 - Use real hardware mode (libgpiod)\n");
         return 1;
     }
 
@@ -67,12 +96,9 @@ int main(int argc, char** argv)
         }
     }
 
-    std::unique_ptr<IConfigLoader> cfgLoader;
-    std::unique_ptr<ITargetProvider> targetProvider;
-    std::unique_ptr<IBallisticSolver> solver;
-
     SolverType solverType = SolverType::TABLE;
 
+    std::unique_ptr<IBallisticSolver> solver;
     if (solverType == SolverType::TABLE) {
         solver = createBallisticSolver(solverType, ballisticTablePath);
     } else {
@@ -83,6 +109,222 @@ int main(int argc, char** argv)
         LOG("Failed to create ballistic solver");
         return 1;
     }
+
+    // HW22: Parse UART and GPIO arguments
+    std::string uartDevice = parseArgValue(argc, argv, "--uart");
+    std::string gpioChipName = parseArgValue(argc, argv, "--gpiochip");
+    std::string startLineStr = parseArgValue(argc, argv, "--start-line");
+    std::string dropLineStr = parseArgValue(argc, argv, "--drop-line");
+
+    // Parse --hw flag: supports bare "--hw" or "--hw=value"
+    bool hwMode = false;
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--hw") {
+            hwMode = true;
+            break;
+        }
+        if (arg.substr(0, 5) == "--hw=") {
+            hwMode = true;
+            break;
+        }
+    }
+
+    // Set defaults based on hardware mode
+    int startLine = 24;   // sim default
+    int dropLine = 23;    // sim default
+    std::string defaultUart = "/tmp/ttyA";  // sim default
+    std::string defaultGpioChip = "gpiochip1";  // sim default
+
+    if (hwMode) {
+        // Hardware defaults (Raspberry Pi)
+        defaultUart = "/dev/ttyAMA1";
+        defaultGpioChip = "gpiochip0";
+    }
+
+    int startLineNum = startLineStr.empty() ? startLine : std::stoi(startLineStr);
+    int dropLineNum = dropLineStr.empty() ? dropLine : std::stoi(dropLineStr);
+
+    // Default UART device if not specified
+    if (uartDevice.empty()) {
+        uartDevice = defaultUart;
+    }
+
+    // Default GPIO chip name if not specified
+    if (gpioChipName.empty()) {
+        gpioChipName = defaultGpioChip;
+    }
+
+    // HW22 UART mode is selected when a UART device is passed (or --hw is used);
+    // otherwise fall back to the legacy file/HTTP simulation below.
+    bool uartMode = !parseArgValue(argc, argv, "--uart").empty() || hwMode;
+
+    // ==========================================
+    // HW22: UART + GPIO mode
+    // ==========================================
+    if (uartMode) {
+        LOG("=== HW22 UART + GPIO Mode ===");
+        LOG("Mode: " << (hwMode ? "HARDWARE" : "SIMULATION"));
+        LOG("UART device: " << uartDevice);
+        LOG("GPIO chip: " << gpioChipName << " START=" << startLineNum << " DROP=" << dropLineNum);
+
+        // 1. Create and initialize GPIO controller (sim or hardware based on --hw flag)
+        std::unique_ptr<IDroneGpioController> gpio;
+        if (hwMode) {
+            gpio = createLibGpioController();
+        } else {
+            gpio = createSimGpioController();
+        }
+        if (!gpio->init(gpioChipName, startLine, dropLine)) {
+            LOG("Failed to initialize GPIO controller");
+            return 1;
+        }
+
+        // 2. Open UART link
+        auto uart = createUartLink();
+        if (!uart->open(uartDevice)) {
+            LOG("Failed to open UART device: " << uartDevice);
+            return 1;
+        }
+        LOG("UART opened: " << uartDevice);
+
+        // Set START high immediately (ready signal to checker)
+        gpio->setStart(true);
+        LOG("START line set HIGH — waiting for checker to start simulation");
+        //gpio->setStart(false); // Set low after signaling ready
+
+        // 3. Create and wire UART-based providers BEFORE starting telemetry
+        auto telProvider = createUartTelemetryProvider();
+        telProvider->setUartLink(uart.get());
+        telProvider->setGpioController(gpio.get());
+
+        // Wire global pointers FIRST (needed by callback static instances)
+        UartConfigProvider::setGlobalUartTelemetryProvider(telProvider.get());
+        UartTargetProvider::setGlobalUartTelemetryProvider(telProvider.get());
+
+        // Register callbacks BEFORE starting the thread so no packets are missed
+        UartConfigProvider::registerCallbacks();
+        UartTargetProvider::registerCallbacks();
+
+        // Create UART-backed config and target providers EARLY
+        // and set instance pointers BEFORE starting telemetry thread.
+        // This ensures packets arriving immediately after thread start
+        // are dispatched to the correct instances.
+        auto uartCfg = std::make_unique<UartConfigProvider>();
+        UartConfigProvider::setInstance(uartCfg.get());
+
+        auto uartTgt = std::make_unique<UartTargetProvider>();
+        UartTargetProvider::setInstance(uartTgt.get());
+
+        if (!telProvider->start()) {
+            LOG("Failed to start telemetry provider");
+            uart->close();
+            return 1;
+        }
+        LOG("Telemetry provider started, waiting for first packet...");
+
+        // Wait for checker to send first telemetry (blocks until START=1 is seen)
+        int waitCount = 0;
+        while (!telProvider->isReady() && waitCount < 5000) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            waitCount++;
+        }
+
+        if (!telProvider->isReady()) {
+            LOG("Timeout waiting for telemetry from checker");
+            telProvider->stop();
+            uart->close();
+            return 1;
+        }
+        LOG("First telemetry received, simulation is running!");
+
+        // Get initial AMMO config from checker
+        const auto& ammoCfg = telProvider->getAmmoConfig();
+        LOG("AMMO received: name=" << ammoCfg.name << " mass=" << ammoCfg.mass
+                                   << " drag=" << ammoCfg.drag << " lift=" << ammoCfg.lift);
+
+        // 4. Create UART-based config and target providers
+        std::unique_ptr<IConfigLoader> cfgLoader;
+        std::unique_ptr<ITargetProvider> targetProvider;
+
+        // cfgLoader and targetProvider are already created above (before telemetry thread start).
+        // Wrap them in smart pointers for ownership transfer to mission init.
+        cfgLoader = std::unique_ptr<IConfigLoader>(uartCfg.release());
+        targetProvider = std::unique_ptr<ITargetProvider>(uartTgt.release());
+
+        auto resultWriter = createResultWriter(DestType::JSON);
+        if (resultWriter == nullptr) {
+            LOG("Failed to create result writer");
+            telProvider->stop();
+            targetProvider.reset();
+            cfgLoader.reset();
+            uart->close();
+            return 1;
+        }
+
+        // UART-режим: стан дрона надходить від чекера, тож замість локальної
+        // фізики використовуємо UartDroneState (місія наводиться по телеметрії).
+        auto droneState = std::make_unique<UartDroneState>();
+        UartDroneState* dronePtr = droneState.get();
+
+        auto mission = std::make_unique<MissionProcessor>(std::move(solver), std::move(targetProvider));
+        if (!mission->init(std::move(cfgLoader), std::move(resultWriter), dronePtr)) {
+            LOG("Failed to initialize mission");
+            telProvider->stop();
+            droneState.reset();
+            uart->close();
+            return 1;
+        }
+
+        LOG("Mission ready");
+
+        // 5. Create drone control module (converts mission decision -> UART CONTROL).
+        auto cmdSource = createMissionCommandSource();
+
+        // Control-normalization scales computed by the mission from the checker config.
+        const double maxTurnPerStep = mission->getMaxTurnPerStep();
+        const float  accelPerStep   = mission->getAccelPerStep();
+        LOG("Control module ready: maxTurnPerStep=" << maxTurnPerStep
+                                                    << " accelPerStep=" << accelPerStep);
+
+        // 6. Wire the StepDriver and run the mission in its OWN thread (like the
+        //    file/HTTP mode). The driver owns the UART/GPIO pacing and I/O around
+        //    each guidance step, so MissionProcessor::run() stays I/O-agnostic:
+        //      waitNextTick() — блокує до нового кадру телеметрії чекера;
+        //      beforeStep()   — подає телеметрію в UartDroneState;
+        //      afterStep()    — шле CONTROL по UART;
+        //      onDrop()       — імпульс DROP на GPIO.
+        auto stepDriver = std::make_unique<UartStepDriver>(
+            uart.get(), gpio.get(), cmdSource.get(), telProvider.get(), dronePtr,
+            maxTurnPerStep, accelPerStep);
+        mission->setStepDriver(stepDriver.get());
+
+        LOG("=== Starting mission thread ===");
+        std::thread missionThread(&MissionProcessor::run, mission.get());
+
+        // Release run() from its wait-for-start spin. The mission ends on its own
+        // (drop / no next target / max steps), then we join.
+        mission->start();
+        missionThread.join();
+
+        // 7. Export results
+        mission->exportResults();
+        LOG("Results exported.");
+
+        // 8. Cleanup
+        gpio->setStart(false);   // сказати чекеру «завершено» і не лишати START у HIGH
+        telProvider->stop();
+        uart->close();
+
+        LOG("=== HW22 session complete ===");
+        return 0;
+    }
+
+    // ==========================================
+    // Legacy: File-based simulation mode (original)
+    // ==========================================
+    std::unique_ptr<IConfigLoader> cfgLoader;
+    std::unique_ptr<ITargetProvider> targetProvider;
 
     if (remote) {
         targetProvider = createTargetProvider(SourceType::HTTP, homeWork, testNumber);

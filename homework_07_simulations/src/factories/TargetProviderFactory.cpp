@@ -1,6 +1,7 @@
 #include "factories/TargetProviderFactory.h"
 
 #include "providers/TargetLoader.h"
+#include "providers/UartTargetProvider.h"
 #include "common/macros.h"
 
 #include <memory>
@@ -17,11 +18,7 @@ std::unique_ptr<ITargetProvider> createTargetProvider(SourceType type,
             return std::make_unique<ThreadSafeTargetProvider>(folderPath, filename);
         }
         case SourceType::SERIAL:
-            if (!param.has_value() || param->empty()) {
-                LOG("SerialTargetProvider requires a valid port name");
-                return nullptr;
-            }
-            return std::make_unique<SerialTargetProvider>(param.value());
+            return std::make_unique<UartTargetProvider>();
         case SourceType::HTTP:
 #if ENABLE_HTTP
         {

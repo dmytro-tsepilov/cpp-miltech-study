@@ -32,6 +32,31 @@ set(CPPHTTPLIB_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(httplib)
 endif()
 
+# HW22: GPIO support via libgpiod (for real Raspberry Pi hardware)
+# This is optional — if not available, simulation mode uses debugfs instead.
+option(ENABLE_GPIO "Enable GPIO support via libgpiod" ON)
+
+# Clear cached GPIO_AVAILABLE before re-detecting to avoid stale values from previous configure runs.
+# This is critical for cross-compilation: a previous x86 configure may have found libgpiod,
+# but the target architecture (e.g., aarch64) may not have it installed.
+unset(GPIO_AVAILABLE CACHE)
+unset(GPIOD_INCLUDE_DIR CACHE)
+unset(GPIOD_LIBRARIES CACHE)
+set(GPIO_AVAILABLE OFF CACHE BOOL "Whether GPIO/libgpiod is available")
+
+if(ENABLE_GPIO)
+    # Try to find libgpiod headers and libraries
+    find_path(GPIOD_INCLUDE_DIR gpiod.h)
+    find_library(GPIOD_LIBRARIES NAMES gpiod gpiocore)
+
+    if(GPIOD_INCLUDE_DIR AND GPIOD_LIBRARIES)
+        set(GPIO_AVAILABLE ON CACHE BOOL "Whether GPIO/libgpiod is available" FORCE)
+        message(STATUS "libgpiod found, GPIO support enabled")
+    else()
+        message(WARNING "libgpiod not found, GPIO support disabled (simulation mode will use debugfs)")
+    endif()
+endif()
+
 # Код домашньої роботи збирається з тим самим стандартом, що й лекційні приклади.
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -55,6 +80,10 @@ target_link_libraries(drone_simulations PRIVATE nlohmann_json::nlohmann_json Thr
 if(ENABLE_HTTP)
 target_link_libraries(drone_simulations PRIVATE httplib::httplib)
 endif()
+if(GPIO_AVAILABLE)
+target_link_libraries(drone_simulations PRIVATE ${GPIOD_LIBRARIES})
+target_include_directories(drone_simulations PRIVATE ${GPIOD_INCLUDE_DIRS})
+endif()
 
 target_include_directories(drone_simulations PRIVATE include)
 
@@ -62,6 +91,13 @@ if(ENABLE_HTTP)
 target_compile_definitions(drone_simulations PRIVATE ENABLE_HTTP=1)
 else()
 target_compile_definitions(drone_simulations PRIVATE ENABLE_HTTP=0)
+endif()
+
+# HW22: Set USE_GPIOD when libgpiod is available
+if(GPIO_AVAILABLE)
+target_compile_definitions(drone_simulations PRIVATE USE_GPIOD=1)
+else()
+target_compile_definitions(drone_simulations PRIVATE USE_GPIOD=0)
 endif()
 
 # Базові compiler warnings допомагають побачити підозрілі місця до runtime.
