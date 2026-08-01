@@ -44,12 +44,28 @@ std::string parseArgValue(int argc, char** argv, const std::string& key)
         if (arg.substr(0, key.size() + 2) == key + "=") {
             return arg.substr(key.size() + 3); // Skip "--key="
         }
-        // Check for --key value format
+        // Check for --key value format (only if there is a next argument that is not a flag)
         if (arg == key && i + 1 < argc) {
-            return argv[i + 1];
+            std::string nextArg = argv[i + 1];
+            if (!nextArg.empty() && nextArg.substr(0, 2) != "--") {
+                return argv[i + 1];
+            }
         }
     }
     return "";
+}
+
+// Helper function to check if a boolean flag is present.
+// Supports --key or --key=value formats.
+bool hasFlag(int argc, char** argv, const std::string& key)
+{
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == key || (arg.size() > key.size() && arg.substr(0, key.size() + 1) == key + "=")) {
+            return true;
+        }
+    }
+    return false;
 }
 
 int main(int argc, char** argv)
@@ -57,9 +73,10 @@ int main(int argc, char** argv)
     // The executable expects folder path with simulation files
     if (argc < 2) {
         LOG("usage: <folder> - drone_simulations path to folder with simulation files (ammo.json, config.json, targets.json)\n");
-        LOG("usage: --remote - use input data from remote server\n");
-        LOG("usage: --testNumber TEST_NUMBER - specify the test number\n");
-        LOG("usage: --btable BALLISTIC_TABLE_PATH - use input data from ballistic table file\n");
+        LOG("   --remote - use input data from remote server\n");
+        LOG("   --testNumber TEST_NUMBER - specify the test number\n");
+        LOG("   --remoteResults - save results on remote server\n");
+        LOG("   --btable BALLISTIC_TABLE_PATH - use input data from ballistic table file\n");
         LOG("\nHW22 UART + GPIO options:\n");
         LOG("  --uart DEVICE        - UART device path (e.g., /tmp/ttyA)\n");
         LOG("  --gpiochip NAME      - GPIO chip name (e.g., gpiochip1 for sim, gpiochip0 for real Pi)\n");
@@ -70,20 +87,31 @@ int main(int argc, char** argv)
     }
 
     std::string homeWork = "hw9";
-    std::string testNumber = "5";
+    std::string testNumber;
     bool remote = false;
     std::string ballisticTablePath;
 
-    // Parse --remote flag (supports --remote=test or --remote test)
-    std::string remoteVal = parseArgValue(argc, argv, "--remote");
-    if (!remoteVal.empty()) {
+    // Parse --remote flag using hasFlag (supports bare --remote)
+    if (hasFlag(argc, argv, "--remote")) {
         remote = true;
     }
+
+    bool remoteResults = hasFlag(argc, argv, "--remoteResults");
 
     // Parse --testNumber flag (supports --testNumber=123 or --testNumber 123)
     std::string testNumberVal = parseArgValue(argc, argv, "--testNumber");
     if (!testNumberVal.empty()) {
         testNumber = testNumberVal;
+    }
+
+    if (remote == true && testNumber.empty()) {
+        LOG("Error: --remote requires --testNumber to be specified");
+        return 1;
+    }
+
+    if (remoteResults == true && testNumber.empty()) {
+        LOG("Error: --remoteResults requires --testNumber to be specified");
+        return 1;
     }
 
     // Parse --btable flag (supports --btable=path or --btable /path)
@@ -358,9 +386,15 @@ int main(int argc, char** argv)
         }
     }
 
+    std::unique_ptr<IResultWriter> resultWriter;
     std::string studentId = "2041";
 
-    auto resultWriter = createResultWriter(DestType::HTTP, studentId, testNumber);
+    if (remoteResults) {
+        resultWriter = createResultWriter(DestType::HTTP, studentId, testNumber);
+    }
+    else {
+        resultWriter = createResultWriter(DestType::JSON);
+    }
     if (resultWriter == nullptr) {
         LOG("Failed to create result writer");
         return 1;
