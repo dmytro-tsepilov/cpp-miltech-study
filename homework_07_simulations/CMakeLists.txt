@@ -25,7 +25,7 @@ if(ENABLE_HTTP)
 FetchContent_Declare(
     httplib
     GIT_REPOSITORY https://github.com/yhirose/cpp-httplib
-    GIT_TAG v0.49.0
+    GIT_TAG v0.51.0
 )
 
 set(CPPHTTPLIB_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -69,7 +69,7 @@ file(GLOB_RECURSE SIMULATION_RESOURCES CONFIGURE_DEPENDS src/*.cpp)
 
 # Включаємо HTTP-файли тільки якщо ENABLE_HTTP увімкнено
 if(NOT ENABLE_HTTP)
-    list(FILTER SIMULATION_RESOURCES EXCLUDE REGEX "HttpConfigLoader\\.cpp|HttpTargetProvider\\.cpp")
+    list(FILTER SIMULATION_RESOURCES EXCLUDE REGEX "HttpConfigLoader\\.cpp|HttpTargetProvider\\.cpp|HttpResultWriter\\.cpp")
 endif()
 
 add_executable(drone_simulations ${SIMULATION_RESOURCES})
