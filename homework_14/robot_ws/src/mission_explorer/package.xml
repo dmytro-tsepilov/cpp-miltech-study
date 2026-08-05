@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>mission_explorer</name>
+  <version>0.1.0</version>
+  <description>ROS 2 mission explorer for Homework 14 underground exploration scenario.</description>
+
+  <maintainer email="robot-dreams@example.com">robot_dreams</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake_auto</buildtool_depend>
+
+  <depend>rclcpp</depend>
+
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <!-- Interface dependencies from underground_world -->
+  <build_depend>underground_world</build_depend>
+  <exec_depend>underground_world</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
