@@ -9,6 +9,7 @@
 #include "protocol/IDroneGpioController.h"
 #include "protocol/IMissionCommandSource.h"
 #include "protocol/IUartTelemetryProvider.h"
+#include "protocol/MavLinkTelemetryProvider.h"
 
 UartStepDriver::UartStepDriver(IUartLink* uart,
                                IDroneGpioController* gpio,
@@ -17,7 +18,8 @@ UartStepDriver::UartStepDriver(IUartLink* uart,
                                UartDroneState* droneState,
                                double maxTurnPerStep,
                                float accelPerStep,
-                               int maxSteps)
+                               int maxSteps,
+                               MavLinkTelemetryProvider* mavLink)
     : uart_(uart),
       gpio_(gpio),
       cmdSource_(cmdSource),
@@ -25,7 +27,8 @@ UartStepDriver::UartStepDriver(IUartLink* uart,
       droneState_(droneState),
       maxTurnPerStep_(maxTurnPerStep),
       accelPerStep_(accelPerStep),
-      maxSteps_(maxSteps)
+      maxSteps_(maxSteps),
+      mavLink_(mavLink)
 {
 }
 
@@ -103,4 +106,23 @@ void UartStepDriver::onDrop()
     LOG("*** DROP PULSE TRIGGERED at step " << step_ << " ***");
     uart_->sendControl(0.0f, 0.0f);
     gpio_->pulseDrop(180); // ~180ms імпульс скиду
+
+    // Send MAVLink COMMAND_LONG for drop if MavLink provider is available
+    if (mavLink_ && mavLink_->isRunning()) {
+        // Get current position from drone state for the drop point
+        const auto& tel = telProvider_->getTelemetry();
+        double dropX = tel.x;
+        double dropY = tel.y;
+        float dropAlt = tel.z; // altitude from telemetry
+
+        LOG("Sending MAVLink DROP command at pos=(" << dropX << "," << dropY 
+                     << "), alt=" << dropAlt);
+        
+        bool ackReceived = mavLink_->sendDropCommand(dropX, dropY, dropAlt);
+        if (ackReceived) {
+            LOG("DROP COMMAND_ACK received");
+        } else {
+            LOG("DROP failed: no ACK after retries (expected per spec)");
+        }
+    }
 }

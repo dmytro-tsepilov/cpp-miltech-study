@@ -27,6 +27,8 @@
 #include "providers/UartTargetProvider.h"
 #include "providers/FixedTimeProvider.h"
 
+// HW34: MAVLink telemetry provider
+#include "protocol/MavLinkTelemetryProvider.h"
 // Forward declarations for factory functions
 std::unique_ptr<IUartLink> createUartLink();
 std::unique_ptr<IDroneGpioController> createSimGpioController();
@@ -326,7 +328,15 @@ int main(int argc, char** argv)
         const double maxTurnPerStep = mission->getMaxTurnPerStep();
         const float  accelPerStep   = mission->getAccelPerStep();
         LOG("Control module ready: maxTurnPerStep=" << maxTurnPerStep
-                                                    << " accelPerStep=" << accelPerStep);
+                                                     << " accelPerStep=" << accelPerStep);
+
+        // HW34: Create and initialize MAVLink telemetry provider
+        auto mavLink = std::make_unique<MavLinkTelemetryProvider>();
+        if (!mavLink->init()) {
+            LOG("Warning: Failed to initialize MAVLink telemetry");
+        } else {
+            LOG("MAVLink telemetry started -> 127.0.0.1:14550");
+        }
 
         // 6. Wire the StepDriver and run the mission in its OWN thread (like the
         //    file/HTTP mode). The driver owns the UART/GPIO pacing and I/O around
@@ -337,7 +347,7 @@ int main(int argc, char** argv)
         //      onDrop()       — імпульс DROP на GPIO.
         auto stepDriver = std::make_unique<UartStepDriver>(
             uart.get(), gpio.get(), cmdSource.get(), telProvider.get(), dronePtr,
-            maxTurnPerStep, accelPerStep);
+            maxTurnPerStep, accelPerStep, 10000, mavLink.get());
         mission->setStepDriver(stepDriver.get());
 
         LOG("=== Starting mission thread ===");
@@ -353,6 +363,8 @@ int main(int argc, char** argv)
         LOG("Results exported.");
 
         // 8. Cleanup
+        // HW34: Stop MAVLink telemetry
+        mavLink->stop();
         gpio->setStart(false);   // сказати чекеру «завершено» і не лишати START у HIGH
         telProvider->stop();
         uart->close();
