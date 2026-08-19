@@ -12,19 +12,6 @@
 #include <errno.h>
 
 // MAVLink constants
-static constexpr uint8_t MAV_TYPE_QUADROTOR = 15;
-static constexpr uint8_t MAV_AUTOPILOT_GENERIC = 4;
-static constexpr uint8_t MAV_STATE_ACTIVE = 3;
-static constexpr uint16_t MAV_CMD_USER_1 = 50000;
-static constexpr uint8_t MAV_RESULT_ACCEPTED = 1;
-
-// Message IDs in the minimal MAVLink 2 message format we use
-static constexpr uint8_t MAVLINK_MSG_ID_HEARTBEAT = 0;
-static constexpr uint8_t MAVLINK_MSG_ID_GLOBAL_POSITION_INT = 62;
-static constexpr uint8_t MAVLINK_MSG_ID_ATTITUDE = 30;
-static constexpr uint8_t MAVLINK_MSG_ID_COMMAND_LONG = 76;
-static constexpr uint8_t MAVLINK_MSG_ID_COMMAND_ACK = 187;
-
 MavLinkTelemetryProvider::MavLinkTelemetryProvider()
     : targetIp_(DEFAULT_TARGET_IP), targetPort_(DEFAULT_TARGET_PORT) {
 }
@@ -85,64 +72,35 @@ void MavLinkTelemetryProvider::closeUdpSocket() {
     }
 }
 
-bool MavLinkTelemetryProvider::sendMavlinkMessage(uint8_t msgId, const uint8_t* payload, uint16_t len) {
+bool MavLinkTelemetryProvider::sendMavlinkMessage(const mavlink_message_t& message) {
     if (sockfd_ < 0) return false;
 
-    // Build a minimal MAVLink 2 message manually:
-    // [0]    : magic (0xFD)
-    // [1..2] : payload length
-    // [3]    : msg ID (low byte)
-    // [4]    : msg ID (mid byte)
-    // [5]    : msg ID (high byte)
-    // [6..6+len-1] : payload
-    // [6+len]  : checksum
+    uint8_t buf[MAVLINK_MAX_PACKET_LEN];
+    const uint16_t totalMsgLen = mavlink_msg_to_send_buffer(buf, &message);
 
-    uint8_t buf[256];
-    if (6 + len + 1 > sizeof(buf)) return false;
-
-    buf[0] = 0xFD;                          // MAVLink 2 magic
-    buf[1] = static_cast<uint8_t>(len);     // payload length
-    buf[2] = static_cast<uint8_t>(msgId & 0xFF);
-    buf[3] = static_cast<uint8_t>((msgId >> 8) & 0xFF);
-    buf[4] = static_cast<uint8_t>((msgId >> 16) & 0xFF);
-    buf[5] = COMP_ID;                       // component ID
-
-    std::memcpy(buf + 6, payload, len);
-
-    // Simple checksum over header + payload
-    uint16_t checksum = 0;
-    for (uint16_t i = 0; i < 6 + len; ++i) {
-        checksum += buf[i];
-    }
-    buf[6 + len] = static_cast<uint8_t>(checksum & 0xFF);
-
-    ssize_t sent = sendto(sockfd_, buf, 7 + len, 0,
+    ssize_t sent = sendto(sockfd_, buf, totalMsgLen, 0,
                           reinterpret_cast<sockaddr*>(&destAddr_), sizeof(destAddr_));
     if (sent < 0) {
-        // Don't log errors for heartbeat - it's frequent
+        std::cerr << "[MavLink] sendto failed for msgid=" << message.msgid
+                  << " target=" << targetIp_ << ":" << targetPort_
+                  << ": " << strerror(errno) << std::endl;
+        return false;
+    }
+    if (sent != totalMsgLen) {
+        std::cerr << "[MavLink] short UDP send for msgid=" << message.msgid
+                  << ": " << sent << "/" << totalMsgLen << " bytes" << std::endl;
         return false;
     }
     return true;
 }
 
-void MavLinkTelemetryProvider::packHeartbeat(uint8_t* payload, uint16_t& len) {
-    // HEARTBEAT message format (7 bytes):
-    // type (1), mavType (1), baseMode (1), customMode (4) - but we only need first bytes
-    // Actually for MAVLink 2 with COMP_ID:
-    // We pack into the payload area after header
-
-    // Minimal heartbeat: just type and status
-    payload[0] = static_cast<uint8_t>(MAV_TYPE_QUADROTOR);       // type
-    payload[1] = static_cast<uint8_t>(MAV_AUTOPILOT_GENERIC);    // mavType
-    payload[2] = 0;                                                // baseMode (logical OR of MAV_MODE_FLAG)
-    payload[3] = 0;                                                // customMode reserved
-    payload[4] = 0;
-    payload[5] = 0;
-    payload[6] = static_cast<uint8_t>(MAV_STATE_ACTIVE);         // systemStatus
-    len = 7;
+void MavLinkTelemetryProvider::packHeartbeat(mavlink_message_t& message) {
+    mavlink_msg_heartbeat_pack(SYS_ID, COMP_ID, &message,
+                                MAV_TYPE_QUADROTOR, MAV_AUTOPILOT_GENERIC,
+                                0, 0, MAV_STATE_ACTIVE);
 }
 
-void MavLinkTelemetryProvider::packGlobalPositionInt(uint8_t* payload, uint16_t& len) {
+void MavLinkTelemetryProvider::packGlobalPositionInt(mavlink_message_t& message) {
     int32_t lat = 0, lon = 0;
     {
         std::lock_guard<std::mutex> lock(telMutex_);
@@ -158,36 +116,17 @@ void MavLinkTelemetryProvider::packGlobalPositionInt(uint8_t* payload, uint16_t&
         timeBootMs = lastTimeBootMs_;
     }
 
-    // Pack in little-endian order
-    uint8_t* p = payload;
-    std::memcpy(p, &timeBootMs, 4); p += 4;
-    int32_t latVal = lat;
-    std::memcpy(p, &latVal, 4); p += 4;
-    int32_t lonVal = lon;
-    std::memcpy(p, &lonVal, 4); p += 4;
-
     int32_t alt_mm = static_cast<int32_t>(lastAltitude_ * 1000.0f);
-    std::memcpy(p, &alt_mm, 4); p += 4;
-
     int32_t relAlt_mm = static_cast<int32_t>(lastRelativeAlt_ * 1000.0f);
-    std::memcpy(p, &relAlt_mm, 4); p += 4;
-
     int16_t vx_cm = static_cast<int16_t>(lastVx_ * 100.0f);
-    std::memcpy(p, &vx_cm, 2); p += 2;
-
     int16_t vy_cm = static_cast<int16_t>(lastVy_ * 100.0f);
-    std::memcpy(p, &vy_cm, 2); p += 2;
-
-    int16_t vz_cm = 0; // We don't have vertical velocity
-    std::memcpy(p, &vz_cm, 2); p += 2;
-
     uint16_t hdg_cdeg = static_cast<uint16_t>(lastHeadingDeg_ * 100.0f);
-    std::memcpy(p, &hdg_cdeg, 2); p += 2;
-
-    len = 30;
+    mavlink_msg_global_position_int_pack(SYS_ID, COMP_ID, &message,
+                                         timeBootMs, lat, lon, alt_mm,
+                                         relAlt_mm, vx_cm, vy_cm, 0, hdg_cdeg);
 }
 
-void MavLinkTelemetryProvider::packAttitude(uint8_t* payload, uint16_t& len) {
+void MavLinkTelemetryProvider::packAttitude(mavlink_message_t& message) {
     uint32_t timeBootMs;
     {
         std::lock_guard<std::mutex> lock(telMutex_);
@@ -201,24 +140,12 @@ void MavLinkTelemetryProvider::packAttitude(uint8_t* payload, uint16_t& len) {
         headingRad = lastHeadingDeg_ * M_PI / 180.0f;
     }
 
-    // ATTITUDE (24 bytes):
-    // time_boot_ms (u32), roll (f), pitch (f), yaw (f)
-    uint8_t* p = payload;
-    std::memcpy(p, &timeBootMs, 4); p += 4;
-
-    float roll = 0.0f;
-    std::memcpy(p, &roll, 4); p += 4;
-
-    float pitch = 0.0f;
-    std::memcpy(p, &pitch, 4); p += 4;
-
-    std::memcpy(p, &headingRad, 4); p += 4;
-
-    // Zero padding for remaining fields if needed
-    len = 16;
+    mavlink_msg_attitude_pack(SYS_ID, COMP_ID, &message,
+                              timeBootMs, 0.0f, 0.0f, headingRad,
+                              0.0f, 0.0f, 0.0f);
 }
 
-void MavLinkTelemetryProvider::packCommandLong(uint8_t* payload, uint16_t& len) {
+void MavLinkTelemetryProvider::packCommandLong(mavlink_message_t& message) {
     double dropLatDeg, dropLonDeg;
     {
         std::lock_guard<std::mutex> lock(telMutex_);
@@ -230,31 +157,22 @@ void MavLinkTelemetryProvider::packCommandLong(uint8_t* payload, uint16_t& len) 
 
     float dropAlt = dropAltitude_;
 
-    // COMMAND_LONG (58 bytes):
-    // target_system (u8), target_component (u8), command (u16),
-    // param1-7 (f each), confirmation (u8)
-    uint8_t* p = payload;
-    p[0] = SYS_ID;        // target_system
-    p[1] = COMP_ID;       // target_component
-    p += 2;
-
-    uint16_t cmd = MAV_CMD_USER_1;
-    std::memcpy(p, &cmd, 2); p += 2;
-
     float params[7] = {0.0f, 0.0f, 0.0f, 0.0f,
                        static_cast<float>(dropLatDeg),
                        static_cast<float>(dropLonDeg),
                        dropAlt};
-    std::memcpy(p, params, sizeof(params)); p += sizeof(params);
-
-    p[0] = 1; // confirmation
-    len = 58;
+    mavlink_msg_command_long_pack(SYS_ID, COMP_ID, &message,
+                                  1, MAV_COMP_ID_AUTOPILOT1, MAV_CMD_USER_1,
+                                  1, params[0], params[1], params[2], params[3],
+                                  params[4], params[5], params[6]);
 }
 
 void MavLinkTelemetryProvider::sendTelemetry(double localX, double localY, float altitude,
-                                              float relativeAlt, float vx, float vy,
-                                              float headingDeg, uint32_t timeBootMs) {
-    if (!running_.load()) return;
+                                               float relativeAlt, float vx, float vy,
+                                               float headingDeg, uint32_t timeBootMs) {
+    if (!running_.load()) {
+        return;
+    }
 
     // Update last telemetry data
     {
@@ -269,33 +187,28 @@ void MavLinkTelemetryProvider::sendTelemetry(double localX, double localY, float
         lastTimeBootMs_ = timeBootMs;
     }
 
-    // Send HEARTBEAT (throttle to ~1 Hz)
-    auto now = std::chrono::steady_clock::now();
-    uint32_t nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-        now.time_since_epoch()).count();
-    if (nowMs - lastHeartbeatTimeMs_ > 1000) {
-        uint8_t hbPayload[7];
-        uint16_t hbLen = 0;
-        packHeartbeat(hbPayload, hbLen);
-        sendMavlinkMessage(MAVLINK_MSG_ID_HEARTBEAT, hbPayload, hbLen);
-        lastHeartbeatTimeMs_ = nowMs;
-    }
-
     // Send GLOBAL_POSITION_INT
-    uint8_t gpPayload[30];
-    uint16_t gpLen = 0;
-    packGlobalPositionInt(gpPayload, gpLen);
-    sendMavlinkMessage(MAVLINK_MSG_ID_GLOBAL_POSITION_INT, gpPayload, gpLen);
+    mavlink_message_t globalPositionMessage{};
+    packGlobalPositionInt(globalPositionMessage);
+    int gpSent = sendMavlinkMessage(globalPositionMessage);
 
-    // Send ATTITUDE
-    uint8_t attPayload[16];
-    uint16_t attLen = 0;
-    packAttitude(attPayload, attLen);
-    sendMavlinkMessage(MAVLINK_MSG_ID_ATTITUDE, attPayload, attLen);
+    // Send ATTITUDE (24 bytes payload)
+    mavlink_message_t attitudeMessage{};
+    packAttitude(attitudeMessage);
+    int attSent = sendMavlinkMessage(attitudeMessage);
+
+    // Log first few telemetry frames for debugging
+    static int telLogCount = 0;
+    if (telLogCount < 5) {
+        std::cout << "[MavLink] telemetry call: gp=" << gpSent << " att=" << attSent
+                  << " pos=(" << localX << "," << localY << ")"
+                  << " time=" << timeBootMs << "ms" << std::endl;
+        telLogCount++;
+    }
 }
 
 bool MavLinkTelemetryProvider::sendDropCommand(double localX, double localY, float altitude) {
-    std::lock_guard<std::mutex> lock(dropMutex_);
+    std::unique_lock<std::mutex> lock(dropMutex_);
 
     dropLocalX_ = localX;
     dropLocalY_ = localY;
@@ -303,8 +216,14 @@ bool MavLinkTelemetryProvider::sendDropCommand(double localX, double localY, flo
     dropRetryCount_ = 0;
     dropCmdPending_ = true;
 
-    std::cout << "[MavLink] Sending DROP command (lat=" << REF_LAT
-              << ", lon=" << REF_LON << "), altitude=" << altitude << "m" << std::endl;
+    // Compute actual GPS coordinates for logging
+    int32_t latInt, lonInt;
+    localToGps(dropLocalX_, dropLocalY_, latInt, lonInt);
+    double dropLatDeg = latInt / 1e7;
+    double dropLonDeg = lonInt / 1e7;
+
+    std::cout << "[MavLink] Sending DROP command (lat=" << dropLatDeg
+              << ", lon=" << dropLonDeg << "), altitude=" << altitude << "m" << std::endl;
 
     const int maxRetries = 5;
     const std::chrono::milliseconds retryDelay(500);
@@ -313,29 +232,18 @@ bool MavLinkTelemetryProvider::sendDropCommand(double localX, double localY, flo
         dropRetryCount_ = i + 1;
 
         // Send COMMAND_LONG
-        uint8_t cmdPayload[58];
-        uint16_t cmdLen = 0;
-        packCommandLong(cmdPayload, cmdLen);
-        sendMavlinkMessage(MAVLINK_MSG_ID_COMMAND_LONG, cmdPayload, cmdLen);
+        mavlink_message_t commandMessage{};
+        packCommandLong(commandMessage);
+        sendMavlinkMessage(commandMessage);
 
         std::cout << "[MavLink] DROP attempt " << dropRetryCount_ << "/" << maxRetries << std::endl;
 
-        // Wait for ACK with timeout
-        auto startTime = std::chrono::steady_clock::now();
-        bool ackReceived = false;
-        while (std::chrono::steady_clock::now() - startTime < std::chrono::seconds(2)) {
-            if (dropCmdPending_.load()) {
-                // Check incoming messages
-                parseIncoming();
-                if (!dropCmdPending_.load()) {
-                    ackReceived = true;
-                    break;
-                }
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
+        // The receiver thread owns recvfrom(). Wait until it processes the ACK.
+        const bool ackReceived = dropCv_.wait_for(
+            lock, std::chrono::seconds(2),
+            [this] { return !dropCmdPending_.load(); });
 
-        if (ackReceived) {
+        if (ackReceived || !dropCmdPending_.load()) {
             std::cout << "[MavLink] DROP ACK received!" << std::endl;
             return true;
         }
@@ -352,43 +260,38 @@ bool MavLinkTelemetryProvider::sendDropCommand(double localX, double localY, flo
 void MavLinkTelemetryProvider::parseIncoming() {
     if (sockfd_ < 0) return;
 
-    uint8_t buf[256];
+    uint8_t buf[MAVLINK_MAX_PACKET_LEN];
     struct sockaddr_in srcAddr;
     socklen_t srcLen = sizeof(srcAddr);
 
     ssize_t n = recvfrom(sockfd_, buf, sizeof(buf), 0,
                          reinterpret_cast<sockaddr*>(&srcAddr), &srcLen);
-    if (n < 7) return; // Too short for any MAVLink message
+    if (n <= 0) return;
 
-    // Check for MAVLink 2 magic
-    if (buf[0] != 0xFD) return;
-
-    uint16_t msgId = buf[2] | (buf[3] << 8) | (buf[4] << 16);
-
-    // Verify checksum
-    uint16_t checksum = 0;
-    for (uint16_t i = 0; i < 6 + buf[1]; ++i) {
-        checksum += buf[i];
-    }
-    if (static_cast<uint8_t>(checksum & 0xFF) != buf[6 + buf[1]]) return;
-
-    // Process COMMAND_ACK
-    if (msgId == MAVLINK_MSG_ID_COMMAND_ACK) {
-        if (n >= 7 + 4) { // Need at least header + command + result
-            uint16_t cmd = buf[6] | (buf[7] << 8);
-            uint8_t result = buf[8];
-
-            if (cmd == MAV_CMD_USER_1 && result == MAV_RESULT_ACCEPTED) {
-                std::cout << "[MavLink] COMMAND_ACK received for MAV_CMD_USER_1" << std::endl;
-                dropCmdPending_ = false;
-                dropCv_.notify_all();
-            } else if (cmd == MAV_CMD_USER_1) {
-                std::cerr << "[MavLink] COMMAND_ACK with result=" << static_cast<int>(result)
-                          << " for MAV_CMD_USER_1" << std::endl;
-                dropCmdPending_ = false;
-                dropCv_.notify_all();
-            }
+    mavlink_message_t message{};
+    for (ssize_t i = 0; i < n; ++i) {
+        if (!mavlink_parse_char(MAVLINK_COMM_0, buf[i], &message, &mavlinkStatus_)) {
+            continue;
         }
+
+        if (message.msgid != MAVLINK_MSG_ID_COMMAND_ACK) {
+            continue;
+        }
+
+        const uint16_t command = mavlink_msg_command_ack_get_command(&message);
+        const uint8_t result = mavlink_msg_command_ack_get_result(&message);
+        if (command != MAV_CMD_USER_1) {
+            continue;
+        }
+
+        if (result == MAV_RESULT_ACCEPTED) {
+            std::cout << "[MavLink] COMMAND_ACK received for MAV_CMD_USER_1" << std::endl;
+        } else {
+            std::cerr << "[MavLink] COMMAND_ACK with result=" << static_cast<int>(result)
+                      << " for MAV_CMD_USER_1" << std::endl;
+        }
+        dropCmdPending_ = false;
+        dropCv_.notify_all();
     }
 }
 
@@ -400,8 +303,14 @@ void MavLinkTelemetryProvider::receiveLoop() {
 }
 
 void MavLinkTelemetryProvider::heartbeatLoop() {
-    // Heartbeat is handled inline in sendTelemetry for simplicity
-    // This function is kept for potential future use
+    mavlink_message_t heartbeatMessage{};
+    packHeartbeat(heartbeatMessage);
+    while (running_.load()) {
+        const bool sent = sendMavlinkMessage(heartbeatMessage);
+        std::cout << "[MavLink] heartbeat: " << (sent ? "sent" : "failed")
+                  << " -> " << targetIp_ << ":" << targetPort_ << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
 }
 
 bool MavLinkTelemetryProvider::init(const std::string& targetIp, int targetPort) {
@@ -419,6 +328,7 @@ bool MavLinkTelemetryProvider::init(const std::string& targetIp, int targetPort)
         std::chrono::steady_clock::now().time_since_epoch()).count();
 
     recvThread_ = std::thread(&MavLinkTelemetryProvider::receiveLoop, this);
+    heartbeatThread_ = std::thread(&MavLinkTelemetryProvider::heartbeatLoop, this);
 
     std::cout << "[MavLink] Telemetry provider started -> " << targetIp_ << ":" << targetPort_ << std::endl;
     return true;
@@ -431,6 +341,9 @@ void MavLinkTelemetryProvider::stop() {
 
     if (recvThread_.joinable()) {
         recvThread_.join();
+    }
+    if (heartbeatThread_.joinable()) {
+        heartbeatThread_.join();
     }
 
     closeUdpSocket();

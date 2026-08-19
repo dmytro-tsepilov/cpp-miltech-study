@@ -90,6 +90,21 @@ void UartStepDriver::afterStep()
         LOG("Failed to send CONTROL command at step " << step_);
     }
 
+    // Send MAVLink telemetry (HEARTBEAT, GLOBAL_POSITION_INT, ATTITUDE)
+    if (mavLink_ && mavLink_->isRunning()) {
+        const auto& tel = telProvider_->getTelemetry();
+        uint32_t timeBootMs = telProvider_->getTelemetryTimeMs();
+        // Convert heading from radians to degrees for sendTelemetry
+        float headingDeg = tel.dir * 180.0f / M_PI;
+        mavLink_->sendTelemetry(
+            tel.x, tel.y, tel.z,   // localX, localY, altitude
+            0.0f,                   // relativeAlt
+            tel.vx, tel.vy,        // vx, vy
+            headingDeg,             // heading in degrees
+            timeBootMs             // time_boot_ms
+        );
+    }
+
     if (step_ % 100 == 0) {
         LOG("Step " << step_ << ": tel_pos=(" << dt_.pos.x << "," << dt_.pos.y
                     << ") speed=" << dt_.speed << " dir=" << dt_.direction

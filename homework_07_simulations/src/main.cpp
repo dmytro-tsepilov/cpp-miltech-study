@@ -266,6 +266,15 @@ int main(int argc, char** argv)
         }
         LOG("Telemetry provider started, waiting for first packet...");
 
+        // Start MAVLink before waiting for the checker. The checker may be
+        // absent while QGroundControl is used for standalone telemetry.
+        auto mavLink = std::make_unique<MavLinkTelemetryProvider>();
+        if (!mavLink->init()) {
+            LOG("Warning: Failed to initialize MAVLink telemetry");
+        } else {
+            LOG("MAVLink telemetry provider initialized");
+        }
+
         // Wait for checker to send first telemetry (blocks until START=1 is seen)
         int waitCount = 0;
         while (!telProvider->isReady() && waitCount < 5000) {
@@ -329,14 +338,6 @@ int main(int argc, char** argv)
         const float  accelPerStep   = mission->getAccelPerStep();
         LOG("Control module ready: maxTurnPerStep=" << maxTurnPerStep
                                                      << " accelPerStep=" << accelPerStep);
-
-        // HW34: Create and initialize MAVLink telemetry provider
-        auto mavLink = std::make_unique<MavLinkTelemetryProvider>();
-        if (!mavLink->init()) {
-            LOG("Warning: Failed to initialize MAVLink telemetry");
-        } else {
-            LOG("MAVLink telemetry started -> 127.0.0.1:14550");
-        }
 
         // 6. Wire the StepDriver and run the mission in its OWN thread (like the
         //    file/HTTP mode). The driver owns the UART/GPIO pacing and I/O around

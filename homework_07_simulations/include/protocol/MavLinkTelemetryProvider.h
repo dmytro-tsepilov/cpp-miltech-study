@@ -20,7 +20,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include <memory>
 #include <string>
 #include <atomic>
 #include <mutex>
@@ -28,10 +27,12 @@
 #include <condition_variable>
 #include <cstdint>
 
+#include <common/mavlink.h>
+
 class MavLinkTelemetryProvider {
 public:
-    // Default target: 127.0.0.1:14550 (QGroundControl default)
-    static constexpr const char* DEFAULT_TARGET_IP = "127.0.0.1";
+    // Default target: 127.0.0.1:14550 (QGroundControl listens on this by default)
+    static constexpr const char* DEFAULT_TARGET_IP = "10.0.10.17";
     static constexpr int DEFAULT_TARGET_PORT = 14550;
 
     // Reference coordinates for local-to-GPS conversion
@@ -75,13 +76,13 @@ private:
     // UDP socket helpers
     bool initUdpSocket();
     void closeUdpSocket();
-    bool sendMavlinkMessage(uint8_t msgId, const uint8_t* payload, uint16_t len);
+    bool sendMavlinkMessage(const mavlink_message_t& message);
 
     // MAVLink message packers (manual packing for c_library_v2)
-    void packHeartbeat(uint8_t* payload, uint16_t& len);
-    void packGlobalPositionInt(uint8_t* payload, uint16_t& len);
-    void packAttitude(uint8_t* payload, uint16_t& len);
-    void packCommandLong(uint8_t* payload, uint16_t& len);
+    void packHeartbeat(mavlink_message_t& message);
+    void packGlobalPositionInt(mavlink_message_t& message);
+    void packAttitude(mavlink_message_t& message);
+    void packCommandLong(mavlink_message_t& message);
 
     // MAVLink message unpacker (for COMMAND_ACK)
     void parseIncoming();
@@ -100,7 +101,8 @@ private:
 
     std::atomic<bool> running_{false};
     std::thread recvThread_;
-    std::thread hbThread_;
+    std::thread heartbeatThread_;
+    mavlink_status_t mavlinkStatus_{};
 
     // Drop command state
     mutable std::mutex dropMutex_;
