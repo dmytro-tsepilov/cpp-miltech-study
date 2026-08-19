@@ -21,6 +21,7 @@ class IDroneGpioController;
 class IMissionCommandSource;
 class IUartTelemetryProvider;
 class UartDroneState;
+class MavLinkTelemetryProvider;
 
 class UartStepDriver : public IStepDriver {
 public:
@@ -31,7 +32,8 @@ public:
                    UartDroneState* droneState,
                    double maxTurnPerStep,
                    float accelPerStep,
-                   int maxSteps = 10000);
+                   int maxSteps = 10000,
+                   MavLinkTelemetryProvider* mavLink = nullptr);
 
     // Заблокуватися до нового кадру телеметрії чекера (пейсинг по t_ms).
     bool waitNextTick() override;
@@ -42,7 +44,7 @@ public:
     // Перетворити рішення місії на CONTROL і надіслати по UART.
     void afterStep() override;
 
-    // Надіслати нульове керування і імпульс DROP на GPIO.
+    // Надіслати нульове керування, імпульс DROP на GPIO і COMMAND_LONG через MAVLink.
     void onDrop() override;
 
 private:
@@ -51,10 +53,10 @@ private:
     IMissionCommandSource*   cmdSource_;
     IUartTelemetryProvider*  telProvider_;
     UartDroneState*          droneState_;
-
     double maxTurnPerStep_;
     float  accelPerStep_;
     int    maxSteps_;
+    MavLinkTelemetryProvider* mavLink_;
 
     int      step_ = 0;
     uint32_t lastTelemetryMs_ = 0;
