@@ -32,7 +32,7 @@
 class MavLinkTelemetryProvider {
 public:
     // Default target: 127.0.0.1:14550 (QGroundControl listens on this by default)
-    static constexpr const char* DEFAULT_TARGET_IP = "10.0.10.17";
+    static constexpr const char* DEFAULT_TARGET_IP = "127.0.0.1";
     static constexpr int DEFAULT_TARGET_PORT = 14550;
 
     // Reference coordinates for local-to-GPS conversion
