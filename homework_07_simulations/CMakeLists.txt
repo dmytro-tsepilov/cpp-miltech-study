@@ -32,6 +32,14 @@ set(CPPHTTPLIB_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(httplib)
 endif()
 
+# MAVLink 2 library for telemetry (HW34)
+FetchContent_Declare(
+    mavlink
+    GIT_REPOSITORY https://github.com/mavlink/c_library_v2.git
+    GIT_TAG master
+)
+FetchContent_MakeAvailable(mavlink)
+
 # HW22: GPIO support via libgpiod (for real Raspberry Pi hardware)
 # This is optional — if not available, simulation mode uses debugfs instead.
 option(ENABLE_GPIO "Enable GPIO support via libgpiod" ON)
@@ -85,6 +93,8 @@ target_link_libraries(drone_simulations PRIVATE ${GPIOD_LIBRARIES})
 target_include_directories(drone_simulations PRIVATE ${GPIOD_INCLUDE_DIRS})
 endif()
 
+# Add MAVLink include directory (SYSTEM to suppress warnings from generated headers)
+target_include_directories(drone_simulations SYSTEM PRIVATE ${mavlink_SOURCE_DIR})
 target_include_directories(drone_simulations PRIVATE include)
 
 if(ENABLE_HTTP)
