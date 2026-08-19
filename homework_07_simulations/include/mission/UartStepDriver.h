@@ -53,11 +53,10 @@ private:
     IMissionCommandSource*   cmdSource_;
     IUartTelemetryProvider*  telProvider_;
     UartDroneState*          droneState_;
-    MavLinkTelemetryProvider* mavLink_;
-
     double maxTurnPerStep_;
     float  accelPerStep_;
     int    maxSteps_;
+    MavLinkTelemetryProvider* mavLink_;
 
     int      step_ = 0;
     uint32_t lastTelemetryMs_ = 0;
