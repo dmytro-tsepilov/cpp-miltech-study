@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "author": "Dmytro Tsepilov",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-s3-devkitc-1",
+      "id": "esp",
+      "top": -38.58,
+      "left": -24.23,
+      "attrs": {}
+    },
+    { "type": "wokwi-mpu6050", "id": "imu1", "top": 13.42, "left": -343.28, "attrs": {} },
+    {
+      "type": "board-ssd1306",
+      "id": "oled1",
+      "top": -25.66,
+      "left": 240.23,
+      "attrs": { "i2cAddress": "0x3c" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": 73.4,
+      "left": 259.2,
+      "attrs": { "color": "green", "xray": "1" }
+    },
+    {
+      "type": "board-bmp180",
+      "id": "bmp1",
+      "top": -186.56,
+      "left": -345.34,
+      "attrs": { "pressure": "61750", "temperature": "6.5" }
+    }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "oled1:VCC", "esp:3V3.1", "red", [ "v-96", "h-220.6" ] ],
+    [ "oled1:SCL", "esp:9", "cyan", [ "v-105.6", "h-364.5", "v240" ] ],
+    [ "oled1:SDA", "esp:8", "cyan", [ "v-115.2", "h-383.93", "v220.8" ] ],
+    [ "imu1:VCC", "esp:3V3.2", "red", [ "v-19.2", "h76.88", "v86.4" ] ],
+    [ "imu1:GND", "esp:GND.2", "black", [ "v-96", "h345.68" ] ],
+    [ "bmp1:GND", "esp:GND.2", "black", [ "h364.8", "v163.39" ] ],
+    [ "imu1:SDA", "esp:4", "yellow", [ "v-76.8", "h96.08", "v163.2" ] ],
+    [ "imu1:SCL", "esp:5", "yellow", [ "v-57.6", "h76.88", "v153.6" ] ],
+    [ "bmp1:SDA", "esp:4", "green", [ "h144", "v172.99" ] ],
+    [ "bmp1:SCL", "esp:5", "green", [ "h153.6", "v192.19" ] ],
+    [ "btn1:2.l", "esp:10", "blue", [ "v153.8", "h-307.2", "v-124.8" ] ],
+    [ "bmp1:3.3V", "esp:3V3.1", "red", [ "h134.4", "v134.59" ] ],
+    [ "esp:GND.1", "btn1:1.l", "black", [ "h-9.65", "v48", "h278.4", "v-144" ] ],
+    [ "oled1:GND", "esp:GND.4", "black", [ "v-19.2", "h-182.4", "v230.4" ] ]
+  ],
+  "dependencies": {}
+}
