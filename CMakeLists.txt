@@ -24,6 +24,7 @@ option(ENABLE_HTTP "Enable HTTP-based config and target providers" OFF)
 #add_subdirectory(homework_05)
 #add_subdirectory(homework_06)
 add_subdirectory(homework_07_simulations)
+add_subdirectory(homework_16)
 
 # Demo-код для заняття 2.4: локальне і віддалене відлагодження через GDB.
 add_subdirectory(demos/lesson_2_4/debug_probe)
