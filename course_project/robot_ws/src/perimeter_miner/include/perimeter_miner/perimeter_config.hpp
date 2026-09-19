@@ -1,10 +1,13 @@
+// Copyright 2026 Perimeter Miner Project
+// SPDX-License-Identifier: MIT
+
 #pragma once
 
+#include <cmath>
 #include <cstdint>
+#include <iostream>
 #include <string>
 #include <vector>
-#include <cmath>
-#include <iostream>
 
 namespace perimeter_miner {
 
@@ -14,9 +17,9 @@ struct Waypoint {
     double y = 0.0;
     double heading = 0.0;      // target heading when approaching (radians)
     double approach_radius = 1.0; // approach radius (meters)
-    
+
     bool operator==(const Waypoint& other) const {
-        return std::abs(x - other.x) < 1e-6 && 
+        return std::abs(x - other.x) < 1e-6 &&
                std::abs(y - other.y) < 1e-6;
     }
 };
@@ -29,10 +32,10 @@ struct PerimeterConfig {
     double tolerance = 0.5;      // waypoint reach tolerance (meters)
     double max_speed = 2.0;      // maximum linear speed (m/s)
     double min_turn_radius = 1.0; // minimum turning radius (meters)
-    
+
     /// Get total number of waypoints
     size_t waypointCount() const { return waypoints.size(); }
-    
+
     /// Get waypoint at index (handles closed loop wrapping)
     const Waypoint& getWaypoint(size_t index) const {
         if (closed_loop && !waypoints.empty()) {
@@ -49,12 +52,12 @@ struct RobotState {
     double heading = 0.0;       // current heading (radians)
     double linear_speed = 0.0;  // current linear speed (m/s)
     double angular_speed = 0.0; // current angular speed (rad/s)
-    
+
     /// Compute distance to a point
     double distanceTo(double tx, double ty) const {
         return std::hypot(tx - x, ty - y);
     }
-    
+
     /// Compute bearing to a point
     double bearingTo(double tx, double ty) const {
         return std::atan2(ty - y, tx - x);
@@ -66,10 +69,10 @@ struct MoveCommand {
     double linear_x = 0.0;   // forward speed (m/s)
     double linear_y = 0.0;   // strafe speed (m/s), 0 for skid-steer
     double angular_z = 0.0;  // rotation speed (rad/s)
-    
+
     /// Create zero command
     static MoveCommand zero() { return MoveCommand{0.0, 0.0, 0.0}; }
-    
+
     /// Create max speed command
     static MoveCommand fullForward(double speed) {
         return MoveCommand{speed, 0.0, 0.0};

@@ -1,3 +1,6 @@
+// Copyright 2026 Perimeter Miner Project
+// SPDX-License-Identifier: MIT
+
 #include "perimeter_miner/hold_controller.hpp"
 #include <algorithm>
 #include <cmath>
@@ -31,14 +34,15 @@ MoveCommand HoldController::compute(const RobotState& state) {
     // Heading error
     double err_heading = normalizeAngle(hold_heading_ - state.heading);
     heading_integral_ += err_heading * 0.02;
-    heading_integral_ = std::clamp(heading_integral_, -max_heading_integral_, max_heading_integral_);
+    heading_integral_ = std::clamp(heading_integral_, -max_heading_integral_,
+                                    max_heading_integral_);
 
     // Proportional control for position
     double pos_cmd_x = pos_kp_ * err_x + pos_ki_ * pos_integral_x_;
     double pos_cmd_y = pos_kp_ * err_y + pos_ki_ * pos_integral_y_;
 
     // Proportional control for heading
-    double heading_cmd = heading_kp_ * err_heading + heading_ki_ * heading_integral_ + 
+    double heading_cmd = heading_kp_ * err_heading + heading_ki_ * heading_integral_ +
                          heading_kd_ * (err_heading - 0.0) / 0.02;
 
     // Clamp outputs
@@ -53,7 +57,7 @@ bool HoldController::isAtHoldPosition(const RobotState& state, double tolerance)
     double pos_error = std::hypot(hold_x_ - state.x, hold_y_ - state.y);
     double heading_error = std::abs(normalizeAngle(hold_heading_ - state.heading));
 
-    return pos_error < tolerance && heading_error < 0.1; // 0.1 rad ~ 5.7 degrees
+    return pos_error < tolerance && heading_error < 0.1;  // 0.1 rad ~ 5.7 degrees
 }
 
 double HoldController::normalizeAngle(double angle) {
@@ -66,4 +70,4 @@ double HoldController::angleDiff(double from, double to) {
     return normalizeAngle(to - from);
 }
 
-} // namespace perimeter_miner
+}  // namespace perimeter_miner

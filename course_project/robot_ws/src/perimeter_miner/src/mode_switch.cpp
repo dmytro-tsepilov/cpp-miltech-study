@@ -1,3 +1,6 @@
+// Copyright 2026 Perimeter Miner Project
+// SPDX-License-Identifier: MIT
+
 #include "perimeter_miner/mode_switch.hpp"
 
 namespace perimeter_miner {
@@ -7,13 +10,13 @@ bool ModeSwitch::requestMode(ControlMode requested) {
         last_message_ = "Already in mode: " + std::string(controlModeToString(requested));
         return false;
     }
-    
+
     // Validate the switch
     if (!validateModeSwitch(requested)) {
         last_message_ = "Cannot switch to " + std::string(controlModeToString(requested)) + " - conditions not met";
         return false;
     }
-    
+
     pending_mode_ = requested;
     switching_ = true;
     last_message_ = "Mode switch requested: " + std::string(controlModeToString(requested));
@@ -25,7 +28,7 @@ bool ModeSwitch::applyRequest() {
         last_message_ = "No pending mode switch";
         return false;
     }
-    
+
     // Check safety conditions
     if (pending_mode_ == ControlMode::AUTONOMOUS) {
         if (autonomous_check_ && !autonomous_check_()) {
@@ -35,7 +38,7 @@ bool ModeSwitch::applyRequest() {
             return false;
         }
     }
-    
+
     // Apply the switch
     updateState(pending_mode_);
     switching_ = false;
@@ -49,7 +52,7 @@ bool ModeSwitch::operatorOverride() {
         last_message_ = "Already in TELEOP mode";
         return false;
     }
-    
+
     updateState(ControlMode::TELEOP);
     switching_ = false;
     pending_mode_ = current_mode_;
@@ -62,15 +65,15 @@ bool ModeSwitch::validateModeSwitch(ControlMode target) const {
         case ControlMode::AUTONOMOUS:
             // Can always switch to autonomous (safety check done in applyRequest)
             return true;
-            
+
         case ControlMode::TELEOP:
             // Can always switch to teleop (operator has priority)
             return true;
-            
+
         case ControlMode::HOLD:
             // Can always hold position
             return true;
-            
+
         default:
             return false;
     }
