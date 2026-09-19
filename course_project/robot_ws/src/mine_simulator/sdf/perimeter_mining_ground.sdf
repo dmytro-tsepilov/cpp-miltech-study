@@ -1,0 +1,209 @@
+<?xml version="1.0" ?>
+<sdf version="1.7">
+  <world name="perimeter_mining_ground">
+    
+    <!-- Physics settings -->
+    <physics type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>1000.0</real_time_update_rate>
+    </physics>
+    
+    <!-- Lighting -->
+    <include>
+      <uri>model://sun</uri>
+    </include>
+    
+    <!-- Ground plane -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+    
+    <!-- Terrain elevation -->
+    <model name="terrain">
+      <static>1</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <heightmap>
+              <uri>file://media/heightmaps/utah_tesla_tessellated.dat</uri>
+              <size>600</size>
+              <pos>0 0 0</pos>
+            </heightmap>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <heightmap>
+              <uri>file://media/heightmaps/utah_tesla_tessellated.dat</uri>
+              <size>600</size>
+              <pos>0 0 0</pos>
+            </heightmap>
+          </geometry>
+          <material>
+            <ambient>0.4 0.3 0.2 1.0</ambient>
+            <diffuse>0.6 0.5 0.4 1.0</diffuse>
+            <specular>0.1 0.1 0.1 1.0</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    
+    <!-- Perimeter markers (visible boundary) -->
+    <model name="perimeter_marker_1">
+      <static>1</static>
+      <pose>10 0 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.05</radius><length>1.0</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.05</radius><length>1.0</length></cylinder></geometry>
+          <material><ambient>0 0.8 0 1.0</ambient><diffuse>0 0.8 0 1.0</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    
+    <model name="perimeter_marker_2">
+      <static>1</static>
+      <pose>20 10 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.05</radius><length>1.0</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.05</radius><length>1.0</length></cylinder></geometry>
+          <material><ambient>0 0.8 0 1.0</ambient><diffuse>0 0.8 0 1.0</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    
+    <model name="perimeter_marker_3">
+      <static>1</static>
+      <pose>10 20 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.05</radius><length>1.0</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.05</radius><length>1.0</length></cylinder></geometry>
+          <material><ambient>0 0.8 0 1.0</ambient><diffuse>0 0.8 0 1.0</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    
+    <model name="perimeter_marker_4">
+      <static>1</static>
+      <pose>0 10 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.05</radius><length>1.0</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.05</radius><length>1.0</length></cylinder></geometry>
+          <material><ambient>0 0.8 0 1.0</ambient><diffuse>0 0.8 0 1.0</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    
+    <!-- Obstacles (walls/ruins for realistic environment) -->
+    <model name="ruin_wall_1">
+      <static>1</static>
+      <pose>5 10 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>3.0 0.3 1.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>3.0 0.3 1.5</size></box></geometry>
+          <material><ambient>0.3 0.3 0.3 1.0</ambient><diffuse>0.4 0.4 0.4 1.0</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    
+    <model name="ruin_wall_2">
+      <static>1</static>
+      <pose>15 15 0.75 0 0 1.57</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>4.0 0.3 2.0</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>4.0 0.3 2.0</size></box></geometry>
+          <material><ambient>0.3 0.3 0.3 1.0</ambient><diffuse>0.4 0.4 0.4 1.0</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    
+    <!-- Vegetation (trees/bushes) -->
+    <model name="tree_1">
+      <static>1</static>
+      <pose>-5 5 0 0 0 0</pose>
+      <link name="trunk">
+        <inertial><mass>50</mass></inertial>
+        <collision name="collision">
+          <geometry><cylinder><radius>0.3</radius><length>3.0</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.3</radius><length>3.0</length></cylinder></geometry>
+          <material><ambient>0.3 0.2 0.1 1.0</ambient><diffuse>0.4 0.3 0.2 1.0</diffuse></material>
+        </visual>
+      </link>
+      <link name="leaves">
+        <pose>0 0 2.5 0 0 0</pose>
+        <collision name="collision">
+          <geometry><sphere><radius>1.5</radius></sphere></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><sphere><radius>1.5</radius></sphere></geometry>
+          <material><ambient>0.0 0.4 0.0 1.0</ambient><diffuse>0.0 0.5 0.0 1.0</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    
+    <model name="tree_2">
+      <static>1</static>
+      <pose>25 8 0 0 0 0</pose>
+      <link name="trunk">
+        <inertial><mass>50</mass></inertial>
+        <collision name="collision">
+          <geometry><cylinder><radius>0.3</radius><length>3.0</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.3</radius><length>3.0</length></cylinder></geometry>
+          <material><ambient>0.3 0.2 0.1 1.0</ambient><diffuse>0.4 0.3 0.2 1.0</diffuse></material>
+        </visual>
+      </link>
+      <link name="leaves">
+        <pose>0 0 2.5 0 0 0</pose>
+        <collision name="collision">
+          <geometry><sphere><radius>1.5</radius></sphere></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><sphere><radius>1.5</radius></sphere></geometry>
+          <material><ambient>0.0 0.4 0.0 1.0</ambient><diffuse>0.0 0.5 0.0 1.0</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    
+    <!-- Sky and atmosphere -->
+    <sky>
+      <clouds>
+        <speed>5</speed>
+      </clouds>
+    </sky>
+    
+    <fog type="custom">
+      <linear_start>50</linear_start>
+      <linear_end>200</linear_end>
+    </fog>
+    
+    <!-- Camera for visualization -->
+    <include>
+      <uri>model://camera</uri>
+      <pose>10 10 5 0 0.3 0</pose>
+      <name>monitor_camera</name>
+    </include>
+    
+  </world>
+</sdf>

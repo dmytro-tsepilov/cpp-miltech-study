@@ -1,0 +1,19 @@
+# Training ground perimeter configuration
+# Square patrol route with 4 waypoints
+
+name: training_ground
+closed_loop: true
+tolerance: 0.5
+max_speed: 2.0
+min_turn_radius: 1.0
+
+waypoints:
+  - {x: 0.0, y: 0.0, heading: 0.0, radius: 1.0}
+  - {x: 20.0, y: 0.0, heading: 1.5708, radius: 1.0}
+  - {x: 20.0, y: 20.0, heading: 3.1416, radius: 1.0}
+  - {x: 0.0, y: 20.0, heading: -1.5708, radius: 1.0}
+
+mines:
+  - {id: 1, x: 10.0, y: 5.0, type: "anti-tank"}
+  - {id: 2, x: 15.0, y: 15.0, type: "anti-personnel"}
+  - {id: 3, x: 5.0, y: 10.0, type: "unknown"}

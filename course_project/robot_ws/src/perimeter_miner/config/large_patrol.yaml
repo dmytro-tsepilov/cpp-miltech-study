@@ -1,0 +1,35 @@
+# Large patrol perimeter - Complex terrain with many waypoints
+
+name: large_patrol
+closed_loop: true
+tolerance: 1.0
+max_speed: 2.0
+min_turn_radius: 2.0
+
+waypoints:
+  - {x: 0.0, y: 0.0, heading: 0.0, radius: 2.0}
+  - {x: 10.0, y: 0.0, heading: 0.314, radius: 2.0}
+  - {x: 20.0, y: 3.0, heading: 0.628, radius: 2.0}
+  - {x: 28.0, y: 8.0, heading: 0.942, radius: 2.0}
+  - {x: 33.0, y: 15.0, heading: 1.257, radius: 2.0}
+  - {x: 35.0, y: 23.0, heading: 1.571, radius: 2.0}
+  - {x: 33.0, y: 30.0, heading: 1.885, radius: 2.0}
+  - {x: 28.0, y: 35.0, heading: 2.199, radius: 2.0}
+  - {x: 20.0, y: 38.0, heading: 2.513, radius: 2.0}
+  - {x: 10.0, y: 38.0, heading: 2.827, radius: 2.0}
+  - {x: 3.0, y: 35.0, heading: 3.142, radius: 2.0}
+  - {x: -2.0, y: 28.0, heading: -2.827, radius: 2.0}
+  - {x: -5.0, y: 20.0, heading: -2.513, radius: 2.0}
+  - {x: -5.0, y: 12.0, heading: -2.199, radius: 2.0}
+  - {x: -2.0, y: 5.0, heading: -1.885, radius: 2.0}
+  - {x: 3.0, y: 1.0, heading: -1.571, radius: 2.0}
+
+mines:
+  - {id: 1, x: 5.0, y: 8.0, type: "anti-tank"}
+  - {id: 2, x: 18.0, y: 5.0, type: "anti-personnel"}
+  - {id: 3, x: 30.0, y: 12.0, type: "unknown"}
+  - {id: 4, x: 32.0, y: 20.0, type: "anti-tank"}
+  - {id: 5, x: 25.0, y: 32.0, type: "anti-personnel"}
+  - {id: 6, x: 10.0, y: 35.0, type: "unknown"}
+  - {id: 7, x: -3.0, y: 25.0, type: "anti-tank"}
+  - {id: 8, x: -4.0, y: 10.0, type: "anti-personnel"}
