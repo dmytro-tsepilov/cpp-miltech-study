@@ -20,6 +20,12 @@ def _launch_context_setup(context, *args, **kwargs):
     """Opaque function to set up mine spawner with correct config path."""
     scenario_name = LaunchConfiguration('scenario').perform(context)
     
+    # Strip .yaml/.yml extension if present
+    for ext in ('.yaml', '.yml'):
+        if scenario_name.endswith(ext):
+            scenario_name = scenario_name[:-len(ext)]
+            break
+    
     # Map scenario names to config files
     scenario_map = {
         'training_ground': 'training_ground_mines.yaml',

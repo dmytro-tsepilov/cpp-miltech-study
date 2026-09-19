@@ -59,10 +59,18 @@ struct PerimeterConfig
   size_t waypointCount() const { return waypoints.size(); }
 
   /// Get waypoint at index (handles closed loop wrapping)
+  /// Returns a default Waypoint if the vector is empty
   const Waypoint &getWaypoint(size_t index) const
   {
-    if (closed_loop && !waypoints.empty()) {
+    static const Waypoint default_wp{};
+    if (waypoints.empty()) {
+      return default_wp;
+    }
+    if (closed_loop) {
       index = index % waypoints.size();
+    }
+    if (index >= waypoints.size()) {
+      return default_wp;
     }
     return waypoints.at(index);
   }

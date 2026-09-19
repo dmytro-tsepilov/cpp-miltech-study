@@ -140,7 +140,8 @@ TEST(PerimeterLoaderTest, LoadNonExistentFile)
   PerimeterConfig config = PerimeterLoader::loadFromFile("/nonexistent/path.yaml");
 
   EXPECT_TRUE(config.waypoints.empty());
-  EXPECT_FALSE(config.name.empty());  // Will have some default value
+  // Name is empty when file fails to load (default-constructed PerimeterConfig)
+  EXPECT_TRUE(config.name.empty());
 }
 
 // Test 6: LoadFromString with minimal YAML

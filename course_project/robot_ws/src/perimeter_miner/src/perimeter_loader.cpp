@@ -59,8 +59,26 @@ size_t PerimeterLoader::findKey(
   size_t pos = yaml.find(pattern, start);
 
   while (pos != std::string::npos) {
-    // Verify it's a proper key (preceded by whitespace or start of line)
-    if (pos == 0 || yaml[pos - 1] == ' ' || yaml[pos - 1] == '\t') {
+    // Check character after the key - must be space, tab, or newline (YAML key delimiter)
+    size_t end_pos = pos + pattern.size();
+    bool valid_after = false;
+    if (end_pos >= yaml.size()) {
+      valid_after = true;
+    } else if (yaml[end_pos] == ' ' || yaml[end_pos] == '\t' ||
+               yaml[end_pos] == '\n' || yaml[end_pos] == '\r') {
+      valid_after = true;
+    }
+
+    // Check character before the key - must be start of string, newline, or whitespace (line start)
+    bool valid_before = false;
+    if (pos == 0) {
+      valid_before = true;
+    } else if (yaml[pos - 1] == '\n' || yaml[pos - 1] == '\r' ||
+               yaml[pos - 1] == ' ' || yaml[pos - 1] == '\t') {
+      valid_before = true;
+    }
+
+    if (valid_before && valid_after) {
       return pos;
     }
     pos = yaml.find(pattern, pos + 1);

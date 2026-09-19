@@ -168,7 +168,7 @@ def generate_launch_description():
             )
         ]),
         launch_arguments={
-            'scenario': _scenario,
+            'scenario': _scenario_file,
         }.items(),
         condition=IfCondition(simulate_mines)
     )
