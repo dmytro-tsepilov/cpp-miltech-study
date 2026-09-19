@@ -232,36 +232,48 @@ colcon test-result --all
 ## Структура файлів
 
 ```
-homework_14/course_project/
+course_project/
 ├── README.md                          # Цей файл
+├── http_server.py                     # Демо HTTP сервер для прийому звітів
+├── run_test.sh                        # Окремий інтеграційний тест
+├── run_all_tests.sh                   # Пакетний запуск всіх тестів
 ├── robot_ws/
 │   └── src/
-│       ├── perimeter_msgs/            # Спільні повідомлення
-│       │   ├── msg/                   # .msg файли
-│       │   └── srv/                   # .srv файли
-│       ├── perimeter_miner/           # Основний пакет
-│       │   ├── include/perimeter_miner/
-│       │   ├── src/
-│       │   ├── launch/
-│       │   ├── config/
-│       │   └── test/
+│       ├── perimeter_msgs/            # Спільні повідомлення та сервіси
+│       │   ├── msg/                   # .msg файли (PerimeterStatus, MineDetection, etc.)
+│       │   └── srv/                   # .srv файли (SwitchMode, TriggerClearance)
+│       ├── perimeter_miner/           # Основний пакет контролера
+│       │   ├── include/perimeter_miner/   # Заголовки (PID, tracker, mode switch)
+│       │   ├── src/                       # Реалізація нод
+│       │   ├── launch/                    # system.launch.py
+│       │   ├── config/                    # YAML периметри (training_ground, patrol_alpha, large_patrol)
+│       │   └── test/                      # Unit тести
 │       ├── mine_simulator/            # Симуляція мін
 │       │   ├── include/mine_simulator/
 │       │   ├── src/
-│       │   ├── launch/
-│       │   └── config/
-│       ├── http_reporter/             # HTTP звітність
+│       │   ├── launch/                # mine_spawner.launch.py, gazebo_simulation.launch.py
+│       │   ├── config/                # training_ground_mines.yaml
+│       │   ├── sdf/                   # Gazebo SDF моделі
+│       │   └── urdf/                  # URDF файли
+│       ├── http_reporter/             # HTTP звітність через API
 │       │   ├── include/http_reporter/
 │       │   ├── src/
-│       │   └── launch/
-│       └── teleop_operator/           # Телеоперація
-├── test_scenarios/                    # YAML сценарії тестування
+│       │   ├── launch/                # reporter.launch.py
+│       │   └── test/                  # http_reporter_test.cpp
+│       └── teleop_operator/           # Телеоперація (gamepad/keyboard)
+│           ├── include/teleop_operator/
+│           ├── src/
+│           └── launch/                # teleop.launch.py
 ├── docs/                              # Документація
-│   ├── architecture.md
-│   ├── api_reference.md
-│   └── simulation_guide.md
-├── run_test.sh                        # Окремий тест
-└── run_all_tests.sh                   # Всі тести
+│   ├── architecture.md                # Архітектура системи
+│   ├── implementation_review.md       # Огляд реалізації
+│   ├── implementation_review_fixed.md # Виправлений огляд
+│   ├── startup.md                     # Посібник запуску
+│   ├── test_analysis.md               # Аналіз тестів
+│   └── tests_added_summary.md         # Додавання тестів
+├── install/                           # Colcon інсталяція (build artifacts)
+├── log/                               # Colcon логи
+└── bags/                              # Rosbag записи (генерається під час тестів)
 ```
 
 ## Критерії успіху
@@ -295,10 +307,16 @@ homework_14/course_project/
 - `ament_cmake_gtest`
 - `yaml_cpp_vendor`
 
+## Примітки
+
+- Конфігурації периметрів знаходяться в [`robot_ws/src/perimeter_miner/config/`](robot_ws/src/perimeter_miner/config/)
+- Тести пакетів розташовані в підпапках `test/` кожного пакета
+- HTTP сервер для прийому звітів: [`http_server.py`](http_server.py)
+
 ## Ліцензія
 
 MIT License
 
 ## Автор
 
-Студентський проєт для курсової роботи з робототехніки
+Студентський проєкт для курсової роботи з робототехніки
