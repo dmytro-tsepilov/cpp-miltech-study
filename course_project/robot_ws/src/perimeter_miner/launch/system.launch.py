@@ -32,10 +32,9 @@ Launches all nodes required for perimeter patrol mission:
 
 Usage:
     ros2 launch perimeter_miner system.launch.py
-    ros2 launch perimeter_miner system.launch.py
-        scenario:=training_ground
-    ros2 launch perimeter_miner system.launch.py
-        simulate_mines:=true
+    ros2 launch perimeter_miner system.launch.py scenario:=training_ground
+    ros2 launch perimeter_miner system.launch.py simulate_mines:=true
+    ros2 launch perimeter_miner system.launch.py simulate_mines:=true enable_fake_odom:=true
     ros2 launch perimeter_miner system.launch.py use_gazebo:=true
 """
 
@@ -78,6 +77,7 @@ def generate_launch_description():
     enable_reporter = LaunchConfiguration('enable_reporter')
     api_endpoint = LaunchConfiguration('api_endpoint')
     use_gazebo = LaunchConfiguration('use_gazebo')
+    enable_fake_odom = LaunchConfiguration('enable_fake_odom')
     enable_teleop = LaunchConfiguration('enable_teleop')
 
     # Scenario config path - maps scenario name to actual yaml file
@@ -125,6 +125,13 @@ def generate_launch_description():
         'use_gazebo',
         default_value='false',
         description='Enable Gazebo simulation'
+    )
+
+    # Enable fake odometry publisher argument (fallback when Gazebo not available)
+    enable_fake_odom_arg = DeclareLaunchArgument(
+        'enable_fake_odom',
+        default_value='false',
+        description='Enable fake odometry publisher for testing without Gazebo'
     )
 
     # Enable teleop argument
@@ -209,6 +216,16 @@ def generate_launch_description():
         condition=IfCondition(use_gazebo)
     )
 
+    # Fake odometry publisher (conditional - fallback when Gazebo not available)
+    fake_odom_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            os.path.join(
+                mine_simulator_pkg, 'launch', 'fake_odom_publisher.launch.py'
+            )
+        ]),
+        condition=IfCondition(enable_fake_odom)
+    )
+
     return LaunchDescription([
         scenario_file_arg,
         scenario_arg,
@@ -216,6 +233,7 @@ def generate_launch_description():
         enable_reporter_arg,
         api_endpoint_arg,
         use_gazebo_arg,
+        enable_fake_odom_arg,
         enable_teleop_arg,
         teleop_input_type_arg,
 
@@ -225,4 +243,5 @@ def generate_launch_description():
         reporter_node,
         teleop_launch,
         gazebo_simulation,
+        fake_odom_launch,
     ])

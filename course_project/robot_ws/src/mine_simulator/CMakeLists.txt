@@ -8,6 +8,8 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(perimeter_msgs REQUIRED)
 
 include_directories(include)
@@ -20,8 +22,18 @@ ament_target_dependencies(mine_spawner_node
   perimeter_msgs
 )
 
+# Fake odometry publisher node
+add_executable(fake_odom_publisher src/fake_odom_publisher.cpp)
+ament_target_dependencies(fake_odom_publisher
+  rclcpp
+  std_msgs
+  nav_msgs
+  geometry_msgs
+)
+
 install(TARGETS
   mine_spawner_node
+  fake_odom_publisher
   DESTINATION lib/${PROJECT_NAME}
 )
 
