@@ -1,5 +1,6 @@
-// Copyright 2026 Perimeter Miner Project
+// Copyright 2026 Open Source Robotics Foundation Inc
 // SPDX-License-Identifier: MIT
+
 
 #include <chrono>
 #include <memory>
@@ -12,7 +13,7 @@
 #include "perimeter_msgs/msg/perimeter_status.hpp"
 #include "perimeter_msgs/srv/switch_mode.hpp"
 
-using std::chrono_literals::operator""s;
+using namespace std::chrono_literals;
 using perimeter_miner::ControlMode;
 using perimeter_miner::ModeSwitch;
 using perimeter_miner::controlModeFromUint8;

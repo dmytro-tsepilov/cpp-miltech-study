@@ -1,5 +1,6 @@
-// Copyright 2026 Perimeter Miner Project
+// Copyright 2026 Open Source Robotics Foundation Inc
 // SPDX-License-Identifier: MIT
+
 
 #include "perimeter_miner/perimeter_loader.hpp"
 #include <fstream>
@@ -8,6 +9,10 @@
 #include <iostream>
 
 namespace perimeter_miner {
+
+// Define static member
+std::string PerimeterLoader::last_error_;
+
 
 // Helper: trim whitespace
 static std::string trim(const std::string& str) {

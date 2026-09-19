@@ -1,5 +1,6 @@
-// Copyright 2026 Perimeter Miner Project
+// Copyright 2026 Open Source Robotics Foundation Inc
 // SPDX-License-Identifier: MIT
+
 
 #include <chrono>
 #include <memory>
@@ -26,8 +27,10 @@
 #include "perimeter_msgs/srv/switch_mode.hpp"
 #include "perimeter_msgs/srv/trigger_clearance.hpp"
 
-using std::chrono_literals::operator""s;
+using namespace std::chrono_literals;
 using perimeter_miner::ControlMode;
+using perimeter_miner::HoldController;
+using perimeter_miner::ModeSwitch;
 using perimeter_miner::MoveCommand;
 using perimeter_miner::PerimeterConfig;
 using perimeter_miner::PerimeterLoader;

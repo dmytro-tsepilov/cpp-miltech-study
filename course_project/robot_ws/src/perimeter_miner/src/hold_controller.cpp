@@ -1,5 +1,6 @@
-// Copyright 2026 Perimeter Miner Project
+// Copyright 2026 Open Source Robotics Foundation Inc
 // SPDX-License-Identifier: MIT
+
 
 #include "perimeter_miner/hold_controller.hpp"
 #include <algorithm>

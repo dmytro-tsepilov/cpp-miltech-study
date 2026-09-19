@@ -1,18 +1,20 @@
-// Copyright 2026 Perimeter Miner Project
+// Copyright 2026 Open Source Robotics Foundation Inc
 // SPDX-License-Identifier: MIT
 
-#include "perimeter_miner/perimeter_tracker.hpp"
+
 #include <algorithm>
+
+#include "perimeter_miner/perimeter_tracker.hpp"
 
 namespace perimeter_miner {
 
 double LateralPID::compute(double error, double dt) {
     if (dt <= 0.0) return 0.0;
 
-    // Proportional term
+    //  Proportional term
     double p_term = kp_ * error;
 
-    // Integral term with anti-windup
+    //  Integral term with anti-windup
     integral_ += error * dt;
     integral_ = std::clamp(integral_, -max_integral_, max_integral_);
     double i_term = ki_ * integral_;
@@ -38,7 +40,7 @@ double PurePursuit::computeCurvature(const RobotState& robot, double tx, double 
 
     if (distance < 0.01) return 0.0;
 
-    // Compute look-ahead distance based on speed
+    //  Compute look-ahead distance based on speed
     current_lookahead_ = min_lookahead_ + lookahead_gain_ * std::abs(robot.linear_speed);
     current_lookahead_ = std::clamp(current_lookahead_, min_lookahead_, max_lookahead_);
 
@@ -135,8 +137,8 @@ bool PerimeterTracker::advanceWaypoint() {
             ++current_waypoint_idx_;
             return true;
         }
-        // End of open perimeter
-        current_waypoint_idx_ = 0; // reset to start
+        //  End of open perimeter
+            current_waypoint_idx_ = 0;  // reset to start
         return false;
     }
 }
@@ -206,7 +208,6 @@ double PerimeterTracker::angleDiff(double from, double to) {
 }
 
 TrackerStatus PerimeterTracker::getStatus() const {
-
     TrackerStatus status{};
     status.waypoint_index = static_cast<uint32_t>(current_waypoint_idx_);
     status.current_x = robot_state_.x;
