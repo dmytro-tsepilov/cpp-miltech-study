@@ -138,7 +138,7 @@ waypoints:
 TEST(PerimeterLoaderTest, LoadNonExistentFile)
 {
   PerimeterConfig config = PerimeterLoader::loadFromFile("/nonexistent/path.yaml");
-  
+
   EXPECT_TRUE(config.waypoints.empty());
   EXPECT_FALSE(config.name.empty());  // Will have some default value
 }
@@ -225,10 +225,10 @@ waypoints:
   // Access beyond bounds should wrap for closed loop
   const auto& wp0 = config.getWaypoint(0);
   EXPECT_DOUBLE_EQ(wp0.x, 0.0);
-  
+
   const auto& wp2 = config.getWaypoint(2);
   EXPECT_DOUBLE_EQ(wp2.x, 10.0);
-  
+
   // Index 3 should wrap to 0 for closed loop with 3 waypoints
   const auto& wp3 = config.getWaypoint(3);
   EXPECT_DOUBLE_EQ(wp3.x, 0.0);  // Wrapped
@@ -239,7 +239,7 @@ TEST(PerimeterLoaderTest, GetLastError)
 {
   // Load non-existent file
   PerimeterLoader::loadFromFile("/nonexistent/file.yaml");
-  
+
   std::string last_error = PerimeterLoader::getLastError();
   EXPECT_FALSE(last_error.empty());
 }
@@ -254,7 +254,7 @@ waypoints:
 )";
 
   PerimeterConfig config = PerimeterLoader::loadFromString(yaml);
-  
+
   EXPECT_TRUE(config.waypoints.empty());
 }
 
@@ -268,7 +268,7 @@ waypoints:
 )";
 
   PerimeterConfig config = PerimeterLoader::loadFromString(yaml);
-  
+
   EXPECT_EQ(config.waypointCount(), size_t(1));
   // Default heading and radius should be applied
   EXPECT_DOUBLE_EQ(config.waypoints[0].x, 5.0);

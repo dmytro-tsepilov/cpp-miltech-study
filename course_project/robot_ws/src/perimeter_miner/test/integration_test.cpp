@@ -25,7 +25,7 @@ using perimeter_miner::Waypoint;
 // Simulated MinerNode behavior for integration testing
 class SimulatedMinerNode {
 public:
-    SimulatedMinerNode(const PerimeterConfig& config)
+    explicit SimulatedMinerNode(const PerimeterConfig& config)
         : tracker_(config), mode_switch_(), hold_controller_() {
         // Initialize hold position to start
         if (config.waypointCount() > 0) {
@@ -170,7 +170,7 @@ TEST(IntegrationTest, TeleopToAutonomous)
 
   // Try to switch back to AUTONOMOUS
   bool success = node.switchToAutonomous();
-  
+
   // This may succeed or fail depending on safety checks
   // (in our implementation, it should succeed because lateral error < 5.0)
   EXPECT_TRUE(success);
@@ -218,7 +218,7 @@ TEST(IntegrationTest, AutonomousToHold)
 
   // Hold controller should produce command to return to position
   auto hold_cmd = node.controlTick();
-  
+
   // Command may be zero if robot is at start position
   EXPECT_TRUE(true);  // Just verify no crash
 }
@@ -397,7 +397,7 @@ TEST(IntegrationTest, SafetyCheckIntegration)
 
   // Try to switch back - should fail due to safety check
   bool success = node.switchToAutonomous();
-  
+
   // The request may succeed, but applyRequest will fail
   if (success) {
     node.controlTick();  // This triggers applyRequest
@@ -438,7 +438,7 @@ TEST(IntegrationTest, ClosedLoopPatrolSimulation)
   for (int i = 0; i < 4; ++i) {
     auto cmd = node.controlTick();
     EXPECT_EQ(node.getCurrentMode(), ControlMode::AUTONOMOUS);
-    
+
     // Simulate reaching waypoint
     if (i < 3) {
       node.advanceWaypoint();
@@ -471,7 +471,7 @@ TEST(IntegrationTest, MessageTrackingIntegration)
 
   // Switch modes and check messages
   node.switchToTeleop();
-  
+
   // Mode should change
   EXPECT_EQ(node.getCurrentMode(), ControlMode::TELEOP);
 

@@ -101,4 +101,4 @@ double HoldController::angleDiff(double from, double to)
   return normalizeAngle(to - from);
 }
 
-} // namespace perimeter_miner
+}  // namespace perimeter_miner

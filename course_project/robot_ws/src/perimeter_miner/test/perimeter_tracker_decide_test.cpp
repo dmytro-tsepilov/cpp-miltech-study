@@ -44,7 +44,7 @@ TEST(PerimeterTrackerDecideTest, EmptyWaypoints)
   tracker.updateRobotState(state);
 
   auto cmd = tracker.decide();
-  
+
   EXPECT_DOUBLE_EQ(cmd.linear_x, 0.0);
   EXPECT_DOUBLE_EQ(cmd.angular_z, 0.0);
 }
@@ -182,7 +182,7 @@ TEST(PerimeterTrackerDecideTest, ClosedLoopWrapAround)
   for (int i = 0; i < 3; ++i) {
     tracker.advanceWaypoint();
   }
-  
+
   auto status = tracker.getStatus();
   EXPECT_EQ(status.waypoint_index, size_t(3));
 
@@ -363,7 +363,7 @@ TEST(PerimeterTrackerDecideTest, Reset)
   // Advance to middle waypoint
   tracker.advanceWaypoint();
   tracker.advanceWaypoint();
-  
+
   auto status = tracker.getStatus();
   EXPECT_EQ(status.waypoint_index, size_t(2));
 
@@ -399,7 +399,7 @@ TEST(PerimeterTrackerDecideTest, LateralErrorHorizontal)
   tracker.updateRobotState(state_above);
 
   auto status_above = tracker.getStatus();
-  
+
   // Robot below the path (negative lateral error)
   RobotState state_below;
   state_below.x = 5.0;
@@ -410,7 +410,7 @@ TEST(PerimeterTrackerDecideTest, LateralErrorHorizontal)
   auto status_below = tracker.getStatus();
 
   // Lateral errors should have opposite signs
-  EXPECT_TRUE(status_above.lateral_error * status_below.lateral_error < 0);
+  EXPECT_LT(status_above.lateral_error * status_below.lateral_error, 0);
 }
 
 // Test 12: Pure pursuit curvature computation
@@ -427,7 +427,7 @@ TEST(PurePursuitTest, CurvatureComputation)
 
   // Target straight ahead
   double curvature1 = pursuit.computeCurvature(robot, 10.0, 0.0);
-  
+
   // Target to the side
   double curvature2 = pursuit.computeCurvature(robot, 5.0, 5.0);
 
@@ -459,7 +459,7 @@ TEST(PerimeterTrackerDecideTest, PIDWithDifferentDT)
 TEST(AngleNormalizationTest, EdgeCases)
 {
   // Test normalizeAngle via angleDiff
-  
+
   // Same angle
   double diff = PerimeterTracker::angleDiff(M_PI, M_PI);
   EXPECT_DOUBLE_EQ(diff, 0.0);

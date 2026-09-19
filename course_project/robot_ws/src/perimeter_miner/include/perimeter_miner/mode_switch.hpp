@@ -85,4 +85,4 @@ private:
   void updateState(ControlMode new_mode);
 };
 
-} // namespace perimeter_miner
+}  // namespace perimeter_miner

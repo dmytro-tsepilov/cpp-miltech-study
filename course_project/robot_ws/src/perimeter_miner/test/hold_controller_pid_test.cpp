@@ -145,14 +145,14 @@ TEST(HoldControllerPIDTest, AtHoldPositionWithTolerance)
 TEST(HoldControllerPIDTest, ResetOnSetPosition)
 {
   HoldController hold;
-  
+
   // Move robot away first to build up integral
   RobotState state1;
   state1.x = 0.0;
   state1.y = 0.0;
   state1.heading = 0.0;
   hold.setHoldPosition(10.0, 10.0, 0.0);
-  
+
   for (int i = 0; i < 10; ++i) {
     hold.compute(state1);
   }

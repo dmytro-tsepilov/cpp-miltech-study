@@ -172,7 +172,7 @@ public:
     RCLCPP_INFO(get_logger(), "Perimeter: %s (%zu waypoints)",
                  perimeter_tracker_.getConfig().name.c_str(),
                  perimeter_tracker_.getConfig().waypointCount());
-    
+
     // Initialize mission start time
     mission_start_time_ = now();
     last_teleop_input_ = now();
@@ -189,20 +189,20 @@ private:
 
     // Get custom search paths from parameter (empty = use defaults)
     auto custom_paths = this->get_parameter("config_search_paths").as_string_array();
-    
+
     // Build search path list: custom paths first, then standard ROS locations
     std::vector<std::string> possible_paths;
-    
+
     // Add custom paths if provided
     for (const auto &base : custom_paths) {
       if (!base.empty()) {
         possible_paths.push_back(base + "/" + scenario_file);
       }
     }
-    
+
     // Add standard ROS 2 package paths (in priority order)
     possible_paths.push_back("perimeter_miner/config/" + scenario_file);  // Relative/install
-    
+
     // Note: Absolute hardcoded paths removed - use config_search_paths parameter instead
     // Example: ros2 launch perimeter_miner system.launch.py config_search_paths:=["/custom/path"]
 
@@ -220,7 +220,8 @@ private:
     // Fallback to default if loading fails
     if (config.waypoints.empty()) {
       RCLCPP_WARN(get_logger(), "Failed to load config from any path, using defaults");
-      RCLCPP_INFO(get_logger(), "Try: ros2 launch perimeter_miner system.launch.py scenario_file:=<your_config>.yaml");
+      RCLCPP_INFO(get_logger(), "Try: ros2 launch perimeter_miner system.launch.py");
+      RCLCPP_INFO(get_logger(), "  scenario_file:=<your_config>.yaml");
       config.name = "training_ground";
       config.closed_loop = true;
       config.tolerance = 0.5;
@@ -276,7 +277,7 @@ private:
     // If in HOLD mode, initiate clearance
     if (mode_switch_.getCurrentMode() == ControlMode::HOLD) {
       RCLCPP_INFO(get_logger(), "Initiating mine clearance for ID=%d", msg.mine_id);
-      
+
       // Publish ClearanceReport immediately
       publishClearanceReport(msg.mine_id, robot_state_.x, robot_state_.y, "detection", true);
     }
@@ -319,7 +320,7 @@ private:
           mode_switch_.requestMode(ControlMode::HOLD);
           mine_detected_ = false;
         }
-        
+
         // Check if mission complete (all waypoints done for open perimeter)
         checkMissionCompletion();
         break;
@@ -329,7 +330,7 @@ private:
         // Teleoperation - wait for operator input via /teleop/cmd topic
         // If no teleop input received, use zero command
         cmd = MoveCommand::zero();
-        
+
         // Auto-return to AUTONOMOUS after 30s of no teleop input (timeout protection)
         auto teleop_dur = now_ns - last_teleop_input_;
         auto teleop_elapsed = static_cast<int>(teleop_dur.seconds());
@@ -339,7 +340,7 @@ private:
           teleop_active_ = false;
           break;
         }
-        
+
         RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 2000,
                              "TELEOP mode active - waiting for operator input (timeout: %ds)",
                              static_cast<int>(30 - teleop_elapsed));
@@ -429,7 +430,10 @@ private:
     summary_msg.mission_duration = (now() - mission_start_time_).seconds();
     summary_msg.coverage_percent = 100.0;
     summary_msg.start_time.sec = static_cast<int32_t>(mission_start_time_.nanoseconds() / 1e9);
-    summary_msg.start_time.nanosec = static_cast<uint32_t>((mission_start_time_.nanoseconds() % 1000000000) / 1000);
+    summary_msg.start_time.nanosec = static_cast<uint32_t>(
+
+        (mission_start_time_.nanoseconds() % 1000000000) / 1000);
+
     summary_msg.end_time.sec = static_cast<int32_t>(now().nanoseconds() / 1e9);
     summary_msg.end_time.nanosec = static_cast<uint32_t>((now().nanoseconds() % 1000000000) / 1000);
 
@@ -486,7 +490,10 @@ private:
   }
 
   // Helper to publish ClearanceReport
-  void publishClearanceReport(int32_t mine_id, double x, double y, const std::string &method, bool success)
+  void publishClearanceReport(int32_t mine_id, double x, double y,
+
+      const std::string &method, bool success)
+
   {
     auto report = perimeter_msgs::msg::ClearanceReport();
     report.mine_id = mine_id;
@@ -528,15 +535,15 @@ private:
   bool teleop_active_ = false;
   int32_t mines_detected_count_ = 0;
   int32_t mines_cleared_count_ = 0;
-  
+
   // Mission timing
   rclcpp::Time mission_start_time_;
-  
+
   // dt tracking for PID controllers
   double current_dt_ = 0.02;  // Default 50Hz
   rclcpp::Time last_control_tick_;
   rclcpp::Time last_teleop_input_;
-  
+
   // Detected mines tracking
   std::vector<perimeter_msgs::msg::MineDetection> detected_mines_;
 };

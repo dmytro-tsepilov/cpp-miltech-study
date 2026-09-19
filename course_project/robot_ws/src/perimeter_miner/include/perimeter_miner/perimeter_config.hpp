@@ -36,7 +36,7 @@ struct Waypoint
   double x = 0.0;
   double y = 0.0;
   double heading = 0.0;         // target heading when approaching (radians)
-  double approach_radius = 1.0; // approach radius (meters)
+  double approach_radius = 1.0;  // approach radius (meters)
 
   bool operator==(const Waypoint &other) const
   {
@@ -143,4 +143,4 @@ inline ControlMode controlModeFromUint8(uint8_t value)
   }
 }
 
-} // namespace perimeter_miner
+}  // namespace perimeter_miner

@@ -174,4 +174,4 @@ private:
   double computeLinearSpeed() const;
 };
 
-} // namespace perimeter_miner
+}  // namespace perimeter_miner

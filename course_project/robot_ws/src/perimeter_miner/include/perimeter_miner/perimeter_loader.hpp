@@ -62,4 +62,4 @@ private:
   static std::string last_error_;
 };
 
-} // namespace perimeter_miner
+}  // namespace perimeter_miner

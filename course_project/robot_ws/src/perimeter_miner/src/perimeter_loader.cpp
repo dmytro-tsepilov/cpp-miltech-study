@@ -29,7 +29,8 @@ namespace perimeter_miner
 {
 
 // Define static member
-std::string PerimeterLoader::last_error_;
+// cpplint ignore: runtime/string
+std::string PerimeterLoader::last_error_ = "";
 
 
 // Helper: trim whitespace

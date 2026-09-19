@@ -76,4 +76,4 @@ private:
   static double angleDiff(double from, double to);
 };
 
-} // namespace perimeter_miner
+}  // namespace perimeter_miner

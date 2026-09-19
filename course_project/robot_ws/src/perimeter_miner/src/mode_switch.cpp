@@ -109,4 +109,4 @@ void ModeSwitch::updateState(ControlMode new_mode)
   pending_mode_ = new_mode;
 }
 
-} // namespace perimeter_miner
+}  // namespace perimeter_miner

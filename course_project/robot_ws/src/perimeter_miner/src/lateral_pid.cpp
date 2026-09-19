@@ -70,7 +70,7 @@ double PurePursuit::computeCurvature(const RobotState &robot, double tx, double 
 
   // If target is closer than look-ahead, use target distance
   double alpha = std::atan2(dy, dx) - robot.heading;
-  alpha = std::atan2(std::sin(alpha), std::cos(alpha)); // normalize
+  alpha = std::atan2(std::sin(alpha), std::cos(alpha));  // normalize
 
   double curvature = 2.0 * std::sin(alpha) / current_lookahead_;
   return curvature;
@@ -287,4 +287,4 @@ void PerimeterTracker::reset()
   robot_state_ = RobotState{};
 }
 
-} // namespace perimeter_miner
+}  // namespace perimeter_miner
