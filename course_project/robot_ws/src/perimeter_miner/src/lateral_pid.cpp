@@ -98,13 +98,16 @@ void PerimeterTracker::updateRobotState(const RobotState &state)
   robot_state_ = state;
 }
 
-MoveCommand PerimeterTracker::decide()
+MoveCommand PerimeterTracker::decide(double dt)
 {
   MoveCommand cmd = MoveCommand::zero();
 
   if (config_.waypointCount() == 0) {
     return cmd;
   }
+
+  // Use provided dt or default to 0.02 (50Hz)
+  double real_dt = (dt > 0.0) ? dt : 0.02;
 
   // Get current target waypoint
   const auto &target = config_.getWaypoint(current_waypoint_idx_);
@@ -125,8 +128,8 @@ MoveCommand PerimeterTracker::decide()
   // Compute lateral error
   double lateral_error = computeLateralError();
 
-  // Compute steering (lateral PID output)
-  double steering = lateral_pid_.compute(lateral_error, 0.02); // assume 50Hz
+  // Compute steering (lateral PID output) using real dt
+  double steering = lateral_pid_.compute(lateral_error, real_dt);
 
   // Compute desired heading
   double desired_heading = computeDesiredHeading();

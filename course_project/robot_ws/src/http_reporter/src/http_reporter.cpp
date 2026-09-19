@@ -23,7 +23,7 @@ HttpReporter::~HttpReporter() {
     curl_global_cleanup();
 }
 
-std::string HttpReporter::buildUrl(const std::string& path) const {
+std::string HttpReporter::buildUrlImpl(const std::string& path) const {
     if (path.empty() || path[0] != '/') {
         return endpoint_ + "/" + path;
     }
@@ -73,7 +73,7 @@ bool HttpReporter::postJson(const std::string& path, const std::string& json_dat
     return true;
 }
 
-std::string HttpReporter::serializeMovementReport(const PerimeterStatus& status) {
+std::string HttpReporter::serializeMovementReportImpl(const PerimeterStatus& status) {
     std::ostringstream json;
     json << "{";
     json << "\"mode\":" << static_cast<int>(status.mode) << ",";
@@ -90,7 +90,7 @@ std::string HttpReporter::serializeMovementReport(const PerimeterStatus& status)
     return json.str();
 }
 
-std::string HttpReporter::serializeMineDetection(const MineDetection& detection) {
+std::string HttpReporter::serializeMineDetectionImpl(const MineDetection& detection) {
     std::ostringstream json;
     json << "{";
     json << "\"mine_id\":" << detection.mine_id << ",";
@@ -103,7 +103,7 @@ std::string HttpReporter::serializeMineDetection(const MineDetection& detection)
     return json.str();
 }
 
-std::string HttpReporter::serializeClearanceReport(const ClearanceReport& report) {
+std::string HttpReporter::serializeClearanceReportImpl(const ClearanceReport& report) {
     std::ostringstream json;
     json << "{";
     json << "\"mine_id\":" << report.mine_id << ",";
@@ -117,7 +117,7 @@ std::string HttpReporter::serializeClearanceReport(const ClearanceReport& report
     return json.str();
 }
 
-std::string HttpReporter::serializeMissionSummary(const MissionSummary& summary) {
+std::string HttpReporter::serializeMissionSummaryImpl(const MissionSummary& summary) {
     std::ostringstream json;
     json << "{";
     json << "\"scenario_name\":\"" << summary.scenario_name << "\",";

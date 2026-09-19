@@ -49,7 +49,7 @@ install(DIRECTORY include/
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   
-  # Test executable with HttpReporter implementation
+  # Original test executable with HttpReporter implementation
   ament_add_gtest(test_http_reporter test/http_reporter_test.cpp src/http_reporter.cpp)
   target_include_directories(test_http_reporter PRIVATE include)
   ament_target_dependencies(test_http_reporter
@@ -58,6 +58,14 @@ if(BUILD_TESTING)
   )
   target_include_directories(test_http_reporter PRIVATE ${CURL_INCLUDE_DIRS})
   target_link_libraries(test_http_reporter ${CURL_LIBRARIES})
+  
+  # New serialization tests for HttpReporter
+  ament_add_gtest(test_http_reporter_serialization
+    test/http_reporter_serialization_test.cpp src/http_reporter.cpp
+  )
+  target_include_directories(test_http_reporter_serialization PRIVATE include)
+  target_include_directories(test_http_reporter_serialization PRIVATE ${CURL_INCLUDE_DIRS})
+  target_link_libraries(test_http_reporter_serialization ${CURL_LIBRARIES})
   
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()

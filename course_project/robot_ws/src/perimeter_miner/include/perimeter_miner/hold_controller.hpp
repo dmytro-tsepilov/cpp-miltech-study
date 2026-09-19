@@ -36,7 +36,8 @@ public:
   void setHoldPosition(double x, double y, double heading);
 
   /// Compute hold command based on current state
-  MoveCommand compute(const RobotState &state);
+  /// @param dt Time step in seconds (if <= 0, uses default 0.02)
+  MoveCommand compute(const RobotState &state, double dt = -1.0);
 
   /// Check if robot is at hold position
   bool isAtHoldPosition(const RobotState &state, double tolerance = 0.5) const;

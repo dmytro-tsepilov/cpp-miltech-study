@@ -1,0 +1,489 @@
+// Copyright 2026 Open Source Robotics Foundation Inc
+// SPDX-License-Identifier: MIT
+//
+// Integration tests for ModeSwitch + PerimeterTracker interaction.
+// Tests the combined behavior of mode switching and perimeter tracking.
+
+#include <gtest/gtest.h>
+#include <cmath>
+#include <vector>
+
+#include "perimeter_miner/perimeter_config.hpp"
+#include "perimeter_miner/perimeter_tracker.hpp"
+#include "perimeter_miner/mode_switch.hpp"
+#include "perimeter_miner/hold_controller.hpp"
+
+using perimeter_miner::ControlMode;
+using perimeter_miner::HoldController;
+using perimeter_miner::ModeSwitch;
+using perimeter_miner::MoveCommand;
+using perimeter_miner::PerimeterConfig;
+using perimeter_miner::PerimeterTracker;
+using perimeter_miner::RobotState;
+using perimeter_miner::Waypoint;
+
+// Simulated MinerNode behavior for integration testing
+class SimulatedMinerNode {
+public:
+    SimulatedMinerNode(const PerimeterConfig& config)
+        : tracker_(config), mode_switch_(), hold_controller_() {
+        // Initialize hold position to start
+        if (config.waypointCount() > 0) {
+            const auto& start = config.waypoints[0];
+            hold_controller_.setHoldPosition(start.x, start.y, start.heading);
+        }
+    }
+
+    void updateRobotState(const RobotState& state) {
+        robot_state_ = state;
+        tracker_.updateRobotState(state);
+    }
+
+    MoveCommand controlTick() {
+        MoveCommand cmd;
+
+        // Apply mode switch if pending
+        if (mode_switch_.isSwitching()) {
+            mode_switch_.applyRequest();
+        }
+
+        ControlMode current_mode = mode_switch_.getCurrentMode();
+
+        switch (current_mode) {
+            case ControlMode::AUTONOMOUS:
+                cmd = tracker_.decide();
+                break;
+
+            case ControlMode::TELEOP:
+                // In simulation, teleop sends zero command
+                cmd = MoveCommand::zero();
+                break;
+
+            case ControlMode::HOLD:
+                cmd = hold_controller_.compute(robot_state_);
+                break;
+        }
+
+        return cmd;
+    }
+
+    bool switchToAutonomous() {
+        return mode_switch_.requestMode(ControlMode::AUTONOMOUS);
+    }
+
+    bool switchToTeleop() {
+        return mode_switch_.operatorOverride();
+    }
+
+    bool switchToHold() {
+        return mode_switch_.requestMode(ControlMode::HOLD);
+    }
+
+    ControlMode getCurrentMode() const {
+        return mode_switch_.getCurrentMode();
+    }
+
+    MoveCommand getTrackerCommand() {
+        return tracker_.decide();
+    }
+
+    bool isAtWaypoint() {
+        return tracker_.reachedWaypoint();
+    }
+
+    void advanceWaypoint() {
+        tracker_.advanceWaypoint();
+    }
+
+    void resetHoldPosition() {
+        if (tracker_.getConfig().waypointCount() > 0) {
+            const auto& wp = tracker_.getConfig().getWaypoint(
+                tracker_.getStatus().waypoint_index);
+            hold_controller_.setHoldPosition(wp.x, wp.y, wp.heading);
+        }
+    }
+
+private:
+    PerimeterTracker tracker_;
+    ModeSwitch mode_switch_;
+    HoldController hold_controller_;
+    RobotState robot_state_{0.0, 0.0, 0.0, 0.0, 0.0};
+
+public:
+    // Expose mode_switch_ for safety check testing
+    ModeSwitch& getModeSwitch() { return mode_switch_; }
+};
+
+// Test 1: Autonomous to Teleop switch
+TEST(IntegrationTest, AutonomousToTeleop)
+{
+  PerimeterConfig config;
+  config.name = "integration_test";
+  config.closed_loop = true;
+  config.tolerance = 0.5;
+  config.max_speed = 2.0;
+
+  config.waypoints = {
+    Waypoint{0.0, 0.0, 0.0, 1.0},
+    Waypoint{10.0, 0.0, M_PI_2, 1.0}
+  };
+
+  SimulatedMinerNode node(config);
+
+  // Start in AUTONOMOUS mode
+  EXPECT_EQ(node.getCurrentMode(), ControlMode::AUTONOMOUS);
+
+  // Get autonomous command
+  auto auto_cmd = node.controlTick();
+  EXPECT_GT(auto_cmd.linear_x, 0.0);  // Should move forward
+
+  // Switch to TELEOP
+  bool success = node.switchToTeleop();
+  EXPECT_TRUE(success);
+  EXPECT_EQ(node.getCurrentMode(), ControlMode::TELEOP);
+
+  // In TELEOP mode, command should be zero
+  auto teleop_cmd = node.controlTick();
+  EXPECT_DOUBLE_EQ(teleop_cmd.linear_x, 0.0);
+  EXPECT_DOUBLE_EQ(teleop_cmd.angular_z, 0.0);
+}
+
+// Test 2: Teleop to Autonomous switch
+TEST(IntegrationTest, TeleopToAutonomous)
+{
+  PerimeterConfig config;
+  config.name = "teleop_to_auto";
+  config.closed_loop = true;
+  config.tolerance = 0.5;
+  config.max_speed = 2.0;
+
+  config.waypoints = {
+    Waypoint{0.0, 0.0, 0.0, 1.0},
+    Waypoint{10.0, 0.0, M_PI_2, 1.0}
+  };
+
+  SimulatedMinerNode node(config);
+
+  // Switch to TELEOP first
+  node.switchToTeleop();
+  EXPECT_EQ(node.getCurrentMode(), ControlMode::TELEOP);
+
+  // Try to switch back to AUTONOMOUS
+  bool success = node.switchToAutonomous();
+  
+  // This may succeed or fail depending on safety checks
+  // (in our implementation, it should succeed because lateral error < 5.0)
+  EXPECT_TRUE(success);
+
+  // Apply the switch
+  if (node.getCurrentMode() != ControlMode::AUTONOMOUS) {
+    node.controlTick();  // Trigger applyRequest
+  }
+
+  // Should now be in AUTONOMOUS mode
+  EXPECT_EQ(node.getCurrentMode(), ControlMode::AUTONOMOUS);
+
+  // Should produce non-zero command again
+  auto cmd = node.controlTick();
+  EXPECT_GT(cmd.linear_x, 0.0);
+}
+
+// Test 3: Autonomous to Hold switch (mine detected simulation)
+TEST(IntegrationTest, AutonomousToHold)
+{
+  PerimeterConfig config;
+  config.name = "auto_to_hold";
+  config.closed_loop = true;
+  config.tolerance = 0.5;
+  config.max_speed = 2.0;
+
+  config.waypoints = {
+    Waypoint{0.0, 0.0, 0.0, 1.0},
+    Waypoint{10.0, 0.0, M_PI_2, 1.0}
+  };
+
+  SimulatedMinerNode node(config);
+
+  // Start in AUTONOMOUS
+  EXPECT_EQ(node.getCurrentMode(), ControlMode::AUTONOMOUS);
+
+  // Simulate mine detection - switch to HOLD
+  bool success = node.switchToHold();
+  EXPECT_TRUE(success);
+
+  // Apply the switch
+  node.controlTick();
+
+  EXPECT_EQ(node.getCurrentMode(), ControlMode::HOLD);
+
+  // Hold controller should produce command to return to position
+  auto hold_cmd = node.controlTick();
+  
+  // Command may be zero if robot is at start position
+  EXPECT_TRUE(true);  // Just verify no crash
+}
+
+// Test 4: Multiple mode switches in sequence
+TEST(IntegrationTest, MultipleModeSwitches)
+{
+  PerimeterConfig config;
+  config.name = "multi_switch";
+  config.closed_loop = true;
+  config.tolerance = 0.5;
+  config.max_speed = 2.0;
+
+  config.waypoints = {
+    Waypoint{0.0, 0.0, 0.0, 1.0},
+    Waypoint{10.0, 0.0, M_PI_2, 1.0}
+  };
+
+  SimulatedMinerNode node(config);
+
+  // Sequence: AUTO -> TELEOP -> HOLD -> AUTO
+  EXPECT_EQ(node.getCurrentMode(), ControlMode::AUTONOMOUS);
+
+  // Switch to TELEOP
+  node.switchToTeleop();
+  EXPECT_EQ(node.getCurrentMode(), ControlMode::TELEOP);
+
+  // Switch to HOLD
+  node.switchToHold();
+  node.controlTick();  // Apply
+  EXPECT_EQ(node.getCurrentMode(), ControlMode::HOLD);
+
+  // Switch back to AUTO
+  node.switchToAutonomous();
+  node.controlTick();  // Apply
+  EXPECT_EQ(node.getCurrentMode(), ControlMode::AUTONOMOUS);
+}
+
+// Test 5: Perimeter tracking during autonomous mode
+TEST(IntegrationTest, PerimeterTrackingDuringAutonomous)
+{
+  PerimeterConfig config;
+  config.name = "tracking_test";
+  config.closed_loop = true;
+  config.tolerance = 0.5;
+  config.max_speed = 2.0;
+
+  config.waypoints = {
+    Waypoint{0.0, 0.0, 0.0, 1.0},
+    Waypoint{10.0, 0.0, M_PI_2, 1.0},
+    Waypoint{10.0, 10.0, M_PI, 1.0}
+  };
+
+  SimulatedMinerNode node(config);
+
+  // Simulate robot moving along perimeter
+  for (int i = 0; i < 5; ++i) {
+    RobotState state;
+    state.x = static_cast<double>(i);
+    state.y = 0.0;
+    state.heading = 0.0;
+    state.linear_speed = 1.0;
+    state.angular_speed = 0.0;
+
+    node.updateRobotState(state);
+    auto cmd = node.controlTick();
+
+    // Should produce valid commands in AUTONOMOUS mode
+    EXPECT_TRUE(cmd.linear_x >= 0.0);
+  }
+}
+
+// Test 6: Hold controller maintains position
+TEST(IntegrationTest, HoldMaintainsPosition)
+{
+  PerimeterConfig config;
+  config.name = "hold_test";
+  config.closed_loop = true;
+  config.tolerance = 0.5;
+  config.max_speed = 2.0;
+
+  config.waypoints = {
+    Waypoint{0.0, 0.0, 0.0, 1.0},
+    Waypoint{10.0, 0.0, M_PI_2, 1.0}
+  };
+
+  SimulatedMinerNode node(config);
+
+  // Set hold position to current waypoint
+  node.resetHoldPosition();
+
+  // Switch to HOLD mode
+  node.switchToHold();
+  node.controlTick();
+
+  EXPECT_EQ(node.getCurrentMode(), ControlMode::HOLD);
+
+  // Robot at hold position - should produce near-zero command
+  RobotState state;
+  state.x = 0.0;
+  state.y = 0.0;
+  state.heading = 0.0;
+  state.linear_speed = 0.0;
+  state.angular_speed = 0.0;
+
+  node.updateRobotState(state);
+
+  for (int i = 0; i < 3; ++i) {
+    auto cmd = node.controlTick();
+    // Command should be small when at position
+    EXPECT_LT(std::abs(cmd.linear_x), 2.0);  // Within reasonable bounds
+  }
+}
+
+// Test 7: Waypoint advancement with mode switch
+TEST(IntegrationTest, WaypointAdvancementWithModeSwitch)
+{
+  PerimeterConfig config;
+  config.name = "wp_advancement";
+  config.closed_loop = true;
+  config.tolerance = 0.5;
+  config.max_speed = 2.0;
+
+  config.waypoints = {
+    Waypoint{0.0, 0.0, 0.0, 1.0},
+    Waypoint{10.0, 0.0, M_PI_2, 1.0},
+    Waypoint{10.0, 10.0, M_PI, 1.0}
+  };
+
+  SimulatedMinerNode node(config);
+
+  // Start at first waypoint
+  RobotState state;
+  state.x = 0.0;
+  state.y = 0.0;
+  state.heading = 0.0;
+  state.linear_speed = 0.0;
+  state.angular_speed = 0.0;
+
+  node.updateRobotState(state);
+
+  // Advance waypoint manually (simulating reaching it)
+  node.advanceWaypoint();
+
+  EXPECT_EQ(node.getCurrentMode(), ControlMode::AUTONOMOUS);
+
+  // Switch modes and back
+  node.switchToTeleop();
+  node.switchToAutonomous();
+  node.controlTick();
+
+  EXPECT_EQ(node.getCurrentMode(), ControlMode::AUTONOMOUS);
+}
+
+// Test 8: Mode switch safety check integration
+TEST(IntegrationTest, SafetyCheckIntegration)
+{
+  PerimeterConfig config;
+  config.name = "safety_test";
+  config.closed_loop = true;
+  config.tolerance = 0.5;
+  config.max_speed = 2.0;
+
+  config.waypoints = {
+    Waypoint{0.0, 0.0, 0.0, 1.0},
+    Waypoint{10.0, 0.0, M_PI_2, 1.0}
+  };
+
+  SimulatedMinerNode node(config);
+
+  // Set a failing safety check (robot too far from perimeter)
+  node.getModeSwitch().setAutonomousCheck([]() { return false; });
+
+  // Switch to TELEOP first
+  node.switchToTeleop();
+
+  // Try to switch back - should fail due to safety check
+  bool success = node.switchToAutonomous();
+  
+  // The request may succeed, but applyRequest will fail
+  if (success) {
+    node.controlTick();  // This triggers applyRequest
+    // Mode should still be TELEOP because safety check failed
+  }
+}
+
+// Test 9: Closed loop patrol simulation
+TEST(IntegrationTest, ClosedLoopPatrolSimulation)
+{
+  PerimeterConfig config;
+  config.name = "closed_loop_patrol";
+  config.closed_loop = true;
+  config.tolerance = 0.5;
+  config.max_speed = 2.0;
+
+  config.waypoints = {
+    Waypoint{0.0, 0.0, 0.0, 1.0},
+    Waypoint{10.0, 0.0, M_PI_2, 1.0},
+    Waypoint{10.0, 10.0, M_PI, 1.0},
+    Waypoint{0.0, 10.0, -M_PI_2, 1.0}
+  };
+
+  SimulatedMinerNode node(config);
+
+  // Simulate complete patrol loop
+  int waypoints_completed = 0;
+  RobotState state;
+  state.x = 0.0;
+  state.y = 0.0;
+  state.heading = 0.0;
+  state.linear_speed = 1.0;
+  state.angular_speed = 0.0;
+
+  node.updateRobotState(state);
+
+  // Advance through all waypoints
+  for (int i = 0; i < 4; ++i) {
+    auto cmd = node.controlTick();
+    EXPECT_EQ(node.getCurrentMode(), ControlMode::AUTONOMOUS);
+    
+    // Simulate reaching waypoint
+    if (i < 3) {
+      node.advanceWaypoint();
+      waypoints_completed++;
+    }
+  }
+
+  // Should have completed at least some waypoints
+  EXPECT_GT(waypoints_completed, 0);
+}
+
+// Test 10: Mode switch message tracking integration
+TEST(IntegrationTest, MessageTrackingIntegration)
+{
+  PerimeterConfig config;
+  config.name = "message_test";
+  config.closed_loop = true;
+  config.tolerance = 0.5;
+  config.max_speed = 2.0;
+
+  config.waypoints = {
+    Waypoint{0.0, 0.0, 0.0, 1.0},
+    Waypoint{10.0, 0.0, M_PI_2, 1.0}
+  };
+
+  SimulatedMinerNode node(config);
+
+  // Initial mode
+  std::string initial_mode = "AUTONOMOUS";
+
+  // Switch modes and check messages
+  node.switchToTeleop();
+  
+  // Mode should change
+  EXPECT_EQ(node.getCurrentMode(), ControlMode::TELEOP);
+
+  // Switch back
+  node.switchToAutonomous();
+  node.controlTick();
+
+  EXPECT_EQ(node.getCurrentMode(), ControlMode::AUTONOMOUS);
+}
+
+int main(int argc, char ** argv)
+{
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}

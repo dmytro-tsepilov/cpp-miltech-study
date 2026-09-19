@@ -88,15 +88,32 @@ private:
     int success_count_ = 0;
     int failure_count_ = 0;
     
-    // Serialize status to JSON string
-    std::string serializeMovementReport(const PerimeterStatus& status);
-    std::string serializeMineDetection(const MineDetection& detection);
-    std::string serializeClearanceReport(const ClearanceReport& report);
-    std::string serializeMissionSummary(const MissionSummary& summary);
-    
-    // HTTP POST request via curl
+    // HTTP POST request via curl (private)
     bool postJson(const std::string& path, const std::string& json_data);
     
-    // Build full URL
-    std::string buildUrl(const std::string& path) const;
+public:
+    // Serialization methods (public for testing)
+    std::string serializeMovementReport(const PerimeterStatus& status) {
+        return serializeMovementReportImpl(status);
+    }
+    std::string serializeMineDetection(const MineDetection& detection) {
+        return serializeMineDetectionImpl(detection);
+    }
+    std::string serializeClearanceReport(const ClearanceReport& report) {
+        return serializeClearanceReportImpl(report);
+    }
+    std::string serializeMissionSummary(const MissionSummary& summary) {
+        return serializeMissionSummaryImpl(summary);
+    }
+    std::string buildUrl(const std::string& path) const {
+        return buildUrlImpl(path);
+    }
+
+private:
+    // Actual implementation methods
+    std::string serializeMovementReportImpl(const PerimeterStatus& status);
+    std::string serializeMineDetectionImpl(const MineDetection& detection);
+    std::string serializeClearanceReportImpl(const ClearanceReport& report);
+    std::string serializeMissionSummaryImpl(const MissionSummary& summary);
+    std::string buildUrlImpl(const std::string& path) const;
 };

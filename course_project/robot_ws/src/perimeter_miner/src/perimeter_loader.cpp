@@ -154,9 +154,23 @@ std::vector<Waypoint> PerimeterLoader::parseWaypoints(
     }
     line_start++;
 
+    // Check if this is end of file
+    if (line_start >= yaml.size()) {
+      break;
+    }
+
+    // Skip blank lines (they are valid within YAML lists)
+    char c = yaml[line_start];
+    if (c == '\r' || c == '\n') {
+      search_pos = line_start;
+      continue;
+    }
+
     // Check if this line starts with a non-indented word (new key)
-    if (line_start < yaml.size() && yaml[line_start] != ' ' && yaml[line_start] != '\t' &&
-      yaml[line_start] != '#' && yaml[line_start] != '-') {
+    // Blank lines and comment-only lines should NOT end the block
+    if (yaml[line_start] != ' ' && yaml[line_start] != '\t' &&
+      yaml[line_start] != '#') {
+      // Make sure it's not a continuation of a list item
       block_end = line_start;
       break;
     }

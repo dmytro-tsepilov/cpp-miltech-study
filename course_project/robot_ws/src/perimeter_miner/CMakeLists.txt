@@ -77,7 +77,7 @@ install(DIRECTORY include/
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
 
-  # Unit tests for perimeter tracker
+  # Unit tests for perimeter tracker (basic tests)
   ament_add_gtest(test_perimeter_tracker
     test/perimeter_tracker_test.cpp
   )
@@ -98,6 +98,50 @@ if(BUILD_TESTING)
     perimeter_msgs
   )
   target_link_libraries(test_mode_switch perimeter_miner_lib)
+
+  # Unit tests for perimeter tracker decide() logic
+  ament_add_gtest(test_perimeter_tracker_decide
+    test/perimeter_tracker_decide_test.cpp
+  )
+  target_include_directories(test_perimeter_tracker_decide PRIVATE include)
+  ament_target_dependencies(test_perimeter_tracker_decide
+    rclcpp
+    perimeter_msgs
+  )
+  target_link_libraries(test_perimeter_tracker_decide perimeter_miner_lib)
+
+  # Unit tests for PerimeterLoader YAML parsing
+  ament_add_gtest(test_perimeter_loader
+    test/perimeter_loader_test.cpp
+  )
+  target_include_directories(test_perimeter_loader PRIVATE include)
+  ament_target_dependencies(test_perimeter_loader
+    rclcpp
+    perimeter_msgs
+  )
+  target_link_libraries(test_perimeter_loader perimeter_miner_lib)
+
+  # Unit tests for HoldController PID calculations
+  ament_add_gtest(test_hold_controller_pid
+    test/hold_controller_pid_test.cpp
+  )
+  target_include_directories(test_hold_controller_pid PRIVATE include)
+  ament_target_dependencies(test_hold_controller_pid
+    rclcpp
+    perimeter_msgs
+  )
+  target_link_libraries(test_hold_controller_pid perimeter_miner_lib)
+
+  # Integration tests for ModeSwitch + PerimeterTracker
+  ament_add_gtest(test_integration
+    test/integration_test.cpp
+  )
+  target_include_directories(test_integration PRIVATE include)
+  ament_target_dependencies(test_integration
+    rclcpp
+    perimeter_msgs
+  )
+  target_link_libraries(test_integration perimeter_miner_lib)
 
   # Linting
   find_package(ament_lint_auto REQUIRED)

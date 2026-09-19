@@ -1,4 +1,25 @@
 #!/usr/bin/env python3
+# Copyright 2026 Open Source Robotics Foundation Inc
+# SPDX-License-Identifier: MIT
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 """System launch file for perimeter miner course project.
 
 Launches all nodes required for perimeter patrol mission:
@@ -26,7 +47,6 @@ from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
     IncludeLaunchDescription,
-    OpaqueFunction,
 )
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -35,22 +55,15 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 
-def load_perimeter_config(context, *args, **kwargs):
-    """Opaque function to load perimeter config based on scenario name."""
-    scenario = LaunchConfiguration('scenario').perform(context)
-
+def _get_scenario_file(scenario_name):
+    """Helper to get scenario file from scenario name."""
     # Map scenario names to config files
     scenario_map = {
         'training_ground': 'training_ground.yaml',
         'patrol_alpha': 'patrol_alpha.yaml',
         'large_patrol': 'large_patrol.yaml',
     }
-
-    config_file = scenario_map.get(scenario, f'{scenario}.yaml')
-    context.set_parameter(
-        'perimeter_miner.miner_node.scenario_file', config_file
-    )
-    return []
+    return scenario_map.get(scenario_name, f'{scenario_name}.yaml')
 
 
 def generate_launch_description():
@@ -67,10 +80,15 @@ def generate_launch_description():
     use_gazebo = LaunchConfiguration('use_gazebo')
     enable_teleop = LaunchConfiguration('enable_teleop')
 
-    # Scenario config path
+    # Scenario config path - maps scenario name to actual yaml file
+    _scenario_file = LaunchConfiguration('scenario_file')
+
+    # Default scenario file based on default scenario value
+    default_scenario_file = _get_scenario_file('training_ground')
+
     scenario_file_arg = DeclareLaunchArgument(
         'scenario_file',
-        default_value='training_ground.yaml',
+        default_value=default_scenario_file,
         description='Perimeter configuration file'
     )
 
@@ -130,7 +148,7 @@ def generate_launch_description():
         name='miner_node',
         output='screen',
         parameters=[{
-            'scenario_file': LaunchConfiguration('scenario_file'),
+            'scenario_file': _scenario_file,
         }]
     )
 
@@ -200,9 +218,6 @@ def generate_launch_description():
         use_gazebo_arg,
         enable_teleop_arg,
         teleop_input_type_arg,
-
-        # Opaque function to map scenario to config file
-        OpaqueFunction(function=load_perimeter_config),
 
         miner_node,
         mode_switch_node,

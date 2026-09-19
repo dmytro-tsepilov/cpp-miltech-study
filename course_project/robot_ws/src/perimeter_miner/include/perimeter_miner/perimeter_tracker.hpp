@@ -126,7 +126,8 @@ public:
   void updateRobotState(const RobotState &state);
 
   /// Make navigation decision based on current state
-  MoveCommand decide();
+  /// @param dt Time step in seconds (if <= 0, uses default 0.02)
+  MoveCommand decide(double dt = -1.0);
 
   /// Check if current waypoint is reached
   bool reachedWaypoint() const;
