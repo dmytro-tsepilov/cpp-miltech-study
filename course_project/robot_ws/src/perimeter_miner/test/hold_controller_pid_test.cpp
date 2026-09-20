@@ -169,8 +169,10 @@ TEST(HoldControllerPIDTest, ResetOnSetPosition)
 
   auto cmd = hold.compute(state2);
 
-  // First command after reset should not have accumulated integral bias
-  EXPECT_TRUE(true);  // Just verify no crash
+  // After reset, command should be near-zero since robot is at new hold position
+  EXPECT_LT(std::abs(cmd.linear_x), 0.01);
+  EXPECT_LT(std::abs(cmd.linear_y), 0.01);
+  EXPECT_LT(std::abs(cmd.angular_z), 0.01);
 }
 
 // Test 8: Hold controller with different positions
@@ -266,7 +268,7 @@ TEST(HoldControllerPIDTest, ZeroToleranceCheck)
   EXPECT_TRUE(hold.isAtHoldPosition(state, 0.0));
 }
 
-// Test 12: Large heading difference
+// Test 12: Large heading difference produces significant angular command
 TEST(HoldControllerPIDTest, LargeHeadingDifference)
 {
   HoldController hold;
@@ -281,8 +283,91 @@ TEST(HoldControllerPIDTest, LargeHeadingDifference)
 
   auto cmd = hold.compute(state);
 
-  // Should produce significant angular command
-  EXPECT_GT(std::abs(cmd.angular_z), 0.0);
+  // Should produce significant angular command (heading_kp=3.0, error≈PI)
+  // With kp=3.0 and error≈3.14: angular_z ≈ 3.0 * 3.14 = 9.42, clamped to 1.0
+  EXPECT_GT(std::abs(cmd.angular_z), 0.5);  // Should be close to max (1.0)
+}
+
+// Test 13: Hold controller with zero distance error
+TEST(HoldControllerPIDTest, ZeroDistanceError)
+{
+  HoldController hold;
+  hold.setHoldPosition(0.0, 0.0, 0.0);
+
+  RobotState state;
+  state.x = 0.0;
+  state.y = 0.0;
+  state.heading = 0.0;
+  state.linear_speed = 0.0;
+  state.angular_speed = 0.0;
+
+  auto cmd = hold.compute(state);
+
+  // All commands should be zero when at hold position
+  EXPECT_NEAR(cmd.linear_x, 0.0, 0.001);
+  EXPECT_NEAR(cmd.linear_y, 0.0, 0.001);
+  EXPECT_NEAR(cmd.angular_z, 0.0, 0.001);
+}
+
+// Test 14: Hold controller heading correction direction
+TEST(HoldControllerPIDTest, HeadingCorrectionDirection)
+{
+  HoldController hold;
+  hold.setHoldPosition(0.0, 0.0, 0.0);  // Target heading = 0
+
+  // Robot facing +90 degrees (should turn negative to correct)
+  RobotState state_ccw;
+  state_ccw.x = 0.0;
+  state_ccw.y = 0.0;
+  state_ccw.heading = M_PI_2;
+  state_ccw.linear_speed = 0.0;
+  state_ccw.angular_speed = 0.0;
+
+  auto cmd_ccw = hold.compute(state_ccw);
+
+  // Robot facing -90 degrees (should turn positive to correct)
+  RobotState state_cw;
+  state_cw.x = 0.0;
+  state_cw.y = 0.0;
+  state_cw.heading = -M_PI_2;
+  state_cw.linear_speed = 0.0;
+  state_cw.angular_speed = 0.0;
+
+  auto cmd_cw = hold.compute(state_cw);
+
+  // Angular commands should have opposite signs for opposite heading errors
+  EXPECT_NE(cmd_ccw.angular_z, 0.0);
+  EXPECT_NE(cmd_cw.angular_z, 0.0);
+  EXPECT_LT(cmd_ccw.angular_z * cmd_cw.angular_z, 0);  // Opposite signs
+}
+
+// Test 15: Hold controller position tolerance uses Euclidean distance
+TEST(HoldControllerPIDTest, PositionToleranceEuclidean)
+{
+  HoldController hold;
+  hold.setHoldPosition(5.0, 10.0, 0.0);
+
+  // Within Euclidean tolerance (distance < 0.5)
+  // sqrt(0.3^2 + 0.3^2) = sqrt(0.18) ≈ 0.424 < 0.5
+  RobotState state_within;
+  state_within.x = 5.3;
+  state_within.y = 9.7;
+  state_within.heading = 0.0;
+  state_within.linear_speed = 0.0;
+  state_within.angular_speed = 0.0;
+
+  EXPECT_TRUE(hold.isAtHoldPosition(state_within, 0.5));
+
+  // Outside Euclidean tolerance (distance > 0.5)
+  // sqrt(0.4^2 + 0.4^2) = sqrt(0.32) ≈ 0.566 > 0.5
+  RobotState state_out;
+  state_out.x = 5.4;
+  state_out.y = 9.6;
+  state_out.heading = 0.0;
+  state_out.linear_speed = 0.0;
+  state_out.angular_speed = 0.0;
+
+  EXPECT_FALSE(hold.isAtHoldPosition(state_out, 0.5));
 }
 
 int main(int argc, char ** argv)

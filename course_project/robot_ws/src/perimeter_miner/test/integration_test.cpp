@@ -220,6 +220,10 @@ TEST(IntegrationTest, AutonomousToHold)
   // Start in AUTONOMOUS
   EXPECT_EQ(node.getCurrentMode(), ControlMode::AUTONOMOUS);
 
+  // Get initial autonomous command
+  auto auto_cmd = node.controlTick();
+  EXPECT_GT(auto_cmd.linear_x, 0.0);  // Should produce forward motion
+
   // Simulate mine detection - switch to HOLD
   bool success = node.switchToHold();
   EXPECT_TRUE(success);
@@ -230,10 +234,19 @@ TEST(IntegrationTest, AutonomousToHold)
   EXPECT_EQ(node.getCurrentMode(), ControlMode::HOLD);
 
   // Hold controller should produce command to return to position
-  node.controlTick();
+  RobotState state;
+  state.x = 0.0;
+  state.y = 0.0;
+  state.heading = 0.0;
+  state.linear_speed = 0.0;
+  state.angular_speed = 0.0;
+  node.updateRobotState(state);
 
-  // Command may be zero if robot is at start position
-  EXPECT_TRUE(true);  // Just verify no crash
+  auto hold_cmd = node.controlTick();
+  
+  // Hold command should be bounded (clamped to max values)
+  EXPECT_LE(std::abs(hold_cmd.linear_x), 1.0);
+  EXPECT_LE(std::abs(hold_cmd.angular_z), 1.0);
 }
 
 // Test 4: Multiple mode switches in sequence
@@ -288,6 +301,7 @@ TEST(IntegrationTest, PerimeterTrackingDuringAutonomous)
   SimulatedMinerNode node(config);
 
   // Simulate robot moving along perimeter
+  int valid_commands = 0;
   for (int i = 0; i < 5; ++i) {
     RobotState state;
     state.x = static_cast<double>(i);
@@ -301,10 +315,17 @@ TEST(IntegrationTest, PerimeterTrackingDuringAutonomous)
 
     // Should produce valid commands in AUTONOMOUS mode
     EXPECT_TRUE(cmd.linear_x >= 0.0);
+    
+    if (cmd.linear_x > 0.0) {
+      valid_commands++;
+    }
   }
+  
+  // At least some commands should have positive forward speed
+  EXPECT_GT(valid_commands, 0);
 }
 
-// Test 6: Hold controller maintains position
+// Test 6: Hold controller maintains position with multiple ticks
 TEST(IntegrationTest, HoldMaintainsPosition)
 {
   PerimeterConfig config;
@@ -339,11 +360,15 @@ TEST(IntegrationTest, HoldMaintainsPosition)
 
   node.updateRobotState(state);
 
+  // Collect commands over multiple ticks
+  double max_linear = 0.0;
   for (int i = 0; i < 3; ++i) {
     auto cmd = node.controlTick();
-    // Command should be small when at position
-    EXPECT_LT(std::abs(cmd.linear_x), 2.0);  // Within reasonable bounds
+    max_linear = std::max(max_linear, std::abs(cmd.linear_x));
   }
+  
+  // When at hold position, commands should be near-zero (not just bounded by 2.0)
+  EXPECT_LT(max_linear, 0.5);  // Tighter bound: near-zero when at position
 }
 
 // Test 7: Waypoint advancement with mode switch
@@ -407,6 +432,7 @@ TEST(IntegrationTest, SafetyCheckIntegration)
 
   // Switch to TELEOP first
   node.switchToTeleop();
+  EXPECT_EQ(node.getCurrentMode(), ControlMode::TELEOP);
 
   // Try to switch back - should fail due to safety check
   bool success = node.switchToAutonomous();
@@ -415,10 +441,11 @@ TEST(IntegrationTest, SafetyCheckIntegration)
   if (success) {
     node.controlTick();  // This triggers applyRequest
     // Mode should still be TELEOP because safety check failed
+    EXPECT_EQ(node.getCurrentMode(), ControlMode::TELEOP);
   }
 }
 
-// Test 9: Closed loop patrol simulation
+// Test 9: Closed loop patrol simulation with mode verification
 TEST(IntegrationTest, ClosedLoopPatrolSimulation)
 {
   PerimeterConfig config;
@@ -438,6 +465,7 @@ TEST(IntegrationTest, ClosedLoopPatrolSimulation)
 
   // Simulate complete patrol loop
   int waypoints_completed = 0;
+  int commands_produced = 0;
   RobotState state;
   state.x = 0.0;
   state.y = 0.0;
@@ -450,6 +478,8 @@ TEST(IntegrationTest, ClosedLoopPatrolSimulation)
   // Advance through all waypoints
   for (int i = 0; i < 4; ++i) {
     node.controlTick();
+    commands_produced++;
+    
     EXPECT_EQ(node.getCurrentMode(), ControlMode::AUTONOMOUS);
 
     // Simulate reaching waypoint
@@ -459,8 +489,10 @@ TEST(IntegrationTest, ClosedLoopPatrolSimulation)
     }
   }
 
-  // Should have completed at least some waypoints
-  EXPECT_GT(waypoints_completed, 0);
+  // Should have completed all 3 advances (waypoints 0, 1, 2 -> index becomes 3)
+  EXPECT_EQ(waypoints_completed, 3);
+  // All ticks should have produced commands
+  EXPECT_EQ(commands_produced, 4);
 }
 
 // Test 10: Mode switch message tracking integration
@@ -493,6 +525,76 @@ TEST(IntegrationTest, MessageTrackingIntegration)
   node.controlTick();
 
   EXPECT_EQ(node.getCurrentMode(), ControlMode::AUTONOMOUS);
+}
+
+// Test 11: Mode switch prevents duplicate TELEOP override
+TEST(IntegrationTest, DuplicateTeleopOverride)
+{
+  PerimeterConfig config;
+  config.name = "dup_override_test";
+  config.closed_loop = true;
+  config.tolerance = 0.5;
+  config.max_speed = 2.0;
+
+  config.waypoints = {
+    Waypoint{0.0, 0.0, 0.0, 1.0},
+    Waypoint{10.0, 0.0, M_PI_2, 1.0}
+  };
+
+  SimulatedMinerNode node(config);
+
+  // First override should succeed
+  bool first = node.switchToTeleop();
+  EXPECT_TRUE(first);
+  EXPECT_EQ(node.getCurrentMode(), ControlMode::TELEOP);
+
+  // Second override while already in TELEOP should fail
+  bool second = node.switchToTeleop();
+  EXPECT_FALSE(second);
+  
+  // Mode should remain TELEOP
+  EXPECT_EQ(node.getCurrentMode(), ControlMode::TELEOP);
+}
+
+// Test 12: Hold mode produces bounded commands when robot is far
+TEST(IntegrationTest, HoldCommandsWithFarRobot)
+{
+  PerimeterConfig config;
+  config.name = "far_hold_test";
+  config.closed_loop = true;
+  config.tolerance = 0.5;
+  config.max_speed = 2.0;
+
+  config.waypoints = {
+    Waypoint{0.0, 0.0, 0.0, 1.0},
+    Waypoint{10.0, 0.0, M_PI_2, 1.0}
+  };
+
+  SimulatedMinerNode node(config);
+  node.resetHoldPosition();
+
+  // Switch to HOLD mode
+  node.switchToHold();
+  node.controlTick();
+
+  // Robot far from hold position
+  RobotState state;
+  state.x = 50.0;   // Far away
+  state.y = 50.0;
+  state.heading = M_PI;  // Also facing wrong way
+  state.linear_speed = 0.0;
+  state.angular_speed = 0.0;
+
+  node.updateRobotState(state);
+
+  auto cmd = node.controlTick();
+
+  // Commands should be clamped to max values (1.0 for linear, 1.0 for angular)
+  EXPECT_LE(std::abs(cmd.linear_x), 1.0);
+  EXPECT_LE(std::abs(cmd.angular_z), 1.0);
+  
+  // Should produce non-zero command to return to position
+  EXPECT_GT(std::abs(cmd.linear_x), 0.0);
 }
 
 int main(int argc, char ** argv)

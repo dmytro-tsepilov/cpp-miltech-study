@@ -104,21 +104,20 @@ TEST(PerimeterTrackerDecideTest, SpeedReductionNearWaypoint)
   state_far.linear_speed = 1.0;
   tracker.updateRobotState(state_far);
 
-  tracker.decide();
+  auto cmd_far = tracker.decide();
 
   // Robot close to waypoint (within tolerance)
   RobotState state_near;
-  state_near.x = 0.4;  // within 0.5 tolerance
+  state_near.x = 0.3;  // well within 0.5 tolerance
   state_near.y = 0.0;
   state_near.heading = 0.0;
   state_near.linear_speed = 0.5;
   tracker.updateRobotState(state_near);
 
-  tracker.decide();
+  auto cmd_near = tracker.decide();
 
-  // Near waypoint, should advance (return zero or reduced)
-  // The exact behavior depends on implementation
-  EXPECT_TRUE(true);  // Just verify it doesn't crash
+  // When very close to waypoint, linear speed should be reduced or zero
+  EXPECT_GE(cmd_near.linear_x, 0.0);
 }
 
 // Test 4: decide() produces non-zero steering for lateral error
@@ -146,11 +145,11 @@ TEST(PerimeterTrackerDecideTest, SteeringForLateralError)
   state.linear_speed = 1.0;
   tracker.updateRobotState(state);
 
-  tracker.decide();
+  auto cmd = tracker.decide();
 
   // Should have some angular component to correct heading
-  // (exact value depends on PID parameters)
-  EXPECT_TRUE(true);  // Verify no crash
+  // PID controller should produce non-zero angular command for lateral error
+  EXPECT_NE(cmd.angular_z, 0.0);
 }
 
 // Test 5: decide() with closed loop wraps around
@@ -413,7 +412,7 @@ TEST(PerimeterTrackerDecideTest, LateralErrorHorizontal)
   EXPECT_LT(status_above.lateral_error * status_below.lateral_error, 0);
 }
 
-// Test 12: Pure pursuit curvature computation
+// Test 12: Pure pursuit curvature computation — different targets produce different curvatures
 TEST(PurePursuitTest, CurvatureComputation)
 {
   PurePursuit pursuit;
@@ -425,30 +424,42 @@ TEST(PurePursuitTest, CurvatureComputation)
   robot.heading = 0.0;
   robot.linear_speed = 1.0;
 
-  // Target straight ahead
-  pursuit.computeCurvature(robot, 10.0, 0.0);
+  // Target straight ahead — should produce minimal curvature
+  double curvStraight = pursuit.computeCurvature(robot, 10.0, 0.0);
 
-  // Target to the side
-  pursuit.computeCurvature(robot, 5.0, 5.0);
+  // Target to the side — should produce significant curvature
+  double curvSide = pursuit.computeCurvature(robot, 5.0, 5.0);
 
-  // Curvatures should differ
-  EXPECT_TRUE(true);  // Just verify no crash/division by zero
+  // Curvatures should differ (side turn requires more steering)
+  EXPECT_NE(curvStraight, curvSide);
+
+  // Straight ahead should have smaller absolute curvature than side target
+  EXPECT_LT(std::abs(curvStraight), std::abs(curvSide));
 }
 
-// Test 13: PID with different dt values
+// Test 13: PID integral accumulates differently with different dt values
 TEST(PerimeterTrackerDecideTest, PIDWithDifferentDT)
 {
   LateralPID pid;
   pid.setParameters(2.0, 0.5, 0.3);
   pid.setLimits(1.5, 5.0);
 
-  // Same error with different dt should produce different outputs
-  pid.compute(1.0, 0.01);  // 100Hz
-  pid.reset();
-  pid.compute(1.0, 0.05);  // 20Hz
+  // Accumulate error over multiple ticks at 100Hz (dt=0.01)
+  for (int i = 0; i < 10; ++i) {
+    pid.compute(1.0, 0.01);
+  }
+  double integral100hz = pid.getIntegral();
 
-  // Outputs differ due to integral term
-  EXPECT_TRUE(true);  // Verify no crash
+  pid.reset();
+
+  // Accumulate error over fewer ticks at 20Hz (dt=0.05) — same total time
+  for (int i = 0; i < 2; ++i) {
+    pid.compute(1.0, 0.05);
+  }
+  double integral20hz = pid.getIntegral();
+
+  // Integrals should differ due to different accumulation patterns
+  EXPECT_NE(integral100hz, integral20hz);
 
   // Reset should clear integral
   pid.reset();
@@ -485,6 +496,115 @@ TEST(MoveCommandTest, ZeroAndFullForward)
   EXPECT_DOUBLE_EQ(full.linear_x, 3.0);
   EXPECT_DOUBLE_EQ(full.linear_y, 0.0);
   EXPECT_DOUBLE_EQ(full.angular_z, 0.0);
+}
+
+// Test 16: Lateral PID output is bounded by max_output limit
+TEST(LateralPIDTest, OutputBoundedByLimits)
+{
+  LateralPID pid;
+  pid.setParameters(2.0, 0.5, 0.3);
+  pid.setLimits(1.5, 5.0);  // max_output = 1.5
+
+  // Large error should produce output clamped to max_output
+  double output = pid.compute(10.0, 0.02);
+
+  EXPECT_LE(std::abs(output), 1.5);
+  EXPECT_GT(output, 0.0);  // Should still be positive
+
+  pid.reset();
+}
+
+// Test 17: Pure pursuit lookahead affects curvature computation
+TEST(PurePursuitTest, LookaheadAffectsCurvature)
+{
+  PurePursuit pursuit;
+
+  RobotState robot;
+  robot.x = 0.0;
+  robot.y = 0.0;
+  robot.heading = 0.0;
+  robot.linear_speed = 1.0;
+
+  // Set short lookahead
+  pursuit.setLookahead(0.5, 1.5, 1.5);
+  double curvShort = pursuit.computeCurvature(robot, 5.0, 2.0);
+
+  // Set long lookahead
+  pursuit.setLookahead(1.0, 3.0, 1.5);
+  double curvLong = pursuit.computeCurvature(robot, 5.0, 2.0);
+
+  // Different lookaheads should produce different curvatures
+  EXPECT_NE(curvShort, curvLong);
+}
+
+// Test 18: PerimeterTracker with single waypoint
+TEST(PerimeterTrackerDecideTest, SingleWaypoint)
+{
+  PerimeterConfig config;
+  config.name = "single_wp";
+  config.closed_loop = true;
+  config.tolerance = 0.5;
+  config.max_speed = 2.0;
+
+  config.waypoints = {
+    Waypoint{5.0, 5.0, M_PI_4, 1.0}
+  };
+
+  PerimeterTracker tracker(config);
+
+  // Robot at the waypoint
+  RobotState state;
+  state.x = 5.0;
+  state.y = 5.0;
+  state.heading = M_PI_4;
+  tracker.updateRobotState(state);
+
+  EXPECT_TRUE(tracker.reachedWaypoint());
+
+  // Reset and move away
+  state.x = 0.0;
+  state.y = 0.0;
+  state.heading = 0.0;
+  tracker.updateRobotState(state);
+
+  EXPECT_FALSE(tracker.reachedWaypoint());
+}
+
+// Test 19: PerimeterTracker computeLateralError for vertical segment
+TEST(PerimeterTrackerDecideTest, LateralErrorVertical)
+{
+  PerimeterConfig config;
+  config.name = "vertical_test";
+  config.closed_loop = true;
+  config.tolerance = 0.5;
+  config.max_speed = 2.0;
+
+  // Vertical segment from (0,0) to (0,10)
+  config.waypoints = {
+    Waypoint{0.0, 0.0, M_PI_2, 1.0},
+    Waypoint{0.0, 10.0, M_PI_2, 1.0}
+  };
+
+  PerimeterTracker tracker(config);
+
+  // Robot to the right of path (positive lateral error)
+  RobotState state_right;
+  state_right.x = 1.0;
+  state_right.y = 5.0;
+  state_right.heading = M_PI_2;
+  tracker.updateRobotState(state_right);
+  auto status_right = tracker.getStatus();
+
+  // Robot to the left of path (negative lateral error)
+  RobotState state_left;
+  state_left.x = -1.0;
+  state_left.y = 5.0;
+  state_left.heading = M_PI_2;
+  tracker.updateRobotState(state_left);
+  auto status_left = tracker.getStatus();
+
+  // Lateral errors should have opposite signs
+  EXPECT_LT(status_right.lateral_error * status_left.lateral_error, 0);
 }
 
 int main(int argc, char ** argv)
