@@ -4,7 +4,8 @@
 
 ```bash
 cd course_project/robot_ws
-colcon build --packages-select perimeter_msgs perimeter_miner mine_simulator http_reporter teleop_operator
+source /opt/ros/jazzy/setup.bash 2>/dev/null || source /opt/ros/humble/setup.bash 2>/dev/null
+colcon build
 source install/setup.bash
 ```
 
@@ -294,7 +295,7 @@ ros2 launch teleop_operator teleop.launch.py input_type:=keyboard
 
 ```bash
 cd course_project/robot_ws
-colcon test --packages-select perimeter_msgs perimeter_miner mine_simulator http_reporter teleop_operator
+colcon test
 colcon test-result --all
 ```
 
