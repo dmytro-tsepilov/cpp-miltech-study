@@ -42,7 +42,11 @@ public:
   /// Get last error message
   static const std::string &getLastError() { return last_error_; }
 
-private:
+  /// Generate boustrophedon (zigzag) coverage waypoints for a bounding box
+  static std::vector<Waypoint> generateBoustrophedonPattern(
+      const CoverageConfig &config);
+
+ private:
   /// Find a key in YAML content
   static size_t findKey(const std::string &yaml, const std::string &key, size_t start = 0);
 

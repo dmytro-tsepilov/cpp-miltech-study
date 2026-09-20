@@ -79,6 +79,7 @@ def generate_launch_description():
     use_gazebo = LaunchConfiguration('use_gazebo')
     enable_fake_odom = LaunchConfiguration('enable_fake_odom')
     enable_teleop = LaunchConfiguration('enable_teleop')
+    enable_coverage = LaunchConfiguration('enable_coverage')
 
     # Scenario config path - maps scenario name to actual yaml file
     _scenario_file = LaunchConfiguration('scenario_file')
@@ -141,6 +142,13 @@ def generate_launch_description():
         description='Enable teleoperation operator'
     )
 
+    # Enable coverage mode argument
+    enable_coverage_arg = DeclareLaunchArgument(
+        'enable_coverage',
+        default_value='false',
+        description='Enable area coverage mode (boustrophedon/zigzag pattern)'
+    )
+
     # Teleop input type argument
     teleop_input_type_arg = DeclareLaunchArgument(
         'teleop_input_type',
@@ -156,6 +164,7 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'scenario_file': _scenario_file,
+            'enable_coverage': enable_coverage,
         }]
     )
 
@@ -236,6 +245,7 @@ def generate_launch_description():
         enable_fake_odom_arg,
         enable_teleop_arg,
         teleop_input_type_arg,
+        enable_coverage_arg,
 
         miner_node,
         mode_switch_node,

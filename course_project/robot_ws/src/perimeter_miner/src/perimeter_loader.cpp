@@ -24,6 +24,7 @@
 #include <sstream>
 #include <algorithm>
 #include <iostream>
+#include <cmath>
 
 namespace perimeter_miner
 {
@@ -291,13 +292,55 @@ PerimeterConfig PerimeterLoader::loadFromString(const std::string &yaml_content)
   PerimeterConfig config;
   last_error_ = "";
 
-  // Extract name
-  std::string name_val;
-  if (extractValue(yaml_content, "name", name_val)) {
-    config.name = name_val;
-  } else {
-    config.name = "unnamed";
+  // Check if this is a coverage config
+  std::string type_val;
+  if (extractValue(yaml_content, "type", type_val) && type_val == "coverage") {
+    // Load as coverage configuration
+    extractValue(yaml_content, "name", config.name);
+    
+    // Extract bounding box
+    extractDouble(yaml_content, "min_x", config.bounding_box.min_x);
+    extractDouble(yaml_content, "min_y", config.bounding_box.min_y);
+    extractDouble(yaml_content, "max_x", config.bounding_box.max_x);
+    extractDouble(yaml_content, "max_y", config.bounding_box.max_y);
+    
+    // Extract coverage parameters
+    double pass_spacing = 2.0;
+    if (extractDouble(yaml_content, "pass_spacing", pass_spacing)) {
+      config.bounding_box.pass_spacing = pass_spacing;
+    }
+    
+    double cov_speed = 1.0;
+    if (extractDouble(yaml_content, "coverage_speed", cov_speed)) {
+      config.bounding_box.coverage_speed = cov_speed;
+    }
+    
+    std::string scan_str;
+    if (extractValue(yaml_content, "scan_direction", scan_str) && !scan_str.empty()) {
+      config.bounding_box.scan_direction = scan_str[0];
+    }
+    
+    // Generate boustrophedon waypoints from coverage config
+    CoverageConfig cov_cfg;
+    cov_cfg.min_x = config.bounding_box.min_x;
+    cov_cfg.min_y = config.bounding_box.min_y;
+    cov_cfg.max_x = config.bounding_box.max_x;
+    cov_cfg.max_y = config.bounding_box.max_y;
+    cov_cfg.pass_spacing = config.bounding_box.pass_spacing;
+    cov_cfg.coverage_speed = config.bounding_box.coverage_speed;
+    cov_cfg.scan_direction = config.bounding_box.scan_direction;
+    
+    config.waypoints = generateBoustrophedonPattern(cov_cfg);
+    config.closed_loop = false;  // Coverage is open path
+    
+    fprintf(stderr, "[LOADER] Loaded coverage config: %zu waypoints generated\n",
+            config.waypoints.size());
+    
+    return config;
   }
+
+  // Standard perimeter configuration
+  extractValue(yaml_content, "name", config.name);
 
   // Extract closed_loop
   bool closed_loop = true;   // default
@@ -328,6 +371,105 @@ PerimeterConfig PerimeterLoader::loadFromString(const std::string &yaml_content)
   }
 
   return config;
+}
+
+std::vector<Waypoint> PerimeterLoader::generateBoustrophedonPattern(
+    const CoverageConfig &config)
+{
+  std::vector<Waypoint> waypoints;
+  
+  const double epsilon = 1e-6;
+  
+  if (config.scan_direction == 'X') {
+    // Horizontal passes (scan left-to-right, back-and-forth)
+    const size_t num_passes = config.numPasses();
+    
+    for (size_t i = 0; i < num_passes; ++i) {
+      double y = config.min_y + static_cast<double>(i) * config.pass_spacing;
+      
+      if (y > config.max_y + epsilon) {
+        break;
+      }
+      
+      if (i % 2 == 0) {
+        // Even pass: left to right
+        double x_start = config.min_x;
+        double x_end = config.max_x;
+        double heading = 0.0;  // pointing along +X
+        
+        waypoints.push_back({x_start, y, heading, config.turn_arcs});
+        waypoints.push_back({x_end, y, heading, config.turn_arcs});
+      } else {
+        // Odd pass: right to left
+        double x_start = config.max_x;
+        double x_end = config.min_x;
+        double heading = M_PI;  // pointing along -X
+        
+        waypoints.push_back({x_start, y, heading, config.turn_arcs});
+        waypoints.push_back({x_end, y, heading, config.turn_arcs});
+      }
+    }
+    
+  } else {
+    // Vertical passes (scan bottom-to-top, back-and-forth)
+    const size_t num_passes = config.numPasses();
+    
+    for (size_t i = 0; i < num_passes; ++i) {
+      double x = config.min_x + static_cast<double>(i) * config.pass_spacing;
+      
+      if (x > config.max_x + epsilon) {
+        break;
+      }
+      
+      if (i % 2 == 0) {
+        // Even pass: bottom to top
+        double y_start = config.min_y;
+        double y_end = config.max_y;
+        double heading = M_PI_2;  // pointing along +Y
+        
+        waypoints.push_back({x, y_start, heading, config.turn_arcs});
+        waypoints.push_back({x, y_end, heading, config.turn_arcs});
+      } else {
+        // Odd pass: top to bottom
+        double y_start = config.max_y;
+        double y_end = config.min_y;
+        double heading = -M_PI_2;  // pointing along -Y
+        
+        waypoints.push_back({x, y_start, heading, config.turn_arcs});
+        waypoints.push_back({x, y_end, heading, config.turn_arcs});
+      }
+    }
+  }
+  
+  return waypoints;
+}
+
+double CoverageConfig::computeCoveragePercent(
+    const std::vector<Waypoint> &waypoints) const
+{
+  // Approximate coverage: total pass length / area
+  double total_distance = 0.0;
+  
+  if (waypoints.size() < 2) {
+    return 0.0;
+  }
+  
+  for (size_t i = 1; i < waypoints.size(); ++i) {
+    double dx = waypoints[i].x - waypoints[i-1].x;
+    double dy = waypoints[i].y - waypoints[i-1].y;
+    total_distance += std::hypot(dx, dy);
+  }
+  
+  // Effective coverage width = pass_spacing * number_of_passes
+  double effective_width = pass_spacing * static_cast<double>(waypoints.size() / 2);
+  double area = width() * height();
+  
+  if (area <= 0.0) {
+    return 0.0;
+  }
+  
+  // Coverage ratio (pass width / pass_spacing, normalized to area)
+  return std::min(100.0, (effective_width / pass_spacing) * 100.0);
 }
 
 } // namespace perimeter_miner

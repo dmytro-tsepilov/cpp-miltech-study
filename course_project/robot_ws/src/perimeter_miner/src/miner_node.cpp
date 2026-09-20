@@ -90,6 +90,10 @@ public:
     // Declare parameters
     this->declare_parameter("scenario_file", "training_ground.yaml");
     this->declare_parameter("config_search_paths", std::vector<std::string>{});
+    this->declare_parameter("enable_coverage", false);
+
+    // Check if coverage mode is enabled
+    bool enable_coverage = this->get_parameter("enable_coverage").as_bool();
 
     // Load perimeter config from file
     PerimeterConfig loaded_config = loadPerimeterConfig();
@@ -98,6 +102,21 @@ public:
     // Initialize perimeter tracker with default state
     robot_state_ = RobotState{0.0, 0.0, 0.0, 0.0, 0.0};
     perimeter_tracker_.updateRobotState(robot_state_);
+
+    // Enable coverage mode if config type is "coverage" or enable_coverage parameter is true
+    if (enable_coverage || loaded_config.name.find("coverage") != std::string::npos) {
+        perimeter_miner::CoverageConfig cov_cfg;
+        cov_cfg.min_x = loaded_config.bounding_box.min_x;
+        cov_cfg.min_y = loaded_config.bounding_box.min_y;
+        cov_cfg.max_x = loaded_config.bounding_box.max_x;
+        cov_cfg.max_y = loaded_config.bounding_box.max_y;
+        cov_cfg.pass_spacing = loaded_config.bounding_box.pass_spacing;
+        cov_cfg.coverage_speed = loaded_config.bounding_box.coverage_speed;
+        cov_cfg.scan_direction = loaded_config.bounding_box.scan_direction;
+        
+        perimeter_tracker_.setCoverageMode(cov_cfg);
+        RCLCPP_INFO(get_logger(), "Coverage mode enabled!");
+    }
 
     // Setup mode switch safety checks
     mode_switch_.setAutonomousCheck([this]() {
@@ -312,6 +331,32 @@ private:
     MoveCommand cmd;
 
     switch (current_mode) {
+      case ControlMode::AREA_COVERAGE: {
+        // Area coverage mode - follow zigzag pattern
+        if (!perimeter_tracker_.isCoverageComplete()) {
+          cmd = perimeter_tracker_.decide(current_dt_);
+          
+          // Check if coverage complete
+          if (perimeter_tracker_.isCoverageComplete()) {
+            RCLCPP_INFO(get_logger(), "Area coverage complete!");
+          }
+        } else {
+          cmd = MoveCommand::zero();
+          RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 5000,
+                               "Coverage complete - holding position");
+        }
+        
+        // Check if mine detected - switch to HOLD
+        if (mine_detected_) {
+          RCLCPP_INFO(get_logger(), "Mine detected! Switching to HOLD mode");
+          hold_controller_.setHoldPosition(
+            robot_state_.x, robot_state_.y, robot_state_.heading);
+          mode_switch_.requestMode(ControlMode::HOLD);
+          mine_detected_ = false;
+        }
+        break;
+      }
+
       case ControlMode::AUTONOMOUS: {
         // DIAGNOSTIC: Log robot state before decide
         if (tick_count <= 5 || tick_count % 100 == 0) {

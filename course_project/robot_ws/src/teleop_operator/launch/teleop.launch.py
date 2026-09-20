@@ -43,9 +43,9 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'input_type': LaunchConfiguration('input_type'),
-            'max_linear': float(LaunchConfiguration('max_linear')),
-            'max_angular': float(LaunchConfiguration('max_angular')),
-            'deadzone': float(LaunchConfiguration('deadzone')),
+            'max_linear': LaunchConfiguration('max_linear'),
+            'max_angular': LaunchConfiguration('max_angular'),
+            'deadzone': LaunchConfiguration('deadzone'),
         }]
     )
 

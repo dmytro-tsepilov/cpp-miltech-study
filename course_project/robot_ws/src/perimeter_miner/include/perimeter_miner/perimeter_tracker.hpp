@@ -141,6 +141,12 @@ public:
   /// Get perimeter configuration
   const PerimeterConfig &getConfig() const { return config_; }
 
+  /// Set coverage mode with bounding box and spacing
+  void setCoverageMode(const CoverageConfig &cov_config);
+
+  /// Check if coverage is complete
+  bool isCoverageComplete() const;
+
   /// Reset tracker to initial state
   void reset();
 
@@ -150,6 +156,12 @@ public:
 
 private:
   PerimeterConfig config_;
+  
+  // Coverage mode support
+  bool coverage_mode_ = false;
+  CoverageConfig coverage_config_;
+  std::vector<Waypoint> coverage_waypoints_;
+  size_t coverage_current_idx_ = 0;
   RobotState robot_state_;
   size_t current_waypoint_idx_ = 0;
   bool has_initialized_ = false;  // Prevent premature waypoint advance
@@ -167,6 +179,9 @@ private:
 
   // Compute lateral error from current position to next segment
   double computeLateralError() const;
+
+  // Compute lateral error for coverage mode (uses coverage_waypoints_ internally)
+  double computeLateralErrorCoverage() const;
 
   // Compute desired heading for waypoint approach
   double computeDesiredHeading() const;

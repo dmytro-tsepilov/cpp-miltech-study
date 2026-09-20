@@ -54,6 +54,17 @@ struct PerimeterConfig
   double tolerance = 0.5;        // waypoint reach tolerance (meters)
   double max_speed = 2.0;        // maximum linear speed (m/s)
   double min_turn_radius = 1.0;  // minimum turning radius (meters)
+  
+  // Coverage mode bounding box (used when type=coverage)
+  struct BoundingBox {
+    double min_x = 0.0;
+    double min_y = 0.0;
+    double max_x = 20.0;
+    double max_y = 20.0;
+    double pass_spacing = 2.0;
+    double coverage_speed = 1.0;
+    char scan_direction = 'X';
+  } bounding_box;
 
   /// Get total number of waypoints
   size_t waypointCount() const { return waypoints.size(); }
@@ -74,6 +85,46 @@ struct PerimeterConfig
     }
     return waypoints.at(index);
   }
+};
+
+/// Area coverage configuration for boustrophedon (zigzag) pattern
+struct CoverageConfig
+{
+  // Bounding box of the area to cover
+  double min_x = 0.0;
+  double min_y = 0.0;
+  double max_x = 20.0;
+  double max_y = 20.0;
+
+  // Coverage parameters
+  double pass_spacing = 2.0;    // distance between parallel passes (m)
+  double coverage_speed = 1.0;  // forward speed during coverage (m/s)
+  double turn_arcs = 1.0;       // arc length for U-turns at pass ends (m)
+
+  // Coverage direction: 'X' = horizontal passes (scan left-right), 'Y' = vertical passes
+  char scan_direction = 'X';
+
+  // Starting corner: 'B'=bottom, 'T'=top
+  char start_row = 'B';
+
+  /// Compute area size
+  double width() const { return max_x - min_x; }
+  double height() const { return max_y - min_y; }
+
+  /// Compute number of passes needed
+  size_t numPasses() const
+  {
+    if (scan_direction == 'X') {
+      // Horizontal passes: spacing affects Y axis
+      return static_cast<size_t>(std::ceil(height() / pass_spacing)) + 1;
+    } else {
+      // Vertical passes: spacing affects X axis
+      return static_cast<size_t>(std::ceil(width() / pass_spacing)) + 1;
+    }
+  }
+
+  /// Compute coverage percentage given a set of waypoints
+  double computeCoveragePercent(const std::vector<Waypoint> &waypoints) const;
 };
 
 /// Robot state for navigation
@@ -120,17 +171,19 @@ enum class ControlMode : uint8_t
 {
   AUTONOMOUS = 0,
   TELEOP = 1,
-  HOLD = 2
+  HOLD = 2,
+  AREA_COVERAGE = 3
 };
 
 /// Convert control mode to string
 inline const char *controlModeToString(ControlMode mode)
 {
   switch (mode) {
-    case ControlMode::AUTONOMOUS: return "AUTONOMOUS";
-    case ControlMode::TELEOP:     return "TELEOP";
-    case ControlMode::HOLD:       return "HOLD";
-    default:                      return "UNKNOWN";
+    case ControlMode::AUTONOMOUS:       return "AUTONOMOUS";
+    case ControlMode::TELEOP:           return "TELEOP";
+    case ControlMode::HOLD:             return "HOLD";
+    case ControlMode::AREA_COVERAGE:    return "AREA_COVERAGE";
+    default:                            return "UNKNOWN";
   }
 }
 
@@ -147,6 +200,7 @@ inline ControlMode controlModeFromUint8(uint8_t value)
     case 0: return ControlMode::AUTONOMOUS;
     case 1: return ControlMode::TELEOP;
     case 2: return ControlMode::HOLD;
+    case 3: return ControlMode::AREA_COVERAGE;
     default: return ControlMode::AUTONOMOUS;
   }
 }

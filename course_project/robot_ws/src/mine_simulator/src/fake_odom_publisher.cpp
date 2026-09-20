@@ -78,7 +78,7 @@ public:
 
         // Timer for odometry publishing
         odom_timer_ = create_wall_timer(
-            std::chrono::milliseconds(static_cast<int>(1000.0 / publish_rate_hz_ * 10)),
+            std::chrono::milliseconds(static_cast<int>(1000.0 / publish_rate_hz_)),
             [this]() { publishOdom(); });
 
         current_x_ = waypoints_[0].x;

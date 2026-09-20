@@ -98,6 +98,10 @@ bool ModeSwitch::validateModeSwitch(ControlMode target) const
       // Can always hold position
       return true;
 
+    case ControlMode::AREA_COVERAGE:
+      // Can switch to area coverage mode
+      return true;
+
     default:
       return false;
   }

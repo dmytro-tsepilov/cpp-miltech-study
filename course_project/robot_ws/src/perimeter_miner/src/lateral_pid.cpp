@@ -20,8 +20,10 @@
 // SOFTWARE.
 
 #include <algorithm>
+#include <cstdio>
 
 #include "perimeter_miner/perimeter_tracker.hpp"
+#include "perimeter_miner/perimeter_loader.hpp"
 
 namespace perimeter_miner
 {
@@ -102,6 +104,81 @@ MoveCommand PerimeterTracker::decide(double dt)
 {
   MoveCommand cmd = MoveCommand::zero();
 
+  // Check if we have coverage waypoints to use
+  if (coverage_mode_ && !coverage_waypoints_.empty()) {
+    // Use coverage waypoints for zigzag pattern
+    if (coverage_current_idx_ >= coverage_waypoints_.size()) {
+      fprintf(stderr, "[TRACKER] DECIDE: Coverage complete - returning zero command\n");
+      return cmd;
+    }
+
+    // Use provided dt or default to 0.02 (50Hz)
+    double real_dt = (dt > 0.0) ? dt : 0.02;
+
+    // Get current coverage target waypoint
+    const auto &target = coverage_waypoints_[coverage_current_idx_];
+
+    // DIAGNOSTIC: Log state every 100 calls
+    static int decide_count = 0;
+    decide_count++;
+    if (decide_count <= 20 || decide_count % 100 == 0) {
+      fprintf(stderr, "[TRACKER] DECIDE #%d (COVERAGE): wp_idx=%zu, robot=(%.3f, %.3f, %.4f rad), target=(%.1f, %.1f)\n",
+              decide_count, coverage_current_idx_, robot_state_.x, robot_state_.y,
+              robot_state_.heading, target.x, target.y);
+    }
+
+    // Check if reached current waypoint
+    double dist_to_target = robot_state_.distanceTo(target.x, target.y);
+
+    if (dist_to_target < waypoint_tolerance_) {
+      // Advance to next coverage waypoint
+      coverage_current_idx_++;
+      fprintf(stderr, "[TRACKER] *** COVERAGE ADVANCE: wp #%zu -> %zu/%zu\n",
+              coverage_current_idx_ - 1, coverage_current_idx_, coverage_waypoints_.size());
+
+      if (coverage_current_idx_ >= coverage_waypoints_.size()) {
+        fprintf(stderr, "[TRACKER] *** COVERAGE COMPLETE!\n");
+        return MoveCommand::zero();
+      }
+
+      // Update target to next waypoint
+      const auto &new_target = coverage_waypoints_[coverage_current_idx_];
+      
+      // Compute lateral error for new segment
+      double lateral_error = computeLateralErrorCoverage();
+
+      // Compute steering (lateral PID output) using real dt
+      double steering = lateral_pid_.compute(lateral_error, real_dt);
+
+      // Compute desired heading
+      double desired_heading = new_target.heading;
+      double heading_error = angleDiff(robot_state_.heading, desired_heading);
+
+      // Build command
+      cmd.linear_x = coverage_config_.coverage_speed;
+      cmd.angular_z = std::clamp(heading_error * 3.0 + steering * 0.5, -1.5, 1.5);
+
+      return cmd;
+    }
+
+    // Compute lateral error to current coverage segment
+    double lateral_error = computeLateralErrorCoverage();
+
+    // Compute steering (lateral PID output) using real dt
+    double steering = lateral_pid_.compute(lateral_error, real_dt);
+
+    // Compute desired heading
+    double desired_heading = target.heading;
+    double heading_error = angleDiff(robot_state_.heading, desired_heading);
+
+    // Build command
+    cmd.linear_x = coverage_config_.coverage_speed;
+    cmd.angular_z = std::clamp(heading_error * 3.0 + steering * 0.5, -1.5, 1.5);
+
+    return cmd;
+  }
+
+  // Original perimeter tracking mode
   if (config_.waypointCount() == 0) {
     fprintf(stderr, "[TRACKER] DECIDE: No waypoints - returning zero command\n");
     return cmd;
@@ -249,6 +326,40 @@ double PerimeterTracker::computeLateralError() const
   return rx * dy - ry * dx;
 }
 
+double PerimeterTracker::computeLateralErrorCoverage() const
+{
+  // For coverage mode, compute lateral error to the segment direction
+  // Use the segment direction (from current waypoint to next waypoint) as reference
+  
+  if (coverage_current_idx_ + 1 >= coverage_waypoints_.size()) {
+    // Last waypoint - no next point for segment direction
+    return 0.0;
+  }
+  
+  const auto &current_wp = coverage_waypoints_[coverage_current_idx_];
+  const auto &next_wp = coverage_waypoints_[coverage_current_idx_ + 1];
+  
+  // Vector from current to next waypoint (segment direction)
+  double dx = next_wp.x - current_wp.x;
+  double dy = next_wp.y - current_wp.y;
+  double segment_length = std::hypot(dx, dy);
+  
+  if (segment_length < 1e-6) {
+    return 0.0;
+  }
+  
+  // Normalize segment vector
+  dx /= segment_length;
+  dy /= segment_length;
+  
+  // Vector from current waypoint to robot
+  double rx = robot_state_.x - current_wp.x;
+  double ry = robot_state_.y - current_wp.y;
+  
+  // Lateral error = cross product (signed distance from robot to segment)
+  return rx * dy - ry * dx;
+}
+
 double PerimeterTracker::computeDesiredHeading() const
 {
   if (config_.waypointCount() == 0) {
@@ -312,12 +423,39 @@ TrackerStatus PerimeterTracker::getStatus() const
   return status;
 }
 
+void PerimeterTracker::setCoverageMode(const CoverageConfig &cov_config)
+{
+  coverage_mode_ = true;
+  coverage_config_ = cov_config;
+  
+  // Generate zigzag waypoints
+  coverage_waypoints_ = PerimeterLoader::generateBoustrophedonPattern(cov_config);
+  coverage_current_idx_ = 0;
+  
+  fprintf(stderr, "[TRACKER] Coverage mode enabled: %zu waypoints generated\n",
+          coverage_waypoints_.size());
+}
+
+bool PerimeterTracker::isCoverageComplete() const
+{
+  if (!coverage_mode_) {
+    return false;
+  }
+  
+  // Coverage is complete when we've visited all passes
+  return coverage_current_idx_ >= coverage_waypoints_.size();
+}
+
 void PerimeterTracker::reset()
 {
   current_waypoint_idx_ = 0;
   has_initialized_ = false;
   lateral_pid_.reset();
   robot_state_ = RobotState{};
+  
+  // Reset coverage mode
+  coverage_mode_ = false;
+  coverage_current_idx_ = 0;
 }
 
 }  // namespace perimeter_miner
