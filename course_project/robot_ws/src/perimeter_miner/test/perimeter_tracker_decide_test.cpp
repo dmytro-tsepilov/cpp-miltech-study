@@ -104,7 +104,7 @@ TEST(PerimeterTrackerDecideTest, SpeedReductionNearWaypoint)
   state_far.linear_speed = 1.0;
   tracker.updateRobotState(state_far);
 
-  auto cmd_far = tracker.decide();
+  tracker.decide();
 
   // Robot close to waypoint (within tolerance)
   RobotState state_near;
@@ -114,7 +114,7 @@ TEST(PerimeterTrackerDecideTest, SpeedReductionNearWaypoint)
   state_near.linear_speed = 0.5;
   tracker.updateRobotState(state_near);
 
-  auto cmd_near = tracker.decide();
+  tracker.decide();
 
   // Near waypoint, should advance (return zero or reduced)
   // The exact behavior depends on implementation
@@ -146,7 +146,7 @@ TEST(PerimeterTrackerDecideTest, SteeringForLateralError)
   state.linear_speed = 1.0;
   tracker.updateRobotState(state);
 
-  auto cmd = tracker.decide();
+  tracker.decide();
 
   // Should have some angular component to correct heading
   // (exact value depends on PID parameters)
@@ -255,7 +255,7 @@ TEST(PerimeterTrackerDecideTest, StatusComputation)
   state.linear_speed = 1.0;
   tracker.updateRobotState(state);
 
-  auto cmd = tracker.decide();
+  tracker.decide();
   auto status = tracker.getStatus();
 
   // Status should reflect current state
@@ -426,10 +426,10 @@ TEST(PurePursuitTest, CurvatureComputation)
   robot.linear_speed = 1.0;
 
   // Target straight ahead
-  double curvature1 = pursuit.computeCurvature(robot, 10.0, 0.0);
+  pursuit.computeCurvature(robot, 10.0, 0.0);
 
   // Target to the side
-  double curvature2 = pursuit.computeCurvature(robot, 5.0, 5.0);
+  pursuit.computeCurvature(robot, 5.0, 5.0);
 
   // Curvatures should differ
   EXPECT_TRUE(true);  // Just verify no crash/division by zero
@@ -443,9 +443,9 @@ TEST(PerimeterTrackerDecideTest, PIDWithDifferentDT)
   pid.setLimits(1.5, 5.0);
 
   // Same error with different dt should produce different outputs
-  double output1 = pid.compute(1.0, 0.01);  // 100Hz
+  pid.compute(1.0, 0.01);  // 100Hz
   pid.reset();
-  double output2 = pid.compute(1.0, 0.05);  // 20Hz
+  pid.compute(1.0, 0.05);  // 20Hz
 
   // Outputs differ due to integral term
   EXPECT_TRUE(true);  // Verify no crash

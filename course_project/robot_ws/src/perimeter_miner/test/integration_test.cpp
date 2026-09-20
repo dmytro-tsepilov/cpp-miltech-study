@@ -62,6 +62,19 @@ public:
             case ControlMode::HOLD:
                 cmd = hold_controller_.compute(robot_state_);
                 break;
+
+            case ControlMode::AREA_COVERAGE:
+                // In simulation, coverage mode uses tracker with coverage waypoints
+                if (!tracker_.isCoverageComplete()) {
+                    cmd = tracker_.decide();
+                } else {
+                    cmd = MoveCommand::zero();
+                }
+                break;
+
+            default:
+                cmd = MoveCommand::zero();
+                break;
         }
 
         return cmd;
@@ -217,7 +230,7 @@ TEST(IntegrationTest, AutonomousToHold)
   EXPECT_EQ(node.getCurrentMode(), ControlMode::HOLD);
 
   // Hold controller should produce command to return to position
-  auto hold_cmd = node.controlTick();
+  node.controlTick();
 
   // Command may be zero if robot is at start position
   EXPECT_TRUE(true);  // Just verify no crash
@@ -436,7 +449,7 @@ TEST(IntegrationTest, ClosedLoopPatrolSimulation)
 
   // Advance through all waypoints
   for (int i = 0; i < 4; ++i) {
-    auto cmd = node.controlTick();
+    node.controlTick();
     EXPECT_EQ(node.getCurrentMode(), ControlMode::AUTONOMOUS);
 
     // Simulate reaching waypoint
