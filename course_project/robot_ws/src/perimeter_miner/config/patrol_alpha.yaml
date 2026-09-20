@@ -1,0 +1,19 @@
+# Patrol Alpha - Open perimeter configuration
+# Linear patrol route (not closed loop)
+
+name: patrol_alpha
+closed_loop: false
+tolerance: 0.8
+max_speed: 1.5
+min_turn_radius: 1.5
+
+waypoints:
+  - {x: 0.0, y: 0.0, heading: 0.0, radius: 1.5}
+  - {x: 15.0, y: 5.0, heading: 0.349, radius: 1.5}
+  - {x: 30.0, y: 10.0, heading: 0.349, radius: 1.5}
+  - {x: 45.0, y: 15.0, heading: 0.349, radius: 1.5}
+
+mines:
+  - {id: 1, x: 10.0, y: 3.0, type: "anti-tank"}
+  - {id: 2, x: 25.0, y: 8.0, type: "anti-personnel"}
+  - {id: 3, x: 40.0, y: 13.0, type: "unknown"}

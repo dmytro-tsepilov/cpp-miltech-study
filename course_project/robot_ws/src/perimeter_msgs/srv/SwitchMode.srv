@@ -1,0 +1,5 @@
+# Mode switch request/response
+uint8 mode                 # 0=AUTONOMOUS, 1=TELEOP, 2=HOLD, 3=AREA_COVERAGE
+---
+bool success               # Whether the mode switch was successful
+string message             # Result message

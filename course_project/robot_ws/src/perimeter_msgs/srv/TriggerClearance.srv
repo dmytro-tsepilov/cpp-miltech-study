@@ -1,0 +1,6 @@
+# Mine clearance trigger request/response
+int32 mine_id              # ID of the mine to clear
+string method              # "disposal" | "marking" | "neutralization"
+---
+bool accepted              # Whether the clearance was accepted
+string reason              # Reason for acceptance/rejection

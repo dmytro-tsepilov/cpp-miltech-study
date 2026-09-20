@@ -1,0 +1,28 @@
+# Coverage pattern configuration for training ground
+# Boustrophedon (zigzag) area coverage
+
+name: training_ground_coverage
+type: coverage
+
+# Bounding box of the area to cover
+min_x: 0.0
+min_y: 0.0
+max_x: 20.0
+max_y: 20.0
+
+# Coverage parameters
+pass_spacing: 2.0       # distance between parallel passes (meters)
+coverage_speed: 1.0     # forward speed during coverage (m/s)
+turn_arcs: 1.0          # arc length for U-turns at pass ends (meters)
+
+# Scan direction: 'X' = horizontal passes, 'Y' = vertical passes
+scan_direction: X
+
+# Starting corner: BL=bottom-left, BR=bottom-right, TL=top-left, TR=top-right
+start_corner: BL
+
+# Mines to detect within coverage area
+mines:
+  - {id: 1, x: 10.0, y: 5.0, type: "anti-tank"}
+  - {id: 2, x: 15.0, y: 15.0, type: "anti-personnel"}
+  - {id: 3, x: 5.0, y: 10.0, type: "unknown"}

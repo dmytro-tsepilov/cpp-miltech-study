@@ -1,0 +1,200 @@
+// Copyright 2026 Open Source Robotics Foundation Inc
+// SPDX-License-Identifier: MIT
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+#pragma once
+
+#include <optional>
+#include <string>
+#include <vector>
+
+#include "perimeter_miner/perimeter_config.hpp"
+
+namespace perimeter_miner
+{
+
+/// Status struct for PerimeterTracker
+struct TrackerStatus
+{
+  uint8_t mode = 0;
+  uint32_t waypoint_index = 0;
+  double target_x = 0.0;
+  double target_y = 0.0;
+  double current_x = 0.0;
+  double current_y = 0.0;
+  double lateral_error = 0.0;
+  float speed = 0.0f;
+  bool mine_detected = false;
+};
+
+/// Lateral PID controller for perimeter tracking
+class LateralPID
+{
+public:
+LateralPID() = default;
+
+/// Set PID parameters
+void setParameters(double kp, double ki, double kd)
+{
+  kp_ = kp;
+  ki_ = ki;
+  kd_ = kd;
+}
+
+/// Set limits
+void setLimits(double max_output, double max_integral)
+{
+  max_output_ = max_output;
+  max_integral_ = max_integral;
+}
+
+/// Compute control output from error
+double compute(double error, double dt);
+
+/// Reset integral term (anti-windup)
+void reset()
+{
+  integral_ = 0.0;
+  prev_error_ = 0.0;
+}
+
+/// Get current integral value
+double getIntegral() const {
+  return integral_;
+}
+
+private:
+double kp_ = 1.0;
+double ki_ = 0.1;
+double kd_ = 0.05;
+double max_output_ = 1.0;
+double max_integral_ = 10.0;
+
+double integral_ = 0.0;
+double prev_error_ = 0.0;
+};
+
+/// Pure pursuit navigation controller
+class PurePursuit
+{
+public:
+PurePursuit() = default;
+
+/// Set look-ahead distance
+void setLookahead(double min_la, double max_la, double gain)
+{
+  min_lookahead_ = min_la;
+  max_lookahead_ = max_la;
+  lookahead_gain_ = gain;
+}
+
+/// Compute curvature for target point
+double computeCurvature(const RobotState& robot, double tx, double ty);
+
+/// Get current look-ahead distance
+double getLookahead() const {
+  return current_lookahead_;
+}
+
+private:
+double min_lookahead_ = 1.0;
+double max_lookahead_ = 3.0;
+double lookahead_gain_ = 1.5;
+double current_lookahead_ = 1.0;
+};
+
+/// Main perimeter tracking controller
+class PerimeterTracker
+{
+public:
+/// Create tracker with configuration
+explicit PerimeterTracker(const PerimeterConfig& config);
+
+/// Update robot state from odometry/sensor data
+void updateRobotState(const RobotState& state);
+
+/// Make navigation decision based on current state
+/// @param dt Time step in seconds (if <= 0, uses default 0.02)
+MoveCommand decide(double dt = -1.0);
+
+/// Check if current waypoint is reached
+bool reachedWaypoint() const;
+
+/// Advance to next waypoint
+bool advanceWaypoint();
+
+/// Get current status
+TrackerStatus getStatus() const;
+
+/// Get perimeter configuration
+const PerimeterConfig &getConfig() const {
+  return config_;
+}
+
+/// Set coverage mode with bounding box and spacing
+void setCoverageMode(const CoverageConfig& cov_config);
+
+/// Check if coverage is complete
+bool isCoverageComplete() const;
+
+/// Reset tracker to initial state
+void reset();
+
+// Utility functions (public for testing)
+static double normalizeAngle(double angle);
+static double angleDiff(double from, double to);
+
+private:
+PerimeterConfig config_;
+
+// Coverage mode support
+bool coverage_mode_ = false;
+CoverageConfig coverage_config_;
+std::vector<Waypoint> coverage_waypoints_;
+size_t coverage_current_idx_ = 0;
+RobotState robot_state_;
+size_t current_waypoint_idx_ = 0;
+bool has_initialized_ = false;    // Prevent premature waypoint advance
+
+// Controllers
+LateralPID lateral_pid_;
+PurePursuit pure_pursuit_;
+
+// Control parameters
+double linear_speed_ = 0.5;       // default forward speed (m/s)
+double waypoint_tolerance_ = 0.5;
+
+// PID initialization
+void initControllers();
+
+// Compute lateral error from current position to next segment
+double computeLateralError() const;
+
+// Compute lateral error for coverage mode (uses coverage_waypoints_ internally)
+double computeLateralErrorCoverage() const;
+
+// Compute desired heading for waypoint approach
+double computeDesiredHeading() const;
+
+// Compute linear speed based on proximity to waypoint
+double computeLinearSpeed() const;
+};
+
+}  // namespace perimeter_miner
