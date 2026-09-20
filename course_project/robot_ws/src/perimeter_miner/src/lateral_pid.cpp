@@ -56,7 +56,7 @@ double LateralPID::compute(double error, double dt)
   return output;
 }
 
-double PurePursuit::computeCurvature(const RobotState &robot, double tx, double ty)
+double PurePursuit::computeCurvature(const RobotState& robot, double tx, double ty)
 {
   double dx = tx - robot.x;
   double dy = ty - robot.y;
@@ -78,9 +78,9 @@ double PurePursuit::computeCurvature(const RobotState &robot, double tx, double 
   return curvature;
 }
 
-PerimeterTracker::PerimeterTracker(const PerimeterConfig &config)
-: config_(config)
-, waypoint_tolerance_(config.tolerance)
+PerimeterTracker::PerimeterTracker(const PerimeterConfig& config)
+  : config_(config)
+  , waypoint_tolerance_(config.tolerance)
 {
   initControllers();
 }
@@ -95,7 +95,7 @@ void PerimeterTracker::initControllers()
   pure_pursuit_.setLookahead(1.0, 3.0, 1.5);
 }
 
-void PerimeterTracker::updateRobotState(const RobotState &state)
+void PerimeterTracker::updateRobotState(const RobotState& state)
 {
   robot_state_ = state;
 }
@@ -116,15 +116,14 @@ MoveCommand PerimeterTracker::decide(double dt)
     double real_dt = (dt > 0.0) ? dt : 0.02;
 
     // Get current coverage target waypoint
-    const auto &target = coverage_waypoints_[coverage_current_idx_];
+    const auto& target = coverage_waypoints_[coverage_current_idx_];
 
     // DIAGNOSTIC: Log state every 100 calls
     static int decide_count = 0;
     decide_count++;
     if (decide_count <= 20 || decide_count % 100 == 0) {
-      fprintf(stderr, "[TRACKER] DECIDE #%d (COVERAGE): wp_idx=%zu, robot=(%.3f, %.3f, %.4f rad), target=(%.1f, %.1f)\n",
-              decide_count, coverage_current_idx_, robot_state_.x, robot_state_.y,
-              robot_state_.heading, target.x, target.y);
+      fprintf(stderr, "[TRACKER] DECIDE #%d: wp=%zu, robot=(%.3f, %.3f)\n",
+              decide_count, coverage_current_idx_, robot_state_.x, robot_state_.y);
     }
 
     // Check if reached current waypoint
@@ -142,8 +141,8 @@ MoveCommand PerimeterTracker::decide(double dt)
       }
 
       // Update target to next waypoint
-      const auto &new_target = coverage_waypoints_[coverage_current_idx_];
-      
+      const auto& new_target = coverage_waypoints_[coverage_current_idx_];
+
       // Compute lateral error for new segment
       double lateral_error = computeLateralErrorCoverage();
 
@@ -188,15 +187,15 @@ MoveCommand PerimeterTracker::decide(double dt)
   double real_dt = (dt > 0.0) ? dt : 0.02;
 
   // Get current target waypoint
-  const auto &target = config_.getWaypoint(current_waypoint_idx_);
+  const auto& target = config_.getWaypoint(current_waypoint_idx_);
 
   // DIAGNOSTIC: Log state every 100 calls
   static int decide_count = 0;
   decide_count++;
   if (decide_count <= 20 || decide_count % 100 == 0) {
-    fprintf(stderr, "[TRACKER] DECIDE #%d: wp_idx=%zu, robot=(%.3f, %.3f, %.4f rad), target=(%.1f, %.1f), init=%d\n",
+    fprintf(stderr, "[TRACKER] DECIDE #%d: wp=%zu, robot=(%.3f, %.3f), init=%d\n",
             decide_count, current_waypoint_idx_, robot_state_.x, robot_state_.y,
-            robot_state_.heading, target.x, target.y, has_initialized_);
+            has_initialized_);
   }
 
   // Check if reached current waypoint
@@ -209,7 +208,7 @@ MoveCommand PerimeterTracker::decide(double dt)
       // First time: mark as initialized but DON'T advance yet
       // The robot is at start position - this is expected!
       if (decide_count <= 5) {
-        fprintf(stderr, "[TRACKER] INIT CHECK: dist=%.4f < tol, but NOT initialized - marking init and staying on wp #%zu\n",
+        fprintf(stderr, "[TRACKER] INIT: dist=%.4f < tol, staying on wp #%zu\n",
                 dist_to_target, current_waypoint_idx_);
       }
       has_initialized_ = true;
@@ -218,8 +217,8 @@ MoveCommand PerimeterTracker::decide(double dt)
       // DIAGNOSTIC: Log waypoint advance only once per advance event
       static size_t last_wp = static_cast<size_t>(-1);
       if (last_wp != current_waypoint_idx_) {
-        fprintf(stderr, "[TRACKER] *** WAYPOINT ADVANCE #%d: dist=%.4f < tolerance=%.1f! wp %zu -> %zu\n",
-                decide_count, dist_to_target, waypoint_tolerance_, last_wp, current_waypoint_idx_);
+        fprintf(stderr, "[TRACKER] WP ADVANCE #%d: %.4f -> wp %zu->%zu\n",
+                decide_count, dist_to_target, last_wp, current_waypoint_idx_);
         last_wp = current_waypoint_idx_;
       }
       // Advance to next waypoint
@@ -264,7 +263,7 @@ bool PerimeterTracker::reachedWaypoint() const
     return false;
   }
 
-  const auto &target = config_.getWaypoint(current_waypoint_idx_);
+  const auto& target = config_.getWaypoint(current_waypoint_idx_);
   double dist = robot_state_.distanceTo(target.x, target.y);
   return dist < waypoint_tolerance_;
 }
@@ -302,8 +301,8 @@ double PerimeterTracker::computeLateralError() const
     ? (current_waypoint_idx_ + 1) % config_.waypointCount()
     : std::min(current_waypoint_idx_ + 1, config_.waypointCount() - 1);
 
-  const auto &current_wp = config_.getWaypoint(current_waypoint_idx_);
-  const auto &next_wp = config_.getWaypoint(next_idx);
+  const auto& current_wp = config_.getWaypoint(current_waypoint_idx_);
+  const auto& next_wp = config_.getWaypoint(next_idx);
 
   // Vector from current to next waypoint
   double dx = next_wp.x - current_wp.x;
@@ -330,32 +329,32 @@ double PerimeterTracker::computeLateralErrorCoverage() const
 {
   // For coverage mode, compute lateral error to the segment direction
   // Use the segment direction (from current waypoint to next waypoint) as reference
-  
+
   if (coverage_current_idx_ + 1 >= coverage_waypoints_.size()) {
     // Last waypoint - no next point for segment direction
     return 0.0;
   }
-  
-  const auto &current_wp = coverage_waypoints_[coverage_current_idx_];
-  const auto &next_wp = coverage_waypoints_[coverage_current_idx_ + 1];
-  
+
+  const auto& current_wp = coverage_waypoints_[coverage_current_idx_];
+  const auto& next_wp = coverage_waypoints_[coverage_current_idx_ + 1];
+
   // Vector from current to next waypoint (segment direction)
   double dx = next_wp.x - current_wp.x;
   double dy = next_wp.y - current_wp.y;
   double segment_length = std::hypot(dx, dy);
-  
+
   if (segment_length < 1e-6) {
     return 0.0;
   }
-  
+
   // Normalize segment vector
   dx /= segment_length;
   dy /= segment_length;
-  
+
   // Vector from current waypoint to robot
   double rx = robot_state_.x - current_wp.x;
   double ry = robot_state_.y - current_wp.y;
-  
+
   // Lateral error = cross product (signed distance from robot to segment)
   return rx * dy - ry * dx;
 }
@@ -367,10 +366,10 @@ double PerimeterTracker::computeDesiredHeading() const
   }
 
   // FIX: Compute heading FROM robot TO target waypoint (not segment direction)
-  const auto &target = config_.getWaypoint(current_waypoint_idx_);
+  const auto& target = config_.getWaypoint(current_waypoint_idx_);
   double dx = target.x - robot_state_.x;
   double dy = target.y - robot_state_.y;
-  
+
   return std::atan2(dy, dx);
 }
 
@@ -380,7 +379,7 @@ double PerimeterTracker::computeLinearSpeed() const
     return 0.0;
   }
 
-  const auto &target = config_.getWaypoint(current_waypoint_idx_);
+  const auto& target = config_.getWaypoint(current_waypoint_idx_);
   double dist = robot_state_.distanceTo(target.x, target.y);
 
   // Reduce speed as we approach waypoint
@@ -414,7 +413,7 @@ TrackerStatus PerimeterTracker::getStatus() const
   status.speed = static_cast<float>(robot_state_.linear_speed);
 
   if (config_.waypointCount() > 0) {
-    const auto &target = config_.getWaypoint(current_waypoint_idx_);
+    const auto& target = config_.getWaypoint(current_waypoint_idx_);
     status.target_x = target.x;
     status.target_y = target.y;
     status.lateral_error = computeLateralError();
@@ -423,15 +422,15 @@ TrackerStatus PerimeterTracker::getStatus() const
   return status;
 }
 
-void PerimeterTracker::setCoverageMode(const CoverageConfig &cov_config)
+void PerimeterTracker::setCoverageMode(const CoverageConfig& cov_config)
 {
   coverage_mode_ = true;
   coverage_config_ = cov_config;
-  
+
   // Generate zigzag waypoints
   coverage_waypoints_ = PerimeterLoader::generateBoustrophedonPattern(cov_config);
   coverage_current_idx_ = 0;
-  
+
   fprintf(stderr, "[TRACKER] Coverage mode enabled: %zu waypoints generated\n",
           coverage_waypoints_.size());
 }
@@ -441,7 +440,7 @@ bool PerimeterTracker::isCoverageComplete() const
   if (!coverage_mode_) {
     return false;
   }
-  
+
   // Coverage is complete when we've visited all passes
   return coverage_current_idx_ >= coverage_waypoints_.size();
 }
@@ -452,7 +451,7 @@ void PerimeterTracker::reset()
   has_initialized_ = false;
   lateral_pid_.reset();
   robot_state_ = RobotState{};
-  
+
   // Reset coverage mode
   coverage_mode_ = false;
   coverage_current_idx_ = 0;

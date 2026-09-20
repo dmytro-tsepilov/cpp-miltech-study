@@ -33,37 +33,39 @@ namespace perimeter_miner
 class PerimeterLoader
 {
 public:
-  /// Load perimeter config from YAML file
-  static PerimeterConfig loadFromFile(const std::string &config_path);
+/// Load perimeter config from YAML file
+static PerimeterConfig loadFromFile(const std::string& config_path);
 
-  /// Load perimeter config from YAML string
-  static PerimeterConfig loadFromString(const std::string &yaml_content);
+/// Load perimeter config from YAML string
+static PerimeterConfig loadFromString(const std::string& yaml_content);
 
-  /// Get last error message
-  static const std::string &getLastError() { return last_error_; }
+/// Get last error message
+static const std::string &getLastError() {
+  return last_error_;
+}
 
-  /// Generate boustrophedon (zigzag) coverage waypoints for a bounding box
-  static std::vector<Waypoint> generateBoustrophedonPattern(
-      const CoverageConfig &config);
+/// Generate boustrophedon (zigzag) coverage waypoints for a bounding box
+static std::vector<Waypoint> generateBoustrophedonPattern(
+  const CoverageConfig& config);
 
- private:
-  /// Find a key in YAML content
-  static size_t findKey(const std::string &yaml, const std::string &key, size_t start = 0);
+private:
+/// Find a key in YAML content
+static size_t findKey(const std::string& yaml, const std::string& key, size_t start = 0);
 
-  /// Extract string value for a key
-  static bool extractValue(const std::string &yaml, const std::string &key, std::string &out_value);
+/// Extract string value for a key
+static bool extractValue(const std::string& yaml, const std::string& key, std::string& out_value);
 
-  /// Extract double value for a key
-  static bool extractDouble(const std::string &yaml, const std::string &key, double &out_value);
+/// Extract double value for a key
+static bool extractDouble(const std::string& yaml, const std::string& key, double& out_value);
 
-  /// Extract bool value for a key
-  static bool extractBool(const std::string &yaml, const std::string &key, bool &out_value);
+/// Extract bool value for a key
+static bool extractBool(const std::string& yaml, const std::string& key, bool& out_value);
 
-  /// Parse waypoints from YAML content
-  static std::vector<Waypoint> parseWaypoints(const std::string &yaml, size_t start_idx = 0);
+/// Parse waypoints from YAML content
+static std::vector<Waypoint> parseWaypoints(const std::string& yaml, size_t start_idx = 0);
 
-  /// Last error message
-  static std::string last_error_;
+/// Last error message
+static std::string last_error_;
 };
 
 }  // namespace perimeter_miner

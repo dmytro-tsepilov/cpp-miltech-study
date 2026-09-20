@@ -38,7 +38,7 @@ struct Waypoint
   double heading = 0.0;         // target heading when approaching (radians)
   double approach_radius = 1.0;  // approach radius (meters)
 
-  bool operator==(const Waypoint &other) const
+  bool operator == (const Waypoint& other) const
   {
     return std::abs(x - other.x) < 1e-6 &&
            std::abs(y - other.y) < 1e-6;
@@ -54,7 +54,7 @@ struct PerimeterConfig
   double tolerance = 0.5;        // waypoint reach tolerance (meters)
   double max_speed = 2.0;        // maximum linear speed (m/s)
   double min_turn_radius = 1.0;  // minimum turning radius (meters)
-  
+
   // Coverage mode bounding box (used when type=coverage)
   struct BoundingBox {
     double min_x = 0.0;
@@ -67,7 +67,9 @@ struct PerimeterConfig
   } bounding_box;
 
   /// Get total number of waypoints
-  size_t waypointCount() const { return waypoints.size(); }
+  size_t waypointCount() const {
+    return waypoints.size();
+  }
 
   /// Get waypoint at index (handles closed loop wrapping)
   /// Returns a default Waypoint if the vector is empty
@@ -108,8 +110,12 @@ struct CoverageConfig
   char start_row = 'B';
 
   /// Compute area size
-  double width() const { return max_x - min_x; }
-  double height() const { return max_y - min_y; }
+  double width() const {
+    return max_x - min_x;
+  }
+  double height() const {
+    return max_y - min_y;
+  }
 
   /// Compute number of passes needed
   size_t numPasses() const
@@ -124,7 +130,7 @@ struct CoverageConfig
   }
 
   /// Compute coverage percentage given a set of waypoints
-  double computeCoveragePercent(const std::vector<Waypoint> &waypoints) const;
+  double computeCoveragePercent(const std::vector<Waypoint>& waypoints) const;
 };
 
 /// Robot state for navigation
@@ -157,12 +163,14 @@ struct MoveCommand
   double angular_z = 0.0;  // rotation speed (rad/s)
 
   /// Create zero command
-  static MoveCommand zero() { return MoveCommand{0.0, 0.0, 0.0}; }
+  static MoveCommand zero() {
+    return MoveCommand{ 0.0, 0.0, 0.0 };
+  }
 
   /// Create max speed command
   static MoveCommand fullForward(double speed)
   {
-    return MoveCommand{speed, 0.0, 0.0};
+    return MoveCommand{ speed, 0.0, 0.0 };
   }
 };
 
@@ -179,11 +187,11 @@ enum class ControlMode : uint8_t
 inline const char *controlModeToString(ControlMode mode)
 {
   switch (mode) {
-    case ControlMode::AUTONOMOUS:       return "AUTONOMOUS";
-    case ControlMode::TELEOP:           return "TELEOP";
-    case ControlMode::HOLD:             return "HOLD";
-    case ControlMode::AREA_COVERAGE:    return "AREA_COVERAGE";
-    default:                            return "UNKNOWN";
+  case ControlMode::AUTONOMOUS:       return "AUTONOMOUS";
+  case ControlMode::TELEOP:           return "TELEOP";
+  case ControlMode::HOLD:             return "HOLD";
+  case ControlMode::AREA_COVERAGE:    return "AREA_COVERAGE";
+  default:                            return "UNKNOWN";
   }
 }
 
@@ -197,11 +205,11 @@ inline uint8_t controlModeToUint8(ControlMode mode)
 inline ControlMode controlModeFromUint8(uint8_t value)
 {
   switch (value) {
-    case 0: return ControlMode::AUTONOMOUS;
-    case 1: return ControlMode::TELEOP;
-    case 2: return ControlMode::HOLD;
-    case 3: return ControlMode::AREA_COVERAGE;
-    default: return ControlMode::AUTONOMOUS;
+  case 0: return ControlMode::AUTONOMOUS;
+  case 1: return ControlMode::TELEOP;
+  case 2: return ControlMode::HOLD;
+  case 3: return ControlMode::AREA_COVERAGE;
+  default: return ControlMode::AUTONOMOUS;
   }
 }
 

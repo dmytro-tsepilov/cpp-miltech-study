@@ -38,7 +38,7 @@ void HoldController::setHoldPosition(double x, double y, double heading)
   heading_integral_ = 0.0;
 }
 
-MoveCommand HoldController::compute(const RobotState &state, double dt)
+MoveCommand HoldController::compute(const RobotState& state, double dt)
 {
   MoveCommand cmd;
 
@@ -77,7 +77,7 @@ MoveCommand HoldController::compute(const RobotState &state, double dt)
   return cmd;
 }
 
-bool HoldController::isAtHoldPosition(const RobotState &state, double tolerance) const
+bool HoldController::isAtHoldPosition(const RobotState& state, double tolerance) const
 {
   double pos_error = std::hypot(hold_x_ - state.x, hold_y_ - state.y);
   double heading_error = std::abs(normalizeAngle(hold_heading_ - state.heading));

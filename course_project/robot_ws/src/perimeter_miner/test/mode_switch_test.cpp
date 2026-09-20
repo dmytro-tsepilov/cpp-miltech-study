@@ -108,7 +108,9 @@ TEST(ModeSwitchSafetyTest, AutonomousSafetyCheck)
   ModeSwitch ms;
 
   // Set a failing safety check
-  ms.setAutonomousCheck([]() { return false; });
+  ms.setAutonomousCheck([]() {
+    return false;
+  });
 
   // Switch to TELEOP first
   ms.requestMode(ControlMode::TELEOP);

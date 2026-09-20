@@ -86,24 +86,24 @@ bool ModeSwitch::operatorOverride()
 bool ModeSwitch::validateModeSwitch(ControlMode target) const
 {
   switch (target) {
-    case ControlMode::AUTONOMOUS:
-      // Can always switch to autonomous (safety check done in applyRequest)
-      return true;
+  case ControlMode::AUTONOMOUS:
+    // Can always switch to autonomous (safety check done in applyRequest)
+    return true;
 
-    case ControlMode::TELEOP:
-      // Can always switch to teleop (operator has priority)
-      return true;
+  case ControlMode::TELEOP:
+    // Can always switch to teleop (operator has priority)
+    return true;
 
-    case ControlMode::HOLD:
-      // Can always hold position
-      return true;
+  case ControlMode::HOLD:
+    // Can always hold position
+    return true;
 
-    case ControlMode::AREA_COVERAGE:
-      // Can switch to area coverage mode
-      return true;
+  case ControlMode::AREA_COVERAGE:
+    // Can switch to area coverage mode
+    return true;
 
-    default:
-      return false;
+  default:
+    return false;
   }
 }
 

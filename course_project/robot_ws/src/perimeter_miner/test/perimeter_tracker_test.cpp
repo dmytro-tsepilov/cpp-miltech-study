@@ -50,10 +50,10 @@ TEST(PerimeterTrackerTest, Initialization)
   config.max_speed = 2.0;
 
   config.waypoints = {
-    Waypoint{0.0, 0.0, 0.0, 1.0},
-    Waypoint{10.0, 0.0, M_PI_2, 1.0},
-    Waypoint{10.0, 10.0, M_PI, 1.0},
-    Waypoint{0.0, 10.0, -M_PI_2, 1.0}
+    Waypoint{ 0.0, 0.0, 0.0, 1.0 },
+    Waypoint{ 10.0, 0.0, M_PI_2, 1.0 },
+    Waypoint{ 10.0, 10.0, M_PI, 1.0 },
+    Waypoint{ 0.0, 10.0, -M_PI_2, 1.0 }
   };
 
   PerimeterTracker tracker(config);
@@ -72,8 +72,8 @@ TEST(PerimeterTrackerTest, WaypointReachDetection)
   config.tolerance = 0.5;
 
   config.waypoints = {
-    Waypoint{0.0, 0.0, 0.0, 1.0},
-    Waypoint{10.0, 0.0, M_PI_2, 1.0}
+    Waypoint{ 0.0, 0.0, 0.0, 1.0 },
+    Waypoint{ 10.0, 0.0, M_PI_2, 1.0 }
   };
 
   PerimeterTracker tracker(config);
@@ -103,9 +103,9 @@ TEST(PerimeterTrackerTest, ClosedLoopAdvancement)
   config.tolerance = 0.5;
 
   config.waypoints = {
-    Waypoint{0.0, 0.0, 0.0, 1.0},
-    Waypoint{10.0, 0.0, M_PI_2, 1.0},
-    Waypoint{10.0, 10.0, M_PI, 1.0}
+    Waypoint{ 0.0, 0.0, 0.0, 1.0 },
+    Waypoint{ 10.0, 0.0, M_PI_2, 1.0 },
+    Waypoint{ 10.0, 10.0, M_PI, 1.0 }
   };
 
   PerimeterTracker tracker(config);
@@ -246,8 +246,8 @@ TEST(PerimeterTrackerTest, StatusRetrieval)
   config.tolerance = 0.5;
 
   config.waypoints = {
-    Waypoint{0.0, 0.0, 0.0, 1.0},
-    Waypoint{10.0, 0.0, M_PI_2, 1.0}
+    Waypoint{ 0.0, 0.0, 0.0, 1.0 },
+    Waypoint{ 10.0, 0.0, M_PI_2, 1.0 }
   };
 
   PerimeterTracker tracker(config);

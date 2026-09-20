@@ -1,7 +1,25 @@
 // Copyright 2026 Open Source Robotics Foundation Inc
 // SPDX-License-Identifier: MIT
 //
-// Test suite for PerimeterTracker::decide() — main navigation logic.
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+// Test suite for PerimeterTracker::decide() - main navigation logic.
 // This tests the core perimeter patrol algorithm including:
 // - Lateral PID steering
 // - Pure pursuit curvature
@@ -59,8 +77,8 @@ TEST(PerimeterTrackerDecideTest, ForwardMotion)
   config.max_speed = 2.0;
 
   config.waypoints = {
-    Waypoint{0.0, 0.0, 0.0, 1.0},
-    Waypoint{10.0, 0.0, M_PI_2, 1.0}
+    Waypoint{ 0.0, 0.0, 0.0, 1.0 },
+    Waypoint{ 10.0, 0.0, M_PI_2, 1.0 }
   };
 
   PerimeterTracker tracker(config);
@@ -90,8 +108,8 @@ TEST(PerimeterTrackerDecideTest, SpeedReductionNearWaypoint)
   config.max_speed = 2.0;
 
   config.waypoints = {
-    Waypoint{0.0, 0.0, 0.0, 1.0},
-    Waypoint{10.0, 0.0, M_PI_2, 1.0}
+    Waypoint{ 0.0, 0.0, 0.0, 1.0 },
+    Waypoint{ 10.0, 0.0, M_PI_2, 1.0 }
   };
 
   PerimeterTracker tracker(config);
@@ -131,8 +149,8 @@ TEST(PerimeterTrackerDecideTest, SteeringForLateralError)
 
   // Horizontal segment from (0,0) to (10,0)
   config.waypoints = {
-    Waypoint{0.0, 0.0, 0.0, 1.0},
-    Waypoint{10.0, 0.0, M_PI_2, 1.0}
+    Waypoint{ 0.0, 0.0, 0.0, 1.0 },
+    Waypoint{ 10.0, 0.0, M_PI_2, 1.0 }
   };
 
   PerimeterTracker tracker(config);
@@ -162,10 +180,10 @@ TEST(PerimeterTrackerDecideTest, ClosedLoopWrapAround)
   config.max_speed = 2.0;
 
   config.waypoints = {
-    Waypoint{0.0, 0.0, 0.0, 1.0},
-    Waypoint{10.0, 0.0, M_PI_2, 1.0},
-    Waypoint{10.0, 10.0, M_PI, 1.0},
-    Waypoint{0.0, 10.0, -M_PI_2, 1.0}
+    Waypoint{ 0.0, 0.0, 0.0, 1.0 },
+    Waypoint{ 10.0, 0.0, M_PI_2, 1.0 },
+    Waypoint{ 10.0, 10.0, M_PI, 1.0 },
+    Waypoint{ 0.0, 10.0, -M_PI_2, 1.0 }
   };
 
   PerimeterTracker tracker(config);
@@ -201,9 +219,9 @@ TEST(PerimeterTrackerDecideTest, OpenPerimeterStop)
   config.max_speed = 2.0;
 
   config.waypoints = {
-    Waypoint{0.0, 0.0, 0.0, 1.0},
-    Waypoint{10.0, 0.0, M_PI_2, 1.0},
-    Waypoint{10.0, 10.0, M_PI, 1.0}
+    Waypoint{ 0.0, 0.0, 0.0, 1.0 },
+    Waypoint{ 10.0, 0.0, M_PI_2, 1.0 },
+    Waypoint{ 10.0, 10.0, M_PI, 1.0 }
   };
 
   PerimeterTracker tracker(config);
@@ -241,8 +259,8 @@ TEST(PerimeterTrackerDecideTest, StatusComputation)
   config.max_speed = 2.0;
 
   config.waypoints = {
-    Waypoint{0.0, 0.0, 0.0, 1.0},
-    Waypoint{10.0, 0.0, M_PI_2, 1.0}
+    Waypoint{ 0.0, 0.0, 0.0, 1.0 },
+    Waypoint{ 10.0, 0.0, M_PI_2, 1.0 }
   };
 
   PerimeterTracker tracker(config);
@@ -276,8 +294,8 @@ TEST(PerimeterTrackerDecideTest, SpeedFactor)
   config.max_speed = 2.0;
 
   config.waypoints = {
-    Waypoint{0.0, 0.0, 0.0, 1.0},
-    Waypoint{20.0, 0.0, M_PI_2, 1.0}
+    Waypoint{ 0.0, 0.0, 0.0, 1.0 },
+    Waypoint{ 20.0, 0.0, M_PI_2, 1.0 }
   };
 
   PerimeterTracker tracker(config);
@@ -306,8 +324,8 @@ TEST(PerimeterTrackerDecideTest, WaypointReachTolerance)
   config.max_speed = 2.0;
 
   config.waypoints = {
-    Waypoint{0.0, 0.0, 0.0, 1.0},
-    Waypoint{10.0, 0.0, M_PI_2, 1.0}
+    Waypoint{ 0.0, 0.0, 0.0, 1.0 },
+    Waypoint{ 10.0, 0.0, M_PI_2, 1.0 }
   };
 
   PerimeterTracker tracker(config);
@@ -352,9 +370,9 @@ TEST(PerimeterTrackerDecideTest, Reset)
   config.max_speed = 2.0;
 
   config.waypoints = {
-    Waypoint{0.0, 0.0, 0.0, 1.0},
-    Waypoint{10.0, 0.0, M_PI_2, 1.0},
-    Waypoint{10.0, 10.0, M_PI, 1.0}
+    Waypoint{ 0.0, 0.0, 0.0, 1.0 },
+    Waypoint{ 10.0, 0.0, M_PI_2, 1.0 },
+    Waypoint{ 10.0, 10.0, M_PI, 1.0 }
   };
 
   PerimeterTracker tracker(config);
@@ -384,8 +402,8 @@ TEST(PerimeterTrackerDecideTest, LateralErrorHorizontal)
 
   // Horizontal segment from (0,0) to (10,0)
   config.waypoints = {
-    Waypoint{0.0, 0.0, 0.0, 1.0},
-    Waypoint{10.0, 0.0, M_PI_2, 1.0}
+    Waypoint{ 0.0, 0.0, 0.0, 1.0 },
+    Waypoint{ 10.0, 0.0, M_PI_2, 1.0 }
   };
 
   PerimeterTracker tracker(config);
@@ -412,7 +430,7 @@ TEST(PerimeterTrackerDecideTest, LateralErrorHorizontal)
   EXPECT_LT(status_above.lateral_error * status_below.lateral_error, 0);
 }
 
-// Test 12: Pure pursuit curvature computation — different targets produce different curvatures
+// Test 12: Pure pursuit curvature computation - different targets produce different curvatures
 TEST(PurePursuitTest, CurvatureComputation)
 {
   PurePursuit pursuit;
@@ -424,10 +442,10 @@ TEST(PurePursuitTest, CurvatureComputation)
   robot.heading = 0.0;
   robot.linear_speed = 1.0;
 
-  // Target straight ahead — should produce minimal curvature
+  // Target straight ahead - should produce minimal curvature
   double curvStraight = pursuit.computeCurvature(robot, 10.0, 0.0);
 
-  // Target to the side — should produce significant curvature
+  // Target to the side - should produce significant curvature
   double curvSide = pursuit.computeCurvature(robot, 5.0, 5.0);
 
   // Curvatures should differ (side turn requires more steering)
@@ -452,7 +470,7 @@ TEST(PerimeterTrackerDecideTest, PIDWithDifferentDT)
 
   pid.reset();
 
-  // Accumulate error over fewer ticks at 20Hz (dt=0.05) — same total time
+  // Accumulate error over fewer ticks at 20Hz (dt=0.05) - same total time
   for (int i = 0; i < 2; ++i) {
     pid.compute(1.0, 0.05);
   }
@@ -547,7 +565,7 @@ TEST(PerimeterTrackerDecideTest, SingleWaypoint)
   config.max_speed = 2.0;
 
   config.waypoints = {
-    Waypoint{5.0, 5.0, M_PI_4, 1.0}
+    Waypoint{ 5.0, 5.0, M_PI_4, 1.0 }
   };
 
   PerimeterTracker tracker(config);
@@ -581,8 +599,8 @@ TEST(PerimeterTrackerDecideTest, LateralErrorVertical)
 
   // Vertical segment from (0,0) to (0,10)
   config.waypoints = {
-    Waypoint{0.0, 0.0, M_PI_2, 1.0},
-    Waypoint{0.0, 10.0, M_PI_2, 1.0}
+    Waypoint{ 0.0, 0.0, M_PI_2, 1.0 },
+    Waypoint{ 0.0, 10.0, M_PI_2, 1.0 }
   };
 
   PerimeterTracker tracker(config);

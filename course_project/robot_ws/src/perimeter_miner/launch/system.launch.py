@@ -2,6 +2,7 @@
 # Copyright 2026 Open Source Robotics Foundation Inc
 # SPDX-License-Identifier: MIT
 
+
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -20,7 +21,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""System launch file for perimeter miner course project.
+"""
+System launch file for perimeter miner course project.
 
 Launches all nodes required for perimeter patrol mission:
 - miner_node: Main perimeter tracking controller
@@ -55,7 +57,7 @@ from launch_ros.actions import Node
 
 
 def _get_scenario_file(scenario_name):
-    """Helper to get scenario file from scenario name."""
+    """Get scenario file from scenario name."""
     # Map scenario names to config files
     scenario_map = {
         'training_ground': 'training_ground.yaml',
@@ -72,7 +74,7 @@ def generate_launch_description():
     teleop_operator_pkg = get_package_share_directory('teleop_operator')
 
     # Launch configuration parameters
-    _scenario = LaunchConfiguration('scenario')
+    # _scenario = LaunchConfiguration('scenario')  # Reserved for future use
     simulate_mines = LaunchConfiguration('simulate_mines')
     enable_reporter = LaunchConfiguration('enable_reporter')
     api_endpoint = LaunchConfiguration('api_endpoint')
