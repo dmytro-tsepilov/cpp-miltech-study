@@ -152,6 +152,7 @@ private:
   PerimeterConfig config_;
   RobotState robot_state_;
   size_t current_waypoint_idx_ = 0;
+  bool has_initialized_ = false;  // Prevent premature waypoint advance
 
   // Controllers
   LateralPID lateral_pid_;

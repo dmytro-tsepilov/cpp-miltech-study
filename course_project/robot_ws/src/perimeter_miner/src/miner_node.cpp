@@ -250,9 +250,9 @@ private:
 
     // Convert quaternion to heading (yaw)
     auto q = msg.pose.pose.orientation;
-    double siny_uncoupled = -2.0 * (q.y * q.w - q.z * q.x);
-    double cosy_uncoupled = 1.0 - 2.0 * (q.y * q.y + q.z * q.z);
-    robot_state_.heading = std::atan2(siny_uncoupled, cosy_uncoupled);
+    // For rotation around Z axis only (x=0, y=0): yaw = 2*atan2(q.z, q.w)
+    // This is the correct formula for pure yaw quaternions
+    robot_state_.heading = 2.0 * std::atan2(q.z, q.w);
 
     robot_state_.linear_speed = msg.twist.twist.linear.x;
     robot_state_.angular_speed = msg.twist.twist.angular.z;
@@ -299,6 +299,10 @@ private:
       current_dt_ = 0.02;  // Fallback to 50Hz default
     }
 
+    // DIAGNOSTIC: Log first 5 ticks with full state
+    static int tick_count = 0;
+    tick_count++;
+
     // Apply mode switch if pending
     if (mode_switch_.isSwitching()) {
       mode_switch_.applyRequest();
@@ -309,6 +313,12 @@ private:
 
     switch (current_mode) {
       case ControlMode::AUTONOMOUS: {
+        // DIAGNOSTIC: Log robot state before decide
+        if (tick_count <= 5 || tick_count % 100 == 0) {
+          fprintf(stderr, "[CONTROL] #%d AUTONOMOUS: robot=(%.3f, %.3f, %.4f rad), dt=%.4f\n",
+              tick_count, robot_state_.x, robot_state_.y, robot_state_.heading, current_dt_);
+        }
+        
         // Perimeter tracking
         cmd = perimeter_tracker_.decide(current_dt_);
 
@@ -370,6 +380,13 @@ private:
     twist_msg.twist.linear.x = cmd.linear_x;
     twist_msg.twist.linear.y = cmd.linear_y;
     twist_msg.twist.angular.z = cmd.angular_z;
+    
+    // DIAGNOSTIC: Log first 10 commands and then every 50th
+    if (tick_count <= 10 || tick_count % 50 == 0) {
+      fprintf(stderr, "[COMMAND] #%d: linear_x=%.3f, angular_z=%.3f\n",
+          tick_count, cmd.linear_x, cmd.angular_z);
+    }
+    
     cmd_vel_pub_->publish(twist_msg);
   }
 

@@ -103,6 +103,7 @@ MoveCommand PerimeterTracker::decide(double dt)
   MoveCommand cmd = MoveCommand::zero();
 
   if (config_.waypointCount() == 0) {
+    fprintf(stderr, "[TRACKER] DECIDE: No waypoints - returning zero command\n");
     return cmd;
   }
 
@@ -112,17 +113,50 @@ MoveCommand PerimeterTracker::decide(double dt)
   // Get current target waypoint
   const auto &target = config_.getWaypoint(current_waypoint_idx_);
 
+  // DIAGNOSTIC: Log state every 100 calls
+  static int decide_count = 0;
+  decide_count++;
+  if (decide_count <= 20 || decide_count % 100 == 0) {
+    fprintf(stderr, "[TRACKER] DECIDE #%d: wp_idx=%zu, robot=(%.3f, %.3f, %.4f rad), target=(%.1f, %.1f), init=%d\n",
+            decide_count, current_waypoint_idx_, robot_state_.x, robot_state_.y,
+            robot_state_.heading, target.x, target.y, has_initialized_);
+  }
+
   // Check if reached current waypoint
   double dist_to_target = robot_state_.distanceTo(target.x, target.y);
 
+  // FIX: Only advance waypoint if we have been initialized (have valid odometry)
+  // This prevents premature advance when robot starts AT waypoint 0
   if (dist_to_target < waypoint_tolerance_) {
-    // Advance to next waypoint
-    if (advanceWaypoint()) {
-      // Continue with new target
+    if (!has_initialized_) {
+      // First time: mark as initialized but DON'T advance yet
+      // The robot is at start position - this is expected!
+      if (decide_count <= 5) {
+        fprintf(stderr, "[TRACKER] INIT CHECK: dist=%.4f < tol, but NOT initialized - marking init and staying on wp #%zu\n",
+                dist_to_target, current_waypoint_idx_);
+      }
+      has_initialized_ = true;
+      // Continue with same target (don't advance)
     } else {
-      // End of open perimeter - stop
-      return MoveCommand::zero();
+      // DIAGNOSTIC: Log waypoint advance only once per advance event
+      static size_t last_wp = static_cast<size_t>(-1);
+      if (last_wp != current_waypoint_idx_) {
+        fprintf(stderr, "[TRACKER] *** WAYPOINT ADVANCE #%d: dist=%.4f < tolerance=%.1f! wp %zu -> %zu\n",
+                decide_count, dist_to_target, waypoint_tolerance_, last_wp, current_waypoint_idx_);
+        last_wp = current_waypoint_idx_;
+      }
+      // Advance to next waypoint
+      if (advanceWaypoint()) {
+        fprintf(stderr, "[TRACKER] *** ADVANCED: Now targeting wp #%zu\n", current_waypoint_idx_);
+        // Continue with new target
+      } else {
+        // End of open perimeter - stop
+        return MoveCommand::zero();
+      }
     }
+  } else if (dist_to_target < waypoint_tolerance_ * 2 && decide_count <= 20) {
+    fprintf(stderr, "[TRACKER] NEAR WAYPOINT: dist=%.4f (tolerance=%.1f), wp #%zu\n",
+            dist_to_target, waypoint_tolerance_, current_waypoint_idx_);
   }
 
   // Compute lateral error
@@ -221,14 +255,12 @@ double PerimeterTracker::computeDesiredHeading() const
     return robot_state_.heading;
   }
 
-  size_t next_idx = config_.closed_loop
-    ? (current_waypoint_idx_ + 1) % config_.waypointCount()
-    : std::min(current_waypoint_idx_ + 1, config_.waypointCount() - 1);
-
-  const auto &current_wp = config_.getWaypoint(current_waypoint_idx_);
-  const auto &next_wp = config_.getWaypoint(next_idx);
-
-  return std::atan2(next_wp.y - current_wp.y, next_wp.x - current_wp.x);
+  // FIX: Compute heading FROM robot TO target waypoint (not segment direction)
+  const auto &target = config_.getWaypoint(current_waypoint_idx_);
+  double dx = target.x - robot_state_.x;
+  double dy = target.y - robot_state_.y;
+  
+  return std::atan2(dy, dx);
 }
 
 double PerimeterTracker::computeLinearSpeed() const
@@ -283,6 +315,7 @@ TrackerStatus PerimeterTracker::getStatus() const
 void PerimeterTracker::reset()
 {
   current_waypoint_idx_ = 0;
+  has_initialized_ = false;
   lateral_pid_.reset();
   robot_state_ = RobotState{};
 }
