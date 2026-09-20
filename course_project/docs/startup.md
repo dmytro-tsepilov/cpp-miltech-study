@@ -257,6 +257,13 @@ ros2 launch perimeter_miner system.launch.py \
 
 ## Перемикання режимів під час роботи
 
+| Режим | ID | Опис |
+|-------|----|------|
+| AUTONOMOUS | 0 | Патрулювання периметру / покриття області |
+| TELEOP | 1 | Телеоперація (оператор має пріоритет) |
+| HOLD | 2 | Утримання позиції (при детекції міни) |
+| AREA_COVERAGE | 3 | Покриття області (zigzag pattern) |
+
 ```bash
 # AUTONOMOUS → TELEOP (перехоплення оператором)
 ros2 service call /control/switch_mode perimeter_msgs/srv/SwitchMode "{mode: 1}"
@@ -266,7 +273,12 @@ ros2 service call /control/switch_mode perimeter_msgs/srv/SwitchMode "{mode: 2}"
 
 # HOLD → AUTONOMOUS (повернення до автономного режиму)
 ros2 service call /control/switch_mode perimeter_msgs/srv/SwitchMode "{mode: 0}"
+
+# AUTONOMOUS → AREA_COVERAGE (покриття області зигзагом)
+ros2 service call /control/switch_mode perimeter_msgs/srv/SwitchMode "{mode: 3}"
 ```
+
+> **Примітка:** Перемикання в режим HOLD відбувається автоматично при детекції міни. Повернення до AUTONOMOUS — коли robot at hold position + clearance confirmed. TELEOP має timeout 30s — після цього автоматичне повернення до AUTONOMOUS.
 
 ## Розмінування
 
@@ -322,14 +334,18 @@ ros2 topic list
 
 ### Основні топіки
 
-| Топік | Повідомлення | Призначення |
-|-------|-------------|-------------|
-| `/perimeter/status` | `PerimeterStatus` | Статус патрулювання |
-| `/mines/detected` | `MineDetection` | Детекція мін |
-| `/mines/cleared` | `ClearanceReport` | Звіт про розмінування (НОВЕ) |
-| `/mission/summary` | `MissionSummary` | Підсумок місії (НОВЕ) |
-| `/control/cmd_vel` | `TwistStamped` | Команди руху |
-| `/teleop/cmd` | `Empty` | Сигнал телеоперації (НОВЕ) |
+| Топік | Повідомлення | Призначення | Частота |
+|-------|-------------|-------------|---------|
+| `/control/cmd_vel` | `TwistStamped` | Команди руху робота | 50 Hz |
+| `/perimeter/status` | `PerimeterStatus` | Статус патрулювання | 2 Hz |
+| `/mines/detected` | `MineDetection` | Детекція мін | Подійна |
+| `/mines/cleared` | `ClearanceReport` | Звіт про розмінування | Подійна |
+| `/mission/summary` | `MissionSummary` | Підсумок місії | Подійна (кінець) |
+| `/control/status` | `PerimeterStatus` | Синхронізація режиму | 2 Hz |
+| `/robot/position` | `std_msgs/String` | Позиція ("x,y") | Подійна |
+| `/reporter/status` | `std_msgs/String` | Статус HTTP репортера | Подійна |
+| `/teleop/cmd` | `std_msgs/Empty` | Сигнал телеоперації | Подійна |
+| `/odom` | `nav_msgs/Odometry` | Одометрія (вхід) | Залежить від симуляції |
 
 ### Перегляд топіків
 ```bash
@@ -366,10 +382,12 @@ ros2 bag record -o my_mission_bag /perimeter/status /mines/detected /control/cmd
 
 | Файл | Опис |
 |------|------|
-| `training_ground.yaml` | Квадратний периметр 20x20m, 4 waypoint, 3 міни |
-| `patrol_alpha.yaml` | Лінійний патруль, 4 waypoint, 3 міни |
-| `large_patrol.yaml` | Великий замкнений периметр, 16 waypoint, 8 мін |
-| `training_ground_coverage.yaml` | Покриття площі зигзагом (boustrophedon), pass_spacing=2m |
+| [`training_ground.yaml`](../robot_ws/src/perimeter_miner/config/training_ground.yaml) | Квадратний **замкнений** периметр 20x20m, **4 waypoint**, 3 міни |
+| [`patrol_alpha.yaml`](../robot_ws/src/perimeter_miner/config/patrol_alpha.yaml) | Лінійний **розімкнений** патруль, **4 waypoint**, 3 міни |
+| [`large_patrol.yaml`](../robot_ws/src/perimeter_miner/config/large_patrol.yaml) | Великий **замкнений** периметр (овальний), **15 waypoint**, 8 мін |
+| [`training_ground_coverage.yaml`](../robot_ws/src/perimeter_miner/config/training_ground_coverage.yaml) | Покриття площі зигзагом (boustrophedon), pass_spacing=2m |
+
+> **Примітка:** `start_corner` в `training_ground_coverage.yaml` ще не реалізований — завжди використовується BL (bottom-left).
 
 ```bash
 # Запуск з конкретним сценарієм (без Gazebo)
