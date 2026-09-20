@@ -85,8 +85,12 @@ ros2 launch perimeter_miner system.launch.py \
 
 ### Базовий запуск з мінесимуляцією
 
+> **ВАЖЛИВО:** `enable_fake_odom:=true` обов'язковий для роботи без Gazebo!
+
 ```bash
-ros2 launch perimeter_miner system.launch.py simulate_mines:=true
+ros2 launch perimeter_miner system.launch.py \
+    simulate_mines:=true \
+    enable_fake_odom:=true
 ```
 
 ### Запуск з HTTP звітністю
@@ -94,6 +98,7 @@ ros2 launch perimeter_miner system.launch.py simulate_mines:=true
 ```bash
 ros2 launch perimeter_miner system.launch.py \
     simulate_mines:=true \
+    enable_fake_odom:=true \
     enable_reporter:=true \
     api_endpoint:=http://localhost:8080
 ```
@@ -120,6 +125,7 @@ cd course_project/robot_ws
 source install/setup.bash
 ros2 launch perimeter_miner system.launch.py \
     simulate_mines:=true \
+    enable_fake_odom:=true \
     enable_reporter:=true \
     api_endpoint:=http://localhost:8080
 ```
@@ -206,6 +212,8 @@ curl -X POST http://localhost:8080/api/v1/mission/summary \
 
 ### Запуск з Gazebo симуляцією
 
+> **Примітка:** З Gazebo `enable_fake_odom` НЕ потрібен — Gazebo генерує одометрію.
+
 ```bash
 ros2 launch perimeter_miner system.launch.py \
     use_gazebo:=true \
@@ -216,6 +224,8 @@ ros2 launch perimeter_miner system.launch.py \
 
 ```bash
 ros2 launch perimeter_miner system.launch.py \
+    simulate_mines:=true \
+    enable_fake_odom:=true \
     enable_teleop:=true \
     teleop_input_type:=keyboard
 ```
@@ -224,11 +234,15 @@ ros2 launch perimeter_miner system.launch.py \
 
 ```bash
 ros2 launch perimeter_miner system.launch.py \
+    simulate_mines:=true \
+    enable_fake_odom:=true \
     enable_teleop:=true \
     teleop_input_type:=joy
 ```
 
 ### Повний запуск (все разом)
+
+> **Примітка:** З Gazebo `enable_fake_odom` НЕ потрібен.
 
 ```bash
 ros2 launch perimeter_miner system.launch.py \
@@ -354,51 +368,74 @@ ros2 bag record -o my_mission_bag /perimeter/status /mines/detected /control/cmd
 | `training_ground.yaml` | Квадратний периметр 20x20m, 4 waypoint, 3 міни |
 | `patrol_alpha.yaml` | Лінійний патруль, 4 waypoint, 3 міни |
 | `large_patrol.yaml` | Великий замкнений периметр, 16 waypoint, 8 мін |
+| `training_ground_coverage.yaml` | Покриття площі зигзагом (boustrophedon), pass_spacing=2m |
 
 ```bash
-# Запуск з конкретним сценарієм
+# Запуск з конкретним сценарієм (без Gazebo)
 ros2 launch perimeter_miner system.launch.py \
     scenario_file:=patrol_alpha.yaml \
-    simulate_mines:=true
-```
-
-## Випадки використання
-
-### Сценарій 1: Тестування автономного патрулювання
-
-```bash
-cd course_project/robot_ws
-colcon build --packages-select perimeter_msgs perimeter_miner mine_simulator
-source install/setup.bash
-ros2 launch perimeter_miner system.launch.py simulate_mines:=true
-```
-
-### Сценарій 2: Тестування з HTTP звітністю
-
-```bash
-# Запуск локального серверу для прийому звітів (опціонально)
-python3 -m http.server 8080 &
-
-ros2 launch perimeter_miner system.launch.py \
     simulate_mines:=true \
-    enable_reporter:=true \
-    api_endpoint:=http://localhost:8080
+    enable_fake_odom:=true
 ```
 
-### Сценарій 3: Повне тестування з Gazebo
-
 ```bash
+# Запуск з конкретним сценарієм (з Gazebo — fake_odom не потрібен)
 ros2 launch perimeter_miner system.launch.py \
+    scenario_file:=patrol_alpha.yaml \
     use_gazebo:=true \
     simulate_mines:=true
 ```
 
-### Сценарій 4: Телеоперація
+## Покриття площі (Area Coverage)
+
+Для покриття всього периметру (а не тільки краю), використовуйте режим AREA_COVERAGE:
 
 ```bash
-# Запуск телеоперації в одному терміналі
-ros2 launch teleop_operator teleop.launch.py input_type:=keyboard
+# Запуск з покриттям площі зигзагом
+ros2 launch perimeter_miner system.launch.py \
+    scenario_file:=training_ground_coverage.yaml \
+    simulate_mines:=true \
+    enable_fake_odom:=true \
+    enable_coverage:=true
+```
 
-# Запуск основного контролера в іншому терміналі
-ros2 launch perimeter_miner system.launch.py enable_teleop:=true
+### Як це працює:
+
+Алгоритм **boustrophedon** (зигзаг) генерує паралельні лінії сканування:
+
+```
+┌─────────────────────────────┐
+│ → → → → → → → → → → → →   │  Pass 1 (left→right)
+├─────────────────────────────┤
+│ ← ← ← ← ← ← ← ← ← ← ← ←   │  Pass 2 (right→left)
+├─────────────────────────────┤
+│ → → → → → → → → → → → →   │  Pass 3 (left→right)
+├─────────────────────────────┤
+│ ← ← ← ← ← ← ← ← ← ← ← ←   │  Pass 4 (right→left)
+└─────────────────────────────┘
+```
+
+### Налаштування coverage конфігурації:
+
+```yaml
+# training_ground_coverage.yaml
+name: training_ground_coverage
+type: coverage
+
+# Бounding box області
+min_x: 0.0
+min_y: 0.0
+max_x: 20.0
+max_y: 20.0
+
+# Параметри покриття
+pass_spacing: 2.0       # відстань між паралельними лініями (м)
+coverage_speed: 1.0     # швидкість під час покриття (м/с)
+turn_arcs: 1.0          # радіус розвороту на кінцях ліній
+
+# Напрямок сканування: 'X'=горизонтально, 'Y'=вертикально
+scan_direction: X
+
+# Кут початку: BL=зліва-знизу, BR=справа-знизу, TL=зліва-зверху, TR=справа-зверху
+start_corner: BL
 ```

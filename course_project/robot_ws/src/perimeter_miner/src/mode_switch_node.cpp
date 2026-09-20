@@ -36,7 +36,7 @@ using perimeter_miner::ModeSwitch;
 using perimeter_miner::controlModeFromUint8;
 using perimeter_miner::controlModeToString;
 
-/// Mode switch node - handles mode transitions and operator override
+/// Mode switch node - syncs mode state with miner_node via /control/status topic
 class ModeSwitchNode : public rclcpp::Node
 {
 public:
@@ -46,17 +46,30 @@ ModeSwitchNode()
 {
   RCLCPP_INFO(get_logger(), "ModeSwitchNode starting...");
 
-  // Publishers
+  // Publishers - publish current mode state to /control/status
   status_pub_ = create_publisher<perimeter_msgs::msg::PerimeterStatus>(
     "/control/status", 10);
 
-  // Service for mode switching
+  // Service for mode switching - forwards to miner_node via topic
   switch_srv_ = create_service<perimeter_msgs::srv::SwitchMode>(
     "/control/switch_mode",
     [this](
       const std::shared_ptr<perimeter_msgs::srv::SwitchMode::Request> req,
       const std::shared_ptr<perimeter_msgs::srv::SwitchMode::Response> res) {
       onSwitchRequest(req, res);
+    });
+
+  // Subscribe to miner_node status topic to sync mode state
+  // (miner_node publishes current mode on /control/status)
+  mode_sub_ = create_subscription<perimeter_msgs::msg::PerimeterStatus>(
+    "/perimeter/status", 10,
+    [this](const perimeter_msgs::msg::PerimeterStatus::SharedPtr msg) {
+      ControlMode new_mode = controlModeFromUint8(msg->mode);
+      if (new_mode != mode_switch_.getCurrentMode()) {
+        mode_switch_.setMode(new_mode);
+        RCLCPP_INFO(get_logger(), "Synced mode from miner_node: %s",
+                    controlModeToString(new_mode));
+      }
     });
 
   // Timer for status publishing
@@ -78,21 +91,19 @@ void onSwitchRequest(
               controlModeToString(mode_switch_.getCurrentMode()),
               controlModeToString(requested));
 
-  // Operator override for TELEOP mode (priority)
-  if (requested == ControlMode::TELEOP) {
-    res->success = mode_switch_.operatorOverride();
-  } else {
-    res->success = mode_switch_.requestMode(requested);
-    if (res->success) {
-      mode_switch_.applyRequest();
-    }
-  }
+  // Update local state and publish to topic for miner_node to receive
+  mode_switch_.setMode(requested);
+  res->success = true;
+  res->message = "Mode set to " + std::string(controlModeToString(requested)) +
+                 " - waiting for miner_node confirmation";
 
-  res->message = mode_switch_.getLastMessage();
+  // Publish immediately so miner_node receives it
+  auto msg = perimeter_msgs::msg::PerimeterStatus();
+  msg.mode = static_cast<uint8_t>(requested);
+  msg.timestamp = now();
+  status_pub_->publish(msg);
 
-  RCLCPP_INFO(get_logger(), "Result: %s (%s)",
-              res->success ? "SUCCESS" : "FAILED",
-              res->message.c_str());
+  RCLCPP_INFO(get_logger(), "Published mode change to /control/status");
 }
 
 void publishStatus()
@@ -107,6 +118,7 @@ ModeSwitch mode_switch_;
 
 rclcpp::Publisher<perimeter_msgs::msg::PerimeterStatus>::SharedPtr status_pub_;
 rclcpp::Service<perimeter_msgs::srv::SwitchMode>::SharedPtr switch_srv_;
+rclcpp::Subscription<perimeter_msgs::msg::PerimeterStatus>::SharedPtr mode_sub_;
 rclcpp::TimerBase::SharedPtr status_timer_;
 };
 

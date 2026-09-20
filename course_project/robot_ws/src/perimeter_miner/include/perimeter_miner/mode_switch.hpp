@@ -42,6 +42,9 @@ bool requestMode(ControlMode requested);
 /// Apply pending mode change (check safety conditions)
 bool applyRequest();
 
+/// Apply direct mode change (for use by mode status subscriber)
+void setMode(ControlMode new_mode);
+
 /// Operator override - immediate switch to TELEOP (priority)
 bool operatorOverride();
 

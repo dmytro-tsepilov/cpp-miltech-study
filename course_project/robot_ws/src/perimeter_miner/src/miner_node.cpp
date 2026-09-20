@@ -138,13 +138,8 @@ MinerNode()
   status_pub_ = create_publisher<perimeter_msgs::msg::PerimeterStatus>(
     "/perimeter/status", 10);
 
-  status_srv_ = create_service<perimeter_msgs::srv::SwitchMode>(
-    "/control/switch_mode",
-    [this](
-      const std::shared_ptr<perimeter_msgs::srv::SwitchMode::Request> req,
-      const std::shared_ptr<perimeter_msgs::srv::SwitchMode::Response> res) {
-      onModeSwitchService(req, res);
-    });
+  // NOTE: Service removed - mode_switch_node is the sole handler for /control/switch_mode
+  // miner_node receives mode changes via /control/status topic subscription
 
   clearance_srv_ = create_service<perimeter_msgs::srv::TriggerClearance>(
     "/control/trigger_clearance",
@@ -182,6 +177,14 @@ MinerNode()
   // Publisher for MissionSummary
   mission_summary_pub_ = create_publisher<perimeter_msgs::msg::MissionSummary>(
     "/mission/summary", 10);
+
+  // Subscribe to mode switch status topic (from mode_switch_node)
+  // mode_switch_node publishes mode changes to /control/status when service is called
+  mode_status_sub_ = create_subscription<perimeter_msgs::msg::PerimeterStatus>(
+    "/control/status", 10,
+    [this](const perimeter_msgs::msg::PerimeterStatus::SharedPtr msg) {
+      onModeStatus(*msg);
+    });
 
   // Timers
   control_timer_ = create_wall_timer(20ms, [this]() {
@@ -282,6 +285,36 @@ void onOdometry(const nav_msgs::msg::Odometry& msg)
 
   // Update perimeter tracker
   perimeter_tracker_.updateRobotState(robot_state_);
+}
+
+// Mode status callback - receives mode changes from mode_switch_node
+void onModeStatus(const perimeter_msgs::msg::PerimeterStatus& msg)
+{
+  ControlMode new_mode = controlModeFromUint8(msg.mode);
+
+  // Only apply if different from current mode
+  if (new_mode != mode_switch_.getCurrentMode()) {
+    RCLCPP_INFO(get_logger(), "Received mode update via topic: %s -> %s",
+                controlModeToString(mode_switch_.getCurrentMode()),
+                controlModeToString(new_mode));
+
+    // Apply the mode change directly (use setMode to bypass validation)
+    mode_switch_.setMode(new_mode);
+
+    // Reset hold position tracker when leaving HOLD
+    if (mode_switch_.getCurrentMode() != ControlMode::HOLD) {
+      hold_pos_initialized_ = false;
+    }
+
+    // Initialize hold position when entering HOLD
+    if (new_mode == ControlMode::HOLD && !hold_pos_initialized_) {
+      hold_controller_.setHoldPosition(
+        robot_state_.x, robot_state_.y, robot_state_.heading);
+      hold_pos_initialized_ = true;
+      RCLCPP_INFO(get_logger(), "HOLD position initialized from mode status: (%.2f, %.2f)",
+                  robot_state_.x, robot_state_.y);
+    }
+  }
 }
 
 // Mine detection callback
@@ -407,6 +440,15 @@ void controlTick()
   }
 
   case ControlMode::HOLD: {
+    // Update hold position to current robot state on first entry (handles manual service calls)
+    if (!hold_pos_initialized_) {
+      hold_controller_.setHoldPosition(
+        robot_state_.x, robot_state_.y, robot_state_.heading);
+      hold_pos_initialized_ = true;
+      RCLCPP_INFO(get_logger(), "HOLD position set: (%.2f, %.2f) heading=%.2f rad",
+                  robot_state_.x, robot_state_.y, robot_state_.heading);
+    }
+
     // Hold position with real dt
     cmd = hold_controller_.compute(robot_state_, current_dt_);
 
@@ -511,25 +553,6 @@ void checkMissionCompletion()
   mission_completed_ = true;
 }
 
-// Mode switch service handler
-void onModeSwitchService(
-  const std::shared_ptr<perimeter_msgs::srv::SwitchMode::Request> req,
-  const std::shared_ptr<perimeter_msgs::srv::SwitchMode::Response> res)
-{
-  ControlMode requested = controlModeFromUint8(req->mode);
-  RCLCPP_INFO(get_logger(), "Mode switch request: %s", controlModeToString(requested));
-
-  if (requested == ControlMode::TELEOP) {
-    // Operator override for TELEOP
-    res->success = mode_switch_.operatorOverride();
-  } else {
-    // Normal mode request
-    res->success = mode_switch_.requestMode(requested);
-  }
-
-  res->message = mode_switch_.getLastMessage();
-}
-
 // Clearance service handler
 void onClearanceService(
   const std::shared_ptr<perimeter_msgs::srv::TriggerClearance::Request> req,
@@ -589,7 +612,8 @@ rclcpp::Publisher<perimeter_msgs::msg::MissionSummary>::SharedPtr mission_summar
 rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
 rclcpp::Subscription<perimeter_msgs::msg::MineDetection>::SharedPtr mine_detected_sub_;
 rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr teleop_sub_;
-rclcpp::Service<perimeter_msgs::srv::SwitchMode>::SharedPtr status_srv_;
+rclcpp::Subscription<perimeter_msgs::msg::PerimeterStatus>::SharedPtr mode_status_sub_;
+// NOTE: status_srv_ removed - mode_switch_node is the sole handler for /control/switch_mode
 rclcpp::Service<perimeter_msgs::srv::TriggerClearance>::SharedPtr clearance_srv_;
 rclcpp::TimerBase::SharedPtr control_timer_;
 rclcpp::TimerBase::SharedPtr status_timer_;
@@ -601,6 +625,9 @@ bool mine_cleared_ = false;
 bool teleop_active_ = false;
 int32_t mines_detected_count_ = 0;
 int32_t mines_cleared_count_ = 0;
+
+// Hold position initialization tracker (reset when leaving HOLD mode)
+bool hold_pos_initialized_ = false;
 
 // Mission timing
 rclcpp::Time mission_start_time_;

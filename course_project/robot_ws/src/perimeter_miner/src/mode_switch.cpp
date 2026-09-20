@@ -83,6 +83,15 @@ bool ModeSwitch::operatorOverride()
   return true;
 }
 
+/// Direct mode setter - bypasses validation (for internal use via topic)
+void ModeSwitch::setMode(ControlMode new_mode)
+{
+  updateState(new_mode);
+  switching_ = false;
+  pending_mode_ = new_mode;
+  last_message_ = "Mode set to: " + std::string(controlModeToString(new_mode));
+}
+
 bool ModeSwitch::validateModeSwitch(ControlMode target) const
 {
   switch (target) {
